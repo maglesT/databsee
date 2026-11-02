@@ -1,7 +1,7 @@
 # Handover: Medhanta platform session
 
 Date: 2026-11-02 (second platform session). For the next platform session. Read this file, then `docs/plan.md`,
-`docs/decisions.md` (D-01 to D-15) and `compliance/register.yaml`.
+`docs/decisions.md` (D-01 to D-17) and `compliance/register.yaml`.
 
 ## Who and how
 - Owner: triplerascals03@gmail.com (sends from arccra003@gmail.com). Writes short, informal messages; prefers the
@@ -28,6 +28,7 @@ Date: 2026-11-02 (second platform session). For the next platform session. Read 
 | A7 | #10 | GitHub Actions `apply.yml`: signed bundles (`ssh-keygen -Y`), online over SSH with a pinned host key, offline as a download; `apply.sh` verifies before anything runs (PL-10) |
 | A8 | #12 | Control panel (`apps/control-panel`): diagram (PL-09), switches with change reference committed through the GitHub API, `switch_log` (PL-10), D-15 |
 | A9 | #13 | Access review report in core (PL-12) with `identity.link_state` written by apply, recipe `docs/05-add-a-product.md` (mandatory write-time active-item check, A11 5), secrets template, traceability check in CI, Simplicity review `docs/06-simplicity-review.md` |
+| A10 | — | Permission-based access (D-16): manifest `permissions`, catalogue + grant events (`db/identity/0004`, role tables dropped), tick list and "Copy from" per product, OIDC claim `permissions`; least privilege for app logins (D-17, `0005_app_grants.sql`) |
 
 ## Repo map
 `maglesT/databsee` (D-01), private. Customer configs live in its `customers/` folder (D-04). Layout:
@@ -44,7 +45,7 @@ Date: 2026-11-02 (second platform session). For the next platform session. Read 
 Added this session:
 - `deploy/config.ts`: the config and secrets schema, `checkConfig`, `manifest`, `allProducts`, and `STATE`
   (`/var/lib/medhanta/state` on servers).
-- `deploy/apply.ts`, called by `apply.sh`: init, migrate, roles, logins, links, `link_state`, containers, `backup.sh
+- `deploy/apply.ts`, called by `apply.sh`: init, migrate, permissions, logins, links, `link_state`, containers, `backup.sh
   check`, health, rollback.
 - `deploy/apply.sh`: bundle mode (verify, unpack to `/opt/medhanta/releases/`, `current` symlink). Config mode runs
   only from a bundle, or with `MEDHANTA_UNSIGNED=1`.

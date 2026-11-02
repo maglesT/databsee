@@ -123,3 +123,24 @@ describe('PL-02 link switches are recorded and never overwritten', () => {
     await c.end();
   });
 });
+
+describe('PL-06 least privilege for the app logins (D-17)', () => {
+  it('PL-06 a new table gives the app login only select and insert unless a migration grants more', async () => {
+    await hello.query(`set role hello_owner; drop table if exists lp_probe; create table lp_probe (id int); reset role;`);
+    const can = async (db: pg.Client, user: string, table: string) => (await db.query(
+      `select p from unnest(array['select', 'insert', 'update', 'delete', 'truncate']) p where has_table_privilege($1, $2, p)`, [user, table])).rows.map((r) => r.p);
+    expect(await can(hello, 'hello_app', 'lp_probe')).toEqual(['select', 'insert']);
+    expect(await can(hello, 'hello_app', 'note')).toEqual(['select', 'insert']);
+    const identity = admin('identity');
+    await identity.connect();
+    try {
+      // Only the current-state tables get UPDATE or DELETE (db/identity/0005); history stays insert-only.
+      expect(await can(identity, 'core_app', 'credential')).toEqual(['select', 'insert', 'update']);
+      expect(await can(identity, 'core_app', 'session')).toEqual(['select', 'insert', 'update', 'delete']);
+      for (const t of ['permission_grant', 'credential_event', 'employee_version']) expect(await can(identity, 'core_app', t)).toEqual(['select', 'insert']);
+      expect(await can(identity, 'core_app', 'permission_event')).toEqual(['select']);
+    } finally {
+      await identity.end();
+    }
+  });
+});

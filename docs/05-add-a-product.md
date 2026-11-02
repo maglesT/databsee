@@ -7,16 +7,21 @@ Each step names the rule it serves. A product is done when its tests, named by r
 ## 1. Manifest: `apps/<product>/manifest.json`
 ```json
 { "product": "logbook", "database": "logbook",
-  "roles": [{ "role": "operator", "description": "Writes entries" }],
+  "permissions": [{ "code": "logbook.entry.write", "label": "Write and sign entries" },
+                  { "code": "logbook.entry.read", "label": "Read entries" }],
   "publishes": ["entry_v1"],
   "reads": { "master_data": ["equipment_v1", "room_v1"] } }
 ```
-`product` and `database` are the same name. `apply` loads `roles` into the permission register (PL-01). The control
-panel uses `reads` to offer the product's links (PL-09).
+`product` and `database` are the same name. Permission codes are `<product>.<thing>.<action>`, lower case and dotted,
+each with a label for the people screen; `apply` refuses a malformed manifest. `apply` loads the permissions into the
+register's catalogue (PL-01, D-16): a new code or label is recorded, and a code removed from the manifest becomes
+inactive and is revoked from everyone holding it. The control panel uses `reads` to offer the product's links (PL-09).
 
 ## 2. Its own database: `db/<product>/NNNN_name.sql`
 - The product writes only its own tables. `init.sh` creates the database, the `<product>_owner` role and the
   `<product>_app` login (PL-08).
+- The app login gets only SELECT and INSERT on new tables (D-17). If a table holds current state the app must change
+  or remove (a session, a lock), grant exactly that in a migration: `grant update on <table> to <product>_app;`.
 - Signed and audited tables are insert-only: a `refuse_change()` trigger, and `revoke update, delete, truncate` from
   the app (PL-06).
 - A migration that moves or reshapes data ships `NNNN_name.check.sql`: a query before `-- after` and one after it,
@@ -25,8 +30,10 @@ panel uses `reads` to offer the product's links (PL-09).
   added, never removed or renamed; a breaking change is `_v2`, with a test comparing it to `_v1` (PL-08, PL-13).
 
 ## 3. Sign-on through core (PL-01, PL-05)
-- OIDC code flow with PKCE against `https://<domain>/oidc`. The product's roles come from the token's `roles` claim
-  and nothing else. No local user table, no local passwords.
+- OIDC code flow with PKCE against `https://<domain>/oidc`, scope `openid profile permissions`. The product's rights
+  come from the `permissions` claim and nothing else: an array of this product's codes only, e.g.
+  `"permissions": ["hello.note.read", "hello.note.sign"]`. Check the needed code on the server for each action. No
+  local user table, no local passwords. Someone with no permission in the product is refused at sign-in by core.
 - At an e-signature, redirect with `prompt=login`. The re-authenticated `sub` must be the signer.
 
 ## 4. Reading master data or another product (PL-07, PL-08, A11 5) — mandatory
@@ -51,7 +58,7 @@ panel uses `reads` to offer the product's links (PL-09).
 
 ## 7. Tests (CI fails without them: `scripts/check-traceability.py`)
 At least:
-- PL-01: sign-on through core; a person without a role is refused.
+- PL-01: sign-on through core; a person without a permission is refused; each action checks its permission.
 - PL-07: values kept as at signing.
 - PL-08: no raw-table read; "connection off" after a cut; inactive or unknown item refused at write.
 - PL-13: for any data-moving migration.

@@ -2,7 +2,7 @@
 import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../apps/core/server/app.js';
-import { coreApp, makeEmployee, PASSWORD, run, superuser } from './core.js';
+import { coreApp, grant, helloCatalogue, makeEmployee, PASSWORD, run, superuser } from './core.js';
 
 const ISSUER = 'http://core.test/oidc';
 const CLIENT = { client_id: 'hello', client_secret: 'hello-secret', redirect_uris: ['https://hello.test/cb'] };
@@ -14,17 +14,9 @@ let app: ReturnType<typeof buildApp>;
 beforeAll(async () => {
   t = await coreApp();
   app = buildApp({ ...t.deps, oidc: { issuer: ISSUER, clients: [CLIENT], jwks: { keys: [{ ...key, use: 'sig', kid: 'test' }] }, cookieKeys: ['test-cookie-key'] } });
-  const su = superuser();
-  await su`insert into product_role values ('hello', 'operator', 'Uses hello'), ('hello', 'reviewer', 'Reviews hello') on conflict do nothing`;
-  await su.end();
+  await helloCatalogue();
 });
 afterAll(async () => { await t.sql.end(); await t.md.end(); });
-
-async function grant(id: string, product: string, role: string) {
-  const su = superuser();
-  await su`insert into grant_event (employee_id, product, role, granted, by_name, reason) values (${id}, ${product}, ${role}, true, 'test', 'test')`;
-  await su.end();
-}
 
 /** A browser stand-in: keeps cookies and follows the provider's redirects until the sign-in page or the product. */
 function browser() {
@@ -61,7 +53,7 @@ function pkce() {
 
 async function startAuth(b: ReturnType<typeof browser>, extra: Record<string, string> = {}) {
   const p = pkce();
-  const q = new URLSearchParams({ client_id: 'hello', response_type: 'code', redirect_uri: CLIENT.redirect_uris[0]!, scope: 'openid profile roles',
+  const q = new URLSearchParams({ client_id: 'hello', response_type: 'code', redirect_uri: CLIENT.redirect_uris[0]!, scope: 'openid profile permissions',
     code_challenge: p.challenge, code_challenge_method: 'S256', state: 's', nonce: 'n', ...extra });
   return { step: await b.follow(await b.request('GET', `/oidc/auth?${q}`)), verifier: p.verifier };
 }
@@ -91,18 +83,33 @@ async function signOn(login: string, password = PASSWORD) {
   return { b, done, tokens: (await exchange(done.code, verifier)).body };
 }
 
-describe('PL-01 single sign-on gives each product only its own roles', () => {
-  it('PL-01 the token for hello carries the hello roles and no core role', async () => {
-    const id = await makeEmployee(`sso${run}`, ['viewer']);
-    await grant(id, 'hello', 'operator');
+describe('PL-01 single sign-on gives each product only its own permissions', () => {
+  it('PL-01 the token for hello carries exactly the hello permission codes and no core one', async () => {
+    const id = await makeEmployee(`sso${run}`, ['core.masterdata.view', 'core.people.manage', 'hello.note.sign', 'hello.note.read']);
     const { tokens } = await signOn(`sso${run}`);
     const info = await userinfo(tokens!.access_token!);
-    expect(info).toMatchObject({ sub: id, preferred_username: `sso${run}`, name: `Name of sso${run}`, roles: ['operator'] });
+    expect(info).toMatchObject({ sub: id, preferred_username: `sso${run}`, name: `Name of sso${run}` });
+    expect(info.permissions).toEqual(['hello.note.read', 'hello.note.sign']);
+    expect(info.roles).toBeUndefined();
     expect(idClaims(tokens!.id_token!).iss).toBe(ISSUER);
   });
 
-  it('PL-01 someone without a role in the product is turned away at sign-in', async () => {
-    await makeEmployee(`norole${run}`, ['viewer']);
+  it('PL-01 a revoked permission is gone from the next renewal; with none left, sign-on is refused', async () => {
+    const id = await makeEmployee(`ssorev${run}`, ['hello.note.sign', 'hello.note.read']);
+    const { tokens } = await signOn(`ssorev${run}`);
+    const su = superuser();
+    await su`insert into permission_grant (employee_id, product, code, granted, by_name, reason) values (${id}, 'hello', 'hello.note.sign', false, 'test', 'moved')`;
+    await su.end();
+    const renewed = await token({ grant_type: 'refresh_token', refresh_token: tokens!.refresh_token! });
+    expect((await userinfo(renewed.body.access_token!)).permissions).toEqual(['hello.note.read']);
+    const su2 = superuser();
+    await su2`insert into permission_grant (employee_id, product, code, granted, by_name, reason) values (${id}, 'hello', 'hello.note.read', false, 'test', 'left')`;
+    await su2.end();
+    expect((await signOn(`ssorev${run}`)).done.page).toContain('You have no access to hello');
+  });
+
+  it('PL-01 someone without a permission in the product is turned away at sign-in', async () => {
+    await makeEmployee(`norole${run}`, ['core.masterdata.view']);
     const { done } = await signOn(`norole${run}`);
     expect(done.code).toBeUndefined();
     expect(done.page).toContain('You have no access to hello');
@@ -110,7 +117,7 @@ describe('PL-01 single sign-on gives each product only its own roles', () => {
 
   it('PL-01 deactivation ends access in every product: renewal fails and sign-on is refused', async () => {
     const id = await makeEmployee(`gone${run}`);
-    await grant(id, 'hello', 'operator');
+    await grant(id, ['hello.note.sign']);
     const { tokens } = await signOn(`gone${run}`);
     expect(tokens!.refresh_token).toBeTruthy();
     expect((await token({ grant_type: 'refresh_token', refresh_token: tokens!.refresh_token! })).status).toBe(200);
@@ -126,7 +133,7 @@ describe('PL-01 single sign-on gives each product only its own roles', () => {
 
   it('PL-01 access tokens live 5 minutes', async () => {
     const id = await makeEmployee(`ttl${run}`);
-    await grant(id, 'hello', 'operator');
+    await grant(id, ['hello.note.sign']);
     const { tokens } = await signOn(`ttl${run}`);
     expect(Number(tokens!.expires_in)).toBeLessThanOrEqual(300);
   });
@@ -135,7 +142,7 @@ describe('PL-01 single sign-on gives each product only its own roles', () => {
 describe('PL-05 re-authentication through the sign-on', () => {
   it('PL-05 with a live session the product gets a code without a password, but prompt=login demands it again', async () => {
     const id = await makeEmployee(`signer${run}`);
-    await grant(id, 'hello', 'reviewer');
+    await grant(id, ['hello.note.read']);
     const { b } = await signOn(`signer${run}`);
 
     const silent = await startAuth(b);
@@ -157,7 +164,7 @@ describe('PL-05 re-authentication through the sign-on', () => {
 describe('PL-04 password rules apply to product sign-on too', () => {
   it('PL-04 a temporary password must be changed on the sign-in page before the product gets a code', async () => {
     const id = await makeEmployee(`tempsso${run}`, [], { mustChange: true });
-    await grant(id, 'hello', 'operator');
+    await grant(id, ['hello.note.sign']);
     const b = browser();
     const { step, verifier } = await startAuth(b);
     const change = await signIn(b, step.action!, { login: `tempsso${run}`, password: PASSWORD });
@@ -171,7 +178,7 @@ describe('PL-04 password rules apply to product sign-on too', () => {
 
   it('PL-04 failed product sign-ons count towards the lockout and are recorded with the product', async () => {
     const id = await makeEmployee(`ssolock${run}`);
-    await grant(id, 'hello', 'operator');
+    await grant(id, ['hello.note.sign']);
     t.mailbox.length = 0;
     for (let i = 0; i < 5; i++) await signOn(`ssolock${run}`, 'wrong');
     expect(t.mailbox.map((m) => m.text).join()).toContain(`ssolock${run}`);

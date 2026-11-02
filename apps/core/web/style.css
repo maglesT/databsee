@@ -17,3 +17,5 @@ a { color: var(--accent); cursor: pointer; }
 .note { background: #ecfdf3; border: 1px solid #abefc6; padding: 10px; border-radius: 6px; }
 .muted { color: var(--muted); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+label.check { display: flex; gap: 8px; align-items: center; }
+label.check input { width: auto; margin: 0; }

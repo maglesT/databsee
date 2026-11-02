@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import postgres from 'postgres';
 import { buildApp } from '../apps/core/server/app.js';
 import { buildHello } from '../apps/hello/app.js';
-import { coreApp, makeEmployee, PASSWORD, run, signIn, superuser } from './core.js';
+import { coreApp, helloCatalogue, makeEmployee, PASSWORD, run, signIn } from './core.js';
 import { enableLogin, sqlstate } from './db.js';
 
 const freePort = () => new Promise<number>((resolve) => {
@@ -33,10 +33,8 @@ beforeAll(async () => {
     jwks: { keys: [{ ...key, use: 'sig', kid: 'k' }] }, cookieKeys: ['ck'] } });
   await core.listen({ host: '127.0.0.1', port: cp });
 
-  // What apply.sh does for a licensed product (slice A6): roles from its manifest, its login on, its master-data link.
-  const su = superuser();
-  await su`insert into product_role values ('hello', 'operator', 'Writes and signs notes'), ('hello', 'reader', 'Reads notes') on conflict do nothing`;
-  await su.end();
+  // What apply.sh does for a licensed product (slice A6): permissions from its manifest, its login on, its link.
+  await helloCatalogue();
   await enableLogin('hello_app');
   mdSu = postgres({ database: 'master_data', onnotice: () => {}, max: 1 });
   await mdSu`select platform.set_link('hello_app', array['equipment_v1'], true, 'CC-H1', 'hello reads equipment')`;
@@ -46,7 +44,7 @@ beforeAll(async () => {
   hello = buildHello({ db: helloDb, md: helloMd, oidc: { issuer: `${CORE}/oidc`, clientId: 'hello', clientSecret: 's3cret', redirectUri: `${HELLO}/cb` }, secureCookies: false });
   await hello.listen({ host: '127.0.0.1', port: hp });
 
-  await makeEmployee(`hmd${run}`, ['master_data_editor']);
+  await makeEmployee(`hmd${run}`, ['core.masterdata.edit']);
   const editor = await signIn(t.app, `hmd${run}`);
   equipmentId = (await editor.call('POST', '/api/items', { kind: 'equipment', code: `HE-${run}`, name: 'Coating pan', reason: 'initial load' })).json().id;
 }, 60000);
@@ -103,25 +101,32 @@ function browser() {
   return { flow, api };
 }
 
-async function operator(name: string) {
-  const id = await makeEmployee(name);
-  const su = superuser();
-  await su`insert into grant_event (employee_id, product, role, granted, by_name, reason) values (${id}, 'hello', 'operator', true, 'test', 'test')`;
-  await su.end();
+async function operator(name: string, permissions = ['hello.note.sign']) {
+  await makeEmployee(name, permissions);
   const b = browser();
   await b.flow(`${HELLO}/login`, name);
   return b;
 }
 
 describe('the hello product proves the recipe', () => {
-  it('PL-01 sign-on through core gives hello its own roles; no role, no entry', async () => {
+  it('PL-01 sign-on through core gives hello its own permissions; none, no entry', async () => {
     const b = await operator(`hop${run}`);
-    expect((await b.api('GET', '/api/me')).json).toMatchObject({ name: `Name of hop${run}`, roles: ['operator'] });
+    expect((await b.api('GET', '/api/me')).json).toMatchObject({ name: `Name of hop${run}`, permissions: ['hello.note.sign'] });
     await makeEmployee(`hnone${run}`);
     const n = browser();
     const r = await n.flow(`${HELLO}/login`, `hnone${run}`);
     expect(r.body).toContain('You have no access to hello');
     expect((await n.api('GET', '/api/me')).status).toBe(401);
+  });
+
+  it('PL-01 hello.note.read may read notes but not sign; hello.note.sign may do both', async () => {
+    const r = await operator(`hread${run}`, ['hello.note.read']);
+    expect((await r.api('GET', '/api/notes')).status).toBe(200);
+    expect((await r.api('GET', '/api/equipment')).status).toBe(200);
+    expect((await r.api('POST', '/api/notes/sign', { equipmentId, text: 'reader tries' })).status).toBe(403);
+    const s = await operator(`hsig2${run}`);
+    expect((await s.api('GET', '/api/notes')).status).toBe(200);
+    expect((await s.api('POST', '/api/notes/sign', { equipmentId, text: 'x' })).status).toBe(200);
   });
 
   it('PL-05 PL-07 a note is signed after re-authentication and keeps the equipment as it was, even after a rename and a cut link', async () => {
@@ -177,7 +182,7 @@ describe('the hello product proves the recipe', () => {
   });
 
   it('PL-08 at writing, hello refuses an inactive or unknown master-data item (recipe step 4, A11 5)', async () => {
-    await makeEmployee(`hret${run}`, ['master_data_editor']);
+    await makeEmployee(`hret${run}`, ['core.masterdata.edit']);
     const editor = await signIn(t.app, `hret${run}`);
     const retired = (await editor.call('POST', '/api/items', { kind: 'equipment', code: `HR-${run}`, name: 'Old blender', reason: 'load' })).json().id;
     await editor.call('PATCH', `/api/items/${retired}`, { active: false, reason: 'retired' });

@@ -5,7 +5,7 @@
 #        MEDHANTA_UNSIGNED=1 deploy/apply.sh customers/<name>.yaml                   (development only)
 # Bundle: the signature is checked first (deploy/verify-bundle.sh), then the release is unpacked to
 # /opt/medhanta/releases/, its images loaded, its config applied, and /opt/medhanta/current points to it.
-# Config: decrypt the secrets (age, D-12), then deploy/apply.ts (databases, migrations with data checks, roles, logins,
+# Config: decrypt the secrets (age, D-12), then deploy/apply.ts (databases, migrations with data checks, permissions, logins,
 # links, containers, health and backup checks, rollback to the previous config on failure).
 # Needs: Docker Compose, Node 22, age, rclone, the server's age key and /etc/medhanta/allowed_signers (README).
 set -euo pipefail

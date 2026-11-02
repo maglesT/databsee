@@ -1,5 +1,6 @@
 // The hello reference product (slice A5). Small on purpose: it shows what every product does on the platform.
-//  1. Sign-on through core (OIDC code + PKCE); its roles come from the token (PL-01).
+//  1. Sign-on through core (OIDC code + PKCE); its permissions come from the token's `permissions` claim (PL-01):
+//     hello.note.sign to sign notes, hello.note.read (or sign) to read.
 //  2. Master data read live from master_data's report views with its own login; a cut link shows "connection off"
 //     and nothing is served from a copy (D-02, PL-08).
 //  3. A signed record keeps the signer's name and the master-data values it relied on, as at signing (PL-07),
@@ -18,9 +19,11 @@ export interface HelloDeps {
   secureCookies: boolean;
 }
 
-interface User { sub: string; name: string; roles: string[] }
+interface User { sub: string; name: string; permissions: string[] }
 interface Pending { verifier: string; sid?: string; sign?: { equipmentId: string; text: string } }
 
+const SIGN = 'hello.note.sign';
+const READ = 'hello.note.read';
 const CONNECTION_OFF = 'Connection to master data is off. Ask your administrator.';
 const isCut = (e: unknown) => ['42501', '28000'].includes((e as { code?: string }).code ?? '');
 
@@ -33,7 +36,7 @@ export function buildHello(deps: HelloDeps) {
 
   const authUrl = (state: string, verifier: string, extra: Record<string, string> = {}) =>
     `${oidc.issuer}/auth?${new URLSearchParams({
-      client_id: oidc.clientId, response_type: 'code', redirect_uri: oidc.redirectUri, scope: 'openid profile roles', state,
+      client_id: oidc.clientId, response_type: 'code', redirect_uri: oidc.redirectUri, scope: 'openid profile permissions', state,
       code_challenge: createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256', ...extra,
     })}`;
 
@@ -42,9 +45,9 @@ export function buildHello(deps: HelloDeps) {
     if (!u) throw Object.assign(new Error('Please sign in.'), { statusCode: 401 });
     return u;
   };
-  const need = (req: FastifyRequest, role: string) => {
+  const need = (req: FastifyRequest, ...codes: string[]) => {
     const u = user(req);
-    if (!u.roles.includes(role)) throw Object.assign(new Error('You do not have the right for this.'), { statusCode: 403 });
+    if (!codes.some((c) => u.permissions.includes(c))) throw Object.assign(new Error('You do not have the right for this.'), { statusCode: 403 });
     return u;
   };
 
@@ -82,15 +85,15 @@ export function buildHello(deps: HelloDeps) {
 
     if (!p.sign) {
       const sid = randomBytes(32).toString('base64url');
-      sessions.set(sid, { sub: info.sub, name: info.name, roles: info.roles ?? [] });
+      sessions.set(sid, { sub: info.sub, name: info.name, permissions: info.permissions ?? [] });
       reply.setCookie('hello_sid', sid, { path: '/', httpOnly: true, sameSite: 'lax', secure: deps.secureCookies });
       return reply.redirect('/');
     }
 
-    // PL-05: the person who re-authenticated must be the signed-in person, and still an operator.
+    // PL-05: the person who re-authenticated must be the signed-in person, and still allowed to sign.
     const signer = sessions.get(p.sid ?? '');
     if (!signer || signer.sub !== info.sub) return reply.code(403).send({ error: 'The signature must be given by the signed-in person.' });
-    if (!(info.roles ?? []).includes('operator')) return reply.code(403).send({ error: 'You do not have the right for this.' });
+    if (!(info.permissions ?? []).includes(SIGN)) return reply.code(403).send({ error: 'You do not have the right for this.' });
     // PL-07: keep the equipment as it is now, and the signer's name, in the signed record.
     const [eq] = await equipment(p.sign.equipmentId);
     if (!eq || !eq.active) return reply.code(400).send({ error: 'No such active equipment.' });
@@ -100,12 +103,12 @@ export function buildHello(deps: HelloDeps) {
   });
 
   app.get('/api/me', async (req) => user(req));
-  app.get('/api/equipment', async (req) => { user(req); return equipment(); });
-  app.get('/api/notes', async (req) => { user(req); return db`select * from note order by id`; });
+  app.get('/api/equipment', async (req) => { need(req, READ, SIGN); return equipment(); });
+  app.get('/api/notes', async (req) => { need(req, READ, SIGN); return db`select * from note order by id`; });
 
   // Starts a signature: the product asks core to re-authenticate the signer (prompt=login, max_age=0).
   app.post('/api/notes/sign', async (req) => {
-    need(req, 'operator');
+    need(req, SIGN);
     const b = z.object({ equipmentId: z.string().uuid(), text: z.string().trim().min(1) }).parse(req.body);
     const state = randomBytes(16).toString('base64url');
     const verifier = randomBytes(32).toString('base64url');

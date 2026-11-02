@@ -33,8 +33,9 @@ async function signIn(login: string, password = PASSWORD) {
 }
 
 describe('core screens', () => {
-  it('PL-03 PL-01 an admin adds a person, grants a role, and the person must change the temporary password', async () => {
-    await makeEmployee(`webadmin${run}`, ['identity_admin']);
+  it('PL-03 PL-01 an admin adds a person, ticks permissions or copies them, and the person must change the temporary password', async () => {
+    await makeEmployee(`webadmin${run}`, ['core.people.manage']);
+    await makeEmployee(`webmodel${run}`, ['core.masterdata.view', 'core.masterdata.edit']);
     await signIn(`webadmin${run}`);
     await page.getByLabel('Login ID (never reused)').fill(`webuser${run}`);
     await page.getByLabel('Full name').fill('Web User');
@@ -45,11 +46,21 @@ describe('core screens', () => {
     expect(temp.length).toBeGreaterThan(8);
 
     await page.getByRole('link', { name: `webuser${run}` }).click();
-    await page.getByLabel('Add role').selectOption('core/viewer');
-    await page.locator('form', { has: page.getByLabel('Add role') }).getByLabel('Reason').fill('needs to read master data');
-    await page.getByRole('button', { name: 'Grant' }).click();
-    await expect.poll(() => page.locator('table').first().textContent()).toContain('viewer');
-    await expect.poll(() => page.locator('.card', { hasText: 'History' }).textContent()).toContain('Granted core / viewer');
+    const card = page.locator('.card', { has: page.getByRole('heading', { name: 'Permissions' }) });
+    await card.getByLabel('Product').selectOption('core');
+    await card.getByRole('checkbox', { name: /core\.masterdata\.view/ }).check();
+    await card.getByLabel('Reason', { exact: true }).fill('needs to read master data');
+    await card.getByRole('button', { name: 'Save' }).click();
+    await expect.poll(() => page.locator('.card', { hasText: 'History' }).textContent()).toContain('Granted core.masterdata.view');
+    expect(await card.textContent()).toContain(`granted by Name of webadmin${run}`);
+
+    await card.getByLabel('Copy from').selectOption({ label: `webmodel${run}: Name of webmodel${run}` });
+    await card.getByLabel('Reason', { exact: true }).fill('same job as model');
+    await card.getByRole('button', { name: 'Copy' }).click();
+    await expect.poll(() => page.locator('.card', { hasText: 'History' }).textContent()).toContain('Granted core.masterdata.edit');
+    expect(await card.getByRole('checkbox', { name: /core\.masterdata\.edit/ }).isChecked()).toBe(true);
+    expect(await card.getByRole('checkbox', { name: /core\.people\.manage/ }).isChecked()).toBe(false);
+    expect(await page.locator('.card', { hasText: 'History' }).textContent()).toContain(`same job as model (copied from webmodel${run})`);
 
     await page.getByRole('button', { name: 'Sign out' }).click();
     await signIn(`webuser${run}`, temp);
@@ -58,7 +69,7 @@ describe('core screens', () => {
     await page.getByLabel('New password', { exact: true }).fill('a lovely long secret');
     await page.getByLabel('New password again').fill('a lovely long secret');
     await page.getByRole('button', { name: 'Change password' }).click();
-    await page.getByRole('heading', { name: 'Master data' }).waitFor();          // a viewer lands on master data
+    await page.getByRole('heading', { name: 'Master data' }).waitFor();          // master-data permissions land on master data
     await page.getByRole('button', { name: 'Sign out' }).click();
   });
 
@@ -74,7 +85,7 @@ describe('core screens', () => {
   });
 
   it('PL-06 PL-08 an editor adds a room and equipment, links them, renames with a reason, and the history shows it', async () => {
-    await makeEmployee(`webmd${run}`, ['master_data_editor']);
+    await makeEmployee(`webmd${run}`, ['core.masterdata.edit']);
     await page.getByRole('button', { name: 'Sign out' }).click().catch(() => {});
     await signIn(`webmd${run}`);
     await page.getByRole('heading', { name: 'Master data' }).waitFor();

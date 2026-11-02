@@ -1,5 +1,5 @@
 // The core app's API for slice A2: sign-on to the core screens, employees, passwords, lockout alerts and the
-// permission register. Slice A3 adds the OIDC provider for the products on the same password check.
+// permission register (permission-based since A10, D-16). Slice A3 adds the OIDC provider for the products on the same password check.
 import { createHash, randomBytes } from 'node:crypto';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
@@ -23,24 +23,49 @@ export interface Deps {
   md?: Sql;                     // master_data database as core_app (slice A4)
 }
 
-interface Me { id: string; login: string; fullName: string; roles: string[]; mustChange: boolean }
+interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean }
 declare module 'fastify' { interface FastifyRequest { me?: Me } }
 
 const SESSION_COOKIE = 'sid';
 const sessionKey = (sid: string) => createHash('sha256').update(sid).digest('base64url');
 const reason = z.string().trim().min(1, 'A reason is required.');
 
+/** core's own permission to manage people (seeded in the catalogue by db/identity/0004). */
+export const PEOPLE = 'core.people.manage';
+
+/**
+ * PL-01/PL-02: sets one person's permissions in one product to exactly `codes`. Only the differences are written,
+ * each as an insert-only grant or revoke event. Only codes in the catalogue can be granted.
+ */
+async function setPermissions(tx: TransactionSql, me: Me, employeeId: string, product: string, codes: string[], why: string) {
+  const [e] = await tx`select 1 from employee where id = ${employeeId}`;
+  if (!e) throw new HttpError(404, 'No such employee.');
+  await tx`select pg_advisory_xact_lock(hashtext(${employeeId}))`;   // one change of a person's permissions at a time
+  const offered = new Set((await tx<{ code: string }[]>`select code from current_permission where product = ${product}`).map((r) => r.code));
+  const want = new Set(codes);
+  for (const c of want) if (!offered.has(c)) throw new HttpError(400, `${product} has no permission "${c}".`);
+  const have = new Set((await tx<{ code: string }[]>`select code from current_permission_grant
+    where employee_id = ${employeeId} and product = ${product}`).map((r) => r.code));
+  const granted = [...want].filter((c) => !have.has(c)).sort();
+  const revoked = [...have].filter((c) => !want.has(c)).sort();
+  for (const [list, on] of [[granted, true], [revoked, false]] as const)
+    for (const code of list)
+      await tx`insert into permission_grant (employee_id, product, code, granted, by_id, by_name, reason)
+        values (${employeeId}, ${product}, ${code}, ${on}, ${me.id}, ${me.fullName}, ${why})`;
+  return { granted, revoked };
+}
+
 export class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 
-/** PL-01: the employee's core roles, only if active, unlocked and holding a password. */
+/** PL-01: the employee's core permissions, only if active, unlocked and holding a password. */
 async function loadMe(sql: Sql | TransactionSql, employeeId: string): Promise<Me | null> {
-  const [row] = await sql<{ id: string; login: string; full_name: string; roles: string[]; must_change: boolean }[]>`
+  const [row] = await sql<{ id: string; login: string; full_name: string; permissions: string[]; must_change: boolean }[]>`
     select e.id, e.login, e.full_name,
-      coalesce((select array_agg(g.role order by g.role) from current_grant g where g.employee_id = e.id and g.product = 'core'), '{}') as roles,
+      coalesce((select array_agg(g.code order by g.code) from current_permission_grant g where g.employee_id = e.id and g.product = 'core'), '{}') as permissions,
       (c.must_change or c.changed_at < now() - make_interval(days => ${POLICY.passwordMaxAgeDays})) as must_change
     from employee_current e join credential c on c.employee_id = e.id
     where e.id = ${employeeId} and e.active and c.locked_at is null`;
-  return row ? { id: row.id, login: row.login, fullName: row.full_name, roles: row.roles, mustChange: row.must_change } : null;
+  return row ? { id: row.id, login: row.login, fullName: row.full_name, permissions: row.permissions, mustChange: row.must_change } : null;
 }
 
 /**
@@ -171,8 +196,8 @@ export function buildApp(deps: Deps) {
     }
   });
 
-  const need = (req: FastifyRequest, role: string) => {
-    if (!req.me!.roles.includes(role)) throw new HttpError(403, 'You do not have the right for this.');
+  const need = (req: FastifyRequest, ...codes: string[]) => {
+    if (!codes.some((c) => req.me!.permissions.includes(c))) throw new HttpError(403, 'You do not have the right for this.');
     return req.me!;
   };
 
@@ -205,16 +230,16 @@ export function buildApp(deps: Deps) {
     return { ok: true };
   });
 
-  // ---- Employees (identity_admin) ----
+  // ---- Employees (core.people.manage) ----
   app.get('/api/employees', async (req) => {
-    need(req, 'identity_admin');
+    need(req, PEOPLE);
     return sql`select e.id, e.login, e.full_name as "fullName", e.email, e.active, e.version, c.locked_at as "lockedAt"
       from employee_current e left join credential c on c.employee_id = e.id order by e.login`;
   });
 
   // PL-03: a new login; identity verified (by this admin, how stated). Returns a temporary password, shown once.
   app.post('/api/employees', async (req) => {
-    const me = need(req, 'identity_admin');
+    const me = need(req, PEOPLE);
     const b = z.object({
       login: z.string().trim().toLowerCase(), fullName: z.string().trim().min(1, 'Full name is required.'),
       email: z.string().trim().email().nullable().optional(),
@@ -236,7 +261,7 @@ export function buildApp(deps: Deps) {
 
   // PL-06: a change is a new version with a reason. Deactivation ends every sign-on (PL-01).
   app.patch('/api/employees/:id', async (req) => {
-    const me = need(req, 'identity_admin');
+    const me = need(req, PEOPLE);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const b = z.object({
       fullName: z.string().trim().min(1).optional(), email: z.string().trim().email().nullable().optional(),
@@ -244,8 +269,9 @@ export function buildApp(deps: Deps) {
     }).parse(req.body);
     if (id === me.id && b.active === false) throw new HttpError(400, 'You cannot deactivate yourself.');
     await sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext(${id}))`;   // one change of a person at a time (no UPDATE right, D-17)
       const [cur] = await tx<{ full_name: string; email: string | null; active: boolean; version: number }[]>`
-        select full_name, email, active, version from employee_current where id = ${id} for update`;
+        select full_name, email, active, version from employee_current where id = ${id}`;
       if (!cur) throw new HttpError(404, 'No such employee.');
       await tx`insert into employee_version (employee_id, version, full_name, email, active, changed_by, changed_by_name, reason)
         values (${id}, ${cur.version + 1}, ${b.fullName ?? cur.full_name}, ${b.email === undefined ? cur.email : b.email},
@@ -258,7 +284,7 @@ export function buildApp(deps: Deps) {
   // PL-04: reset = new temporary password (also unlocks). Never for oneself, so no admin knows a usable password
   // of anyone, including their own reset one (11.200(a)(3)).
   app.post('/api/employees/:id/reset-password', async (req) => {
-    const me = need(req, 'identity_admin');
+    const me = need(req, PEOPLE);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const b = z.object({ reason }).parse(req.body);
     if (id === me.id) throw new HttpError(400, 'Another administrator must reset your password.');
@@ -276,53 +302,65 @@ export function buildApp(deps: Deps) {
 
   // PL-06: the full history of one person (versions, grants, credential events).
   app.get('/api/employees/:id/history', async (req) => {
-    need(req, 'identity_admin');
+    need(req, PEOPLE);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const [employee] = await sql`select * from employee_current where id = ${id}`;
     if (!employee) throw new HttpError(404, 'No such employee.');
     return {
       employee,
       versions: await sql`select * from employee_version where employee_id = ${id} order by version`,
-      grants: await sql`select product, role, granted, by_name, at, reason from grant_event where employee_id = ${id} order by id`,
+      grants: await sql`select product, code, granted, by_name, at, reason from permission_grant where employee_id = ${id} order by id`,
       credentialEvents: await sql`select kind, product, by_name, reason, at from credential_event where employee_id = ${id} order by id`,
     };
   });
 
-  // ---- Permission register (identity_admin) ----
-  app.get('/api/roles', async (req) => { need(req, 'identity_admin'); return sql`select * from product_role order by product, role`; });
-
-  app.get('/api/grants', async (req) => {
-    need(req, 'identity_admin');
-    return sql`select g.employee_id as "employeeId", e.login, e.full_name as "fullName", g.product, g.role, g.granted_by as "grantedBy", g.granted_at as "grantedAt"
-      from current_grant g join employee_current e on e.id = g.employee_id order by g.product, e.login, g.role`;
+  // ---- Permission register (core.people.manage) ----
+  // The catalogue: every permission the licensed products offer (loaded by apply from their manifests).
+  app.get('/api/permissions', async (req) => {
+    need(req, PEOPLE);
+    return sql`select product, code, label from current_permission order by product, code`;
   });
 
-  // PL-01/PL-02: grant or revoke one role; an insert-only event with who, when and why.
-  app.post('/api/grants', async (req) => {
-    const me = need(req, 'identity_admin');
-    const b = z.object({ employeeId: z.string().uuid(), product: z.string(), role: z.string(), granted: z.boolean(), reason }).parse(req.body);
-    await sql.begin(async (tx) => {
-      const [has] = await tx`select 1 from current_grant where employee_id = ${b.employeeId} and product = ${b.product} and role = ${b.role}`;
-      if (Boolean(has) === b.granted) throw new HttpError(409, b.granted ? 'Already granted.' : 'Not granted.');
-      await tx`insert into grant_event (employee_id, product, role, granted, by_id, by_name, reason)
-        values (${b.employeeId}, ${b.product}, ${b.role}, ${b.granted}, ${me.id}, ${me.fullName}, ${b.reason})`;
+  // One person's current permissions in every product.
+  app.get('/api/employees/:id/permissions', async (req) => {
+    need(req, PEOPLE);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    return sql`select product, code, granted_by as "grantedBy", granted_at as "grantedAt"
+      from current_permission_grant where employee_id = ${id} order by product, code`;
+  });
+
+  // PL-01/PL-02: make one person's permissions in one product exactly the ticked set; a grant or revoke event with
+  // who, when and why for each difference only.
+  app.put('/api/employees/:id/permissions', async (req) => {
+    const me = need(req, PEOPLE);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const b = z.object({ product: z.string(), codes: z.array(z.string()), reason }).parse(req.body);
+    return sql.begin((tx) => setPermissions(tx, me, id, b.product, b.codes, b.reason));
+  });
+
+  // Copy another person's permissions in one product: the target ends up with the same set.
+  app.post('/api/employees/:id/permissions/copy', async (req) => {
+    const me = need(req, PEOPLE);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const b = z.object({ product: z.string(), fromId: z.string().uuid(), reason }).parse(req.body);
+    return sql.begin(async (tx) => {
+      const [from] = await tx<{ login: string }[]>`select login from employee where id = ${b.fromId}`;
+      if (!from) throw new HttpError(404, 'No such employee to copy from.');
+      const codes = (await tx<{ code: string }[]>`select code from current_permission_grant where employee_id = ${b.fromId} and product = ${b.product}`).map((r) => r.code);
+      return setPermissions(tx, me, id, b.product, codes, `${b.reason} (copied from ${from.login})`);
     });
-    return { ok: true };
   });
 
-  if (deps.md) registerMasterData(app, deps.md, (req, roles) => {
-    if (!roles.some((r) => req.me!.roles.includes(r))) throw new HttpError(403, 'You do not have the right for this.');
-    return req.me!;
-  });
+  if (deps.md) registerMasterData(app, deps.md, (req, codes) => need(req, ...codes));
 
-  // ---- Alerts (identity_admin; shown on every core screen until acknowledged) ----
+  // ---- Alerts (core.people.manage; shown on every core screen until acknowledged) ----
   app.get('/api/alerts', async (req) => {
-    if (!req.me!.roles.includes('identity_admin')) return [];
+    if (!req.me!.permissions.includes(PEOPLE)) return [];
     return sql`select id::text, kind, message, at, emailed_at as "emailedAt", email_error as "emailError" from alert where acknowledged_at is null order by id`;
   });
 
   app.post('/api/alerts/:id/ack', async (req) => {
-    const me = need(req, 'identity_admin');
+    const me = need(req, PEOPLE);
     const { id } = z.object({ id: z.string().regex(/^\d+$/) }).parse(req.params);
     await sql`update alert set acknowledged_by_name = ${me.fullName}, acknowledged_at = now() where id = ${id} and acknowledged_at is null`;
     return { ok: true };
@@ -330,28 +368,30 @@ export function buildApp(deps: Deps) {
 
   // ---- Readable exports of the audit trail (PL-06, A11 9) ----
   app.get('/api/export/:what', async (req, reply) => {
-    need(req, 'identity_admin');
+    need(req, PEOPLE);
     const { what } = z.object({ what: z.enum(['employee-history.csv', 'grant-history.csv', 'credential-events.csv']) }).parse(req.params);
     const rows =
       what === 'employee-history.csv'
         ? await sql`select e.login, v.version, v.full_name, v.email, v.active, v.changed_by_name, v.changed_at, v.reason
             from employee_version v join employee e on e.id = v.employee_id order by e.login, v.version`
         : what === 'grant-history.csv'
-          ? await sql`select e.login, g.product, g.role, g.granted, g.by_name, g.at, g.reason
-              from grant_event g join employee e on e.id = g.employee_id order by g.id`
+          ? await sql`select e.login, g.product, g.code, g.granted, g.by_name, g.at, g.reason
+              from permission_grant g join employee e on e.id = g.employee_id order by g.id`
           : await sql`select login, kind, product, by_name, reason, at from credential_event order by id`;
     reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', `attachment; filename="${what}"`);
     return csv(rows as unknown as Record<string, unknown>[]);
   });
 
-  // ---- Access review report (PL-12, A11 11): who has which role in which product, and which links are on ----
+  // ---- Access review report (PL-12, A11 11): who has which permission in which product, and which links are on ----
   app.get('/api/access-review', async (req, reply) => {
-    need(req, 'identity_admin');
-    const grants = await sql<{ login: string; full_name: string; active: boolean; product: string; role: string; granted_by: string; granted_at: Date; last_signon: Date | null }[]>`
-      select e.login, e.full_name, e.active, g.product, g.role, g.granted_by, g.granted_at,
+    need(req, PEOPLE);
+    const grants = await sql<{ login: string; full_name: string; active: boolean; product: string; code: string; label: string | null; granted_by: string; granted_at: Date; last_signon: Date | null }[]>`
+      select e.login, e.full_name, e.active, g.product, g.code, p.label, g.granted_by, g.granted_at,
         (select max(c.at) from credential_event c
           where c.employee_id = g.employee_id and c.kind = 'signon_ok' and c.product = g.product) as last_signon
-      from current_grant g join employee_current e on e.id = g.employee_id order by e.login, g.product, g.role`;
+      from current_permission_grant g join employee_current e on e.id = g.employee_id
+      left join current_permission p on p.code = g.code
+      order by e.login, g.product, g.code`;
     const links = await sql<{ provider: string; consumer: string; view_name: string; switched_on_at: Date | null; change_ref: string | null }[]>`
       select provider, consumer, view_name, switched_on_at, change_ref from link_state order by consumer, provider, view_name`;
     const when = (d: Date | null) => (d ? d.toISOString().slice(0, 16).replace('T', ' ') : 'never');
@@ -363,11 +403,11 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding
 @media print{button{display:none}}</style></head><body>
 <h1>Access review report</h1><p class="muted">Printed ${esc(when(new Date()))} UTC from the permission register. Reviewed by: ______________ Date: ________ Signature: ______________</p>
 <button onclick="print()">Print</button>
-<h2>Active roles (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Role', 'Granted by', 'Granted (UTC)', 'Last sign-in with password to product (UTC)'],
-      grants.map((g) => [g.login, g.full_name, g.active ? 'yes' : 'NO', g.product, g.role, g.granted_by, when(g.granted_at), when(g.last_signon)]))}
+<h2>Active permissions (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Permission', 'Label', 'Granted by', 'Granted (UTC)', 'Last sign-in with password to product (UTC)'],
+      grants.map((g) => [g.login, g.full_name, g.active ? 'yes' : 'NO', g.product, g.code, g.label ?? '', g.granted_by, when(g.granted_at), when(g.last_signon)]))}
 <h2>Links and outside logins that are on, as recorded by the last apply (${links.length})</h2>${table(['Reader', 'Reads database', 'View', 'Switched on (UTC)', 'Change reference'],
       links.map((l) => [l.consumer, l.provider, l.view_name, when(l.switched_on_at), l.change_ref]))}
-<p class="muted">Revoked roles and switched-off links are not listed; their history is in the grant history export and each database's link log.</p>
+<p class="muted">Revoked permissions and switched-off links are not listed; their history is in the grant history export and each database's link log.</p>
 </body></html>`);
   });
 
@@ -430,9 +470,9 @@ function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings) {
         await setOwnPassword(sql, { id, login, fullName: c!.full_name }, b.next);
       }
 
-      // PL-01: only people with a role in this product get in.
-      const [role] = await sql`select 1 from current_grant where employee_id = ${id} and product = ${product} limit 1`;
-      if (!role) return show({ error: `You have no access to ${product}. Ask your administrator.` });
+      // PL-01: only people with a permission in this product get in.
+      const [has] = await sql`select 1 from current_permission_grant where employee_id = ${id} and product = ${product} limit 1`;
+      if (!has) return show({ error: `You have no access to ${product}. Ask your administrator.` });
 
       reply.hijack();
       await provider.interactionFinished(req.raw, reply.raw, { login: { accountId: id } }, { mergeWithLastSubmission: false });
@@ -452,8 +492,8 @@ export async function createFirstAdmin(sql: Sql, login: string, fullName: string
     await tx`insert into employee_version (employee_id, version, full_name, active, changed_by_name, reason)
       values (${e!.id}, 1, ${fullName}, true, 'installer', 'first administrator at installation')`;
     await tx`insert into credential (employee_id, password_hash) values (${e!.id}, ${hash})`;
-    await tx`insert into grant_event (employee_id, product, role, granted, by_name, reason)
-      values (${e!.id}, 'core', 'identity_admin', true, 'installer', 'first administrator at installation')`;
+    await tx`insert into permission_grant (employee_id, product, code, granted, by_name, reason)
+      values (${e!.id}, 'core', ${PEOPLE}, true, 'installer', 'first administrator at installation')`;
   });
   return temp;
 }

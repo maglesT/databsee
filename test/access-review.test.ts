@@ -7,26 +7,26 @@ beforeAll(async () => { core = await coreApp(); });
 afterAll(async () => { await core.app.close(); await core.sql.end(); await core.md.end(); });
 
 describe('PL-12 access review report', () => {
-  it('PL-12 the report lists every active grant and no revoked one, with the links that are on', async () => {
-    await makeEmployee(`rev${run}`, ['identity_admin']);
-    const kept = await makeEmployee(`kept${run}`, ['viewer', 'master_data_editor']);
+  it('PL-12 the report lists every active permission (code and label) and no revoked one, with the links that are on', async () => {
+    await makeEmployee(`rev${run}`, ['core.people.manage']);
+    const kept = await makeEmployee(`kept${run}`, ['core.masterdata.view', 'core.masterdata.edit']);
     const su = superuser();
-    await su`insert into grant_event (employee_id, product, role, granted, by_name, reason) values (${kept}, 'core', 'master_data_editor', false, 'test', 'left the team')`;
+    await su`insert into permission_grant (employee_id, product, code, granted, by_name, reason) values (${kept}, 'core', 'core.masterdata.edit', false, 'test', 'left the team')`;
     await su`insert into link_state (provider, consumer, view_name, change_ref) values ('master_data', ${`ext_audit${run}`}, 'equipment_v1', 'CC-R1')
              on conflict do nothing`;
     await su.end();
     const admin = await signIn(core.app, `rev${run}`);
     const r = await admin.call('GET', '/api/access-review');
     expect(r.statusCode).toBe(200);
-    const row = (login: string, role: string) => new RegExp(`<td>${login}</td>(<td>[^<]*</td>){3}<td>${role}</td>`);
-    expect(r.body).toMatch(row(`kept${run}`, 'viewer'));
-    expect(r.body).not.toMatch(row(`kept${run}`, 'master_data_editor'));
-    expect(r.body).toMatch(row(`rev${run}`, 'identity_admin'));
+    const row = (login: string, code: string) => new RegExp(`<td>${login}</td>(<td>[^<]*</td>){3}<td>${code}</td>`);
+    expect(r.body).toMatch(new RegExp(`<td>kept${run}</td><td>Name of kept${run}</td><td>yes</td><td>core</td><td>core.masterdata.view</td><td>Read master data</td><td>test</td>`));
+    expect(r.body).not.toMatch(row(`kept${run}`, 'core.masterdata.edit'));
+    expect(r.body).toMatch(row(`rev${run}`, 'core.people.manage'));
     expect(r.body).toContain(`<td>ext_audit${run}</td><td>master_data</td><td>equipment_v1</td>`);
   });
 
-  it('PL-12 only identity administrators can open the report', async () => {
-    await makeEmployee(`view${run}`, ['viewer']);
+  it('PL-12 only people with core.people.manage can open the report', async () => {
+    await makeEmployee(`view${run}`, ['core.masterdata.view']);
     expect((await (await signIn(core.app, `view${run}`)).call('GET', '/api/access-review')).statusCode).toBe(403);
     expect((await core.app.inject({ url: '/api/access-review' })).statusCode).toBe(401);
   });
