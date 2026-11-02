@@ -1,0 +1,530 @@
+Guidance for Industry
+ Part 11, Electronic Records;
+Electronic Signatures — Scope
+       and Application
+
+
+
+
+        U.S. Department of Health and Human Services
+                 Food and Drug Administration
+       Center for Drug Evaluation and Research (CDER)
+     Center for Biologics Evaluation and Research (CBER)
+      Center for Devices and Radiological Health (CDRH)
+     Center for Food Safety and Applied Nutrition (CFSAN)
+             Center for Veterinary Medicine (CVM)
+               Office of Regulatory Affairs (ORA)
+
+                        August 2003
+                   Pharmaceutical CGMPs
+Guidance for Industry
+ Part 11, Electronic Records;
+Electronic Signatures — Scope
+       and Application
+                     Division of Drug Information, HFD-240
+                Center for Drug Evaluation and Research (CDER)
+                                 (Tel) 301-827-4573
+                   http://www.fda.gov/cder/guidance/index.htm
+                                          or
+                      Office of Communication, Training and
+                        Manufacturers Assistance, HFM-40
+              Center for Biologics Evaluation and Research (CBER)
+                       http://www.fda.gov/cber/guidelines.htm
+      Phone: the Voice Information System at 800-835-4709 or 301-827-1800
+                                          or
+                          Communications Staff (HFV-12),
+                      Center for Veterinary Medicine (CVM)
+                                 (Tel) 301-594-1755
+                 http://www.fda.gov/cvm/guidance/guidance.html
+                                          or
+              Division of Small Manufacturers Assistance (HFZ-220)
+                      http://www.fda.gov/cdrh/ggpmain.html
+      Manufacturers Assistance Phone Number: 800.638.2041 or 301.443.6597
+                        Internt'l Staff Phone: 301.827.3993
+                                          or
+              Center for Food Safety and Applied Nutrition (CFSAN)
+                  http://www.cfsan.fda.gov/~dms/guidance.html.
+
+
+
+        U.S. Department of Health and Human Services
+                 Food and Drug Administration
+       Center for Drug Evaluation and Research (CDER)
+     Center for Biologics Evaluation and Research (CBER)
+      Center for Devices and Radiological Health (CDRH)
+     Center for Food Safety and Applied Nutrition (CFSAN)
+             Center for Veterinary Medicine (CVM)
+               Office of Regulatory Affairs (ORA)
+
+                            August 2003
+                       Pharmaceutical CGMPs
+                                                        TABLE OF CONTENTS
+
+
+
+I.           INTRODUCTION............................................................................................................. 1
+II.          BACKGROUND ............................................................................................................... 2
+III.         DISCUSSION .................................................................................................................... 3
+     A.      Overall Approach to Part 11 Requirements ......................................................................... 3
+     B.      Details of Approach – Scope of Part 11 ................................................................................ 4
+       1. Narrow Interpretation of Scope............................................................................................. 4
+       2. Definition of Part 11 Records................................................................................................ 5
+     C. Approach to Specific Part 11 Requirements ........................................................................ 6
+          1. Validation ............................................................................................................................. 6
+          2. Audit Trail ............................................................................................................................ 6
+          3. Legacy Systems...................................................................................................................... 7
+          4. Copies of Records.................................................................................................................. 7
+          5. Record Retention ................................................................................................................... 8
+IV.          REFERENCES .................................................................................................................. 9
+                                     Contains Nonbinding Recommendations
+
+
+ 1                               Guidance for Industry 1
+ 2                Part 11, Electronic Records; Electronic Signatures —
+ 3                                Scope and Application
+ 4
+ 5
+ 6
+ 7   This guidance represents the Food and Drug Administration's (FDA's) current thinking on this topic. It
+ 8   does not create or confer any rights for or on any person and does not operate to bind FDA or the public.
+ 9   You can use an alternative approach if the approach satisfies the requirements of the applicable statutes
+10   and regulations. If you want to discuss an alternative approach, contact the FDA staff responsible for
+11   implementing this guidance. If you cannot identify the appropriate FDA staff, call the appropriate
+12   number listed on the title page of this guidance.
+13
+14
+15
+16   I.        INTRODUCTION
+17
+18   This guidance is intended to describe the Food and Drug Administration's (FDA’s) current
+19   thinking regarding the scope and application of part 11 of Title 21 of the Code of Federal
+20   Regulations; Electronic Records; Electronic Signatures (21 CFR Part 11). 2
+21
+22   This document provides guidance to persons who, in fulfillment of a requirement in a statute or
+23   another part of FDA's regulations to maintain records or submit information to FDA, 3 have
+24   chosen to maintain the records or submit designated information electronically and, as a result,
+25   have become subject to part 11. Part 11 applies to records in electronic form that are created,
+26   modified, maintained, archived, retrieved, or transmitted under any records requirements set
+27   forth in Agency regulations. Part 11 also applies to electronic records submitted to the Agency
+28   under the Federal Food, Drug, and Cosmetic Act (the Act) and the Public Health Service Act (the
+29   PHS Act), even if such records are not specifically identified in Agency regulations (§ 11.1).
+30   The underlying requirements set forth in the Act, PHS Act, and FDA regulations (other than part
+31   11) are referred to in this guidance document as predicate rules.
+32
+
+
+
+
+     1
+      This guidance has been prepared by the Office of Compliance in the Center for Drug Evaluation and Research
+     (CDER) in consultation with the other Agency centers and the Office of Regulatory Affairs at the Food and Drug
+     Administration.
+     2
+         62 FR 13430
+     3
+       These requirements include, for example, certain provisions of the Current Good Manufacturing Practice
+     regulations (21 CFR Part 211), the Quality System regulation (21 CFR Part 820), and the Good Laboratory Practice
+     for Nonclinical Laboratory Studies regulations (21 CFR Part 58).
+
+
+
+
+                                                             1
+                                   Contains Nonbinding Recommendations
+
+
+33   As an outgrowth of its current good manufacturing practice (CGMP) initiative for human and
+34   animal drugs and biologics, 4 FDA is re-examining part 11 as it applies to all FDA regulated
+35   products. We anticipate initiating rulemaking to change part 11 as a result of that re-
+36   examination. This guidance explains that we will narrowly interpret the scope of part 11. While
+37   the re-examination of part 11 is under way, we intend to exercise enforcement discretion with
+38   respect to certain part 11 requirements. That is, we do not intend to take enforcement action to
+39   enforce compliance with the validation, audit trail, record retention, and record copying
+40   requirements of part 11 as explained in this guidance. However, records must still be maintained
+41   or submitted in accordance with the underlying predicate rules, and the Agency can take
+42   regulatory action for noncompliance with such predicate rules.
+43
+44   In addition, we intend to exercise enforcement discretion and do not intend to take (or
+45   recommend) action to enforce any part 11 requirements with regard to systems that were
+46   operational before August 20, 1997, the effective date of part 11 (commonly known as legacy
+47   systems) under the circumstances described in section III.C.3 of this guidance.
+48
+49   Note that part 11 remains in effect and that this exercise of enforcement discretion applies only
+50   as identified in this guidance.
+51
+52   FDA's guidance documents, including this guidance, do not establish legally enforceable
+53   responsibilities. Instead, guidances describe the Agency's current thinking on a topic and should
+54   be viewed only as recommendations, unless specific regulatory or statutory requirements are
+55   cited. The use of the word should in Agency guidances means that something is suggested or
+56   recommended, but not required.
+57
+58
+59   II.     BACKGROUND
+60
+61   In March of 1997, FDA issued final part 11 regulations that provide criteria for acceptance by
+62   FDA, under certain circumstances, of electronic records, electronic signatures, and handwritten
+63   signatures executed to electronic records as equivalent to paper records and handwritten
+64   signatures executed on paper. These regulations, which apply to all FDA program areas, were
+65   intended to permit the widest possible use of electronic technology, compatible with FDA's
+66   responsibility to protect the public health.
+67
+68   After part 11 became effective in August 1997, significant discussions ensued among industry,
+69   contractors, and the Agency concerning the interpretation and implementation of the regulations.
+70   FDA has (1) spoken about part 11 at many conferences and met numerous times with an industry
+71   coalition and other interested parties in an effort to hear more about potential part 11 issues; (2)
+72   published a compliance policy guide, CPG 7153.17: Enforcement Policy: 21 CFR Part 11;
+73   Electronic Records; Electronic Signatures; and (3) published numerous draft guidance
+74   documents including the following:
+
+     4
+       See Pharmaceutical CGMPs for the 21st Century: A Risk-Based Approach; A Science and Risk -Based Approach
+     to Product Quality Regulation Incorporating an Integrated Quality Systems Approach at
+     www.fda.gov/oc/guidance/gmp.html.
+
+
+
+                                                     2
+                                      Contains Nonbinding Recommendations
+
+
+ 75
+ 76          •   21 CFR Part 11; Electronic Records; Electronic Signatures, Validation
+ 77          •   21 CFR Part 11; Electronic Records; Electronic Signatures, Glossary of Terms
+ 78          •   21 CFR Part 11; Electronic Records; Electronic Signatures, Time Stamps
+ 79          •   21 CFR Part 11; Electronic Records; Electronic Signatures, Maintenance of Electronic
+ 80              Records
+ 81          •   21 CFR Part 11; Electronic Records; Electronic Signatures, Electronic Copies of
+ 82              Electronic Records
+ 83
+ 84   Throughout all of these communications, concerns have been raised that some interpretations of
+ 85   the part 11 requirements would (1) unnecessarily restrict the use of electronic technology in a
+ 86   manner that is inconsistent with FDA's stated intent in issuing the rule, (2) significantly increase
+ 87   the costs of compliance to an extent that was not contemplated at the time the rule was drafted,
+ 88   and (3) discourage innovation and technological advances without providing a significant public
+ 89   health benefit. These concerns have been raised particularly in the areas of part 11 requirements
+ 90   for validation, audit trails, record retention, record copying, and legacy systems.
+ 91
+ 92   As a result of these concerns, we decided to review the part 11 documents and related issues,
+ 93   particularly in light of the Agency's CGMP initiative. In the Federal Register of February 4,
+ 94   2003 (68 FR 5645), we announced the withdrawal of the draft guidance for industry, 21 CFR
+ 95   Part 11; Electronic Records; Electronic Signatures, Electronic Copies of Electronic Records.
+ 96   We had decided we wanted to minimize industry time spent reviewing and commenting on the
+ 97   draft guidance when that draft guidance may no longer represent our approach under the CGMP
+ 98   initiative. Then, in the Federal Register of February 25, 2003 (68 FR 8775), we announced the
+ 99   withdrawal of the part 11 draft guidance documents on validation, glossary of terms, time
+100   stamps, 5 maintenance of electronic records, and CPG 7153.17. We received valuable public
+101   comments on these draft guidances, and we plan to use that information to help with future
+102   decision- making with respect to part 11. We do not intend to re- issue these draft guidance
+103   documents or the CPG.
+104
+105   We are now re-examining part 11, and we anticipate initiating rulemaking to revise provisions of
+106   that regulation. To avoid unnecessary resource expenditures to comply with part 11
+107   requirements, we are issuing this guidance to describe how we intend to exercise enforcement
+108   discretion with regard to certain part 11 requirements during the re-examination of part 11. As
+109   mentioned previously, part 11 remains in effect during this re-examinatio n period.
+110
+111
+112   III.       DISCUSSION
+113
+114              A.     Overall Approach to Part 11 Requirements
+115
+
+      5
+        Although we withdrew the draft guidance on time stamps, our current thinking has not changed in that when using
+      time stamps for systems that span different time zones, we do not expect you to record the signer’s local time. When
+      using time stamps, they should be implemented with a clear understanding of the time zone reference used. In such
+      instances, system documentation should explain time zone references as well as zone acronyms or other naming
+      conventions.
+
+
+                                                          3
+                                  Contains Nonbinding Recommendations
+
+
+116   As described in more detail below, the approach outlined in this guidance is based on three main
+117   elements:
+118
+119      •   Part 11 will be interpreted narrowly; we are now clarifying that fewer records will be
+120          considered subject to part 11.
+121      •   For those records that remain subject to part 11, we intend to exercise enforcement
+122          discretion with regard to part 11 requirements for validation, audit trails, record retention,
+123          and record copying in the manner described in this guidance and with regard to all part 11
+124          requirements for systems that were operational before the effective date of part 11 (also
+125          known as legacy systems).
+126      •   We will enforce all predicate rule requirements, including predicate rule record and
+127          recordkeeping requirements.
+128   It is important to note that FDA's exercise of enforcement discretion as described in this
+129   guidance is limited to specified part 11 requirements (setting aside legacy systems, as to which
+130   the extent of enforcement discretion, under certain circumstances, will be more broad). We
+131   intend to enforce all other provisions of part 11 including, but not limited to, certain controls for
+132   closed systems in § 11.10. For example, we intend to enforce provisions related to the following
+133   controls and requirements:
+134
+135      •   limiting system access to authorized individuals
+136      •   use of operational system checks
+137      •   use of authority checks
+138      •   use of device checks
+139      •   determination that persons who develop, maintain, or use electronic systems have the
+140          education, training, and experience to perform their assigned tasks
+141      •   establishment of and adherence to written policies that hold individuals accountable for
+142          actions initiated under their electronic signatures
+143      •   appropriate controls over systems documentation
+144      •   controls for open systems corresponding to controls for closed systems bulleted above (§
+145          11.30)
+146      •   requirements related to electronic signatures (e.g., §§ 11.50, 11.70, 11.100, 11.200, and
+147          11.300)
+148
+149   We expect continued compliance with these provisions, and we will continue to enforce them.
+150   Furthermore, persons must comply with applicable predicate rules, and records that are required
+151   to be maintained or submitted must remain secure and reliable in accordance with the predicate
+152   rules.
+153
+154          B.      Details of Approach – Scope of Part 11
+155
+156                  1. Narrow Interpretation of Scope
+157
+158   We understand that there is some confusion about the scope of part 11. Some have understood
+159   the scope of part 11 to be very broad. We believe that some of those broad interpretations could
+
+
+                                                    4
+                                  Contains Nonbinding Recommendations
+
+
+160   lead to unnecessary controls and costs and could discourage innovation and technological
+161   advances without providing added benefit to the public health. As a result, we want to clarify
+162   that the Agency intends to interpret the scope of part 11 narrowly.
+163
+164   Under the narrow interpretation of the scope of part 11, with respect to records required to be
+165   maintained under predicate rules or submitted to FDA, when persons choose to use records in
+166   electronic format in place of paper format, part 11 would apply. On the other hand, when
+167   persons use computers to generate paper printouts of electronic records, and those paper records
+168   meet all the requirements of the applicable predicate rules and persons rely on the paper records
+169   to perform their regulated activities, FDA would generally not consider persons to be "using
+170   electronic records in lieu of paper records" under §§ 11.2(a) and 11.2(b). In these instances, the
+171   use of computer systems in the generation of paper records would not trigger part 11.
+172
+173          2. Definition of Part 11 Records
+174
+175   Under this narrow interpretation, FDA considers part 11 to be applicable to the following records
+176   or signatures in electronic format (part 11 records or signatures):
+177
+178      •   Records that are required to be maintained under predicate rule requirements and that are
+179          maintained in electronic format in place of paper format. On the other hand, records (and
+180          any associated signatures) that are not required to be retained under predicate rules, but
+181          that are nonetheless maintained in electronic format, are not part 11 records.
+182          We recommend that you determine, based on the predicate rules, whether specific records
+183          are part 11 records. We recommend that you document such decisions.
+184
+185      •   Records that are required to be maintained under predicate rules, that are maintained in
+186          electronic format in addition to paper format, and that are relied on to perform regulated
+187          activities.
+188          In some cases, actual business practices may dictate whether you are using electronic
+189          records instead of paper records under § 11.2(a). For example, if a record is required to
+190          be maintained under a predicate rule and you use a computer to generate a paper printout
+191          of the electronic records, but you nonetheless rely on the electronic record to perform
+192          regulated activities, the Agency may consider you to be using the electronic record
+193          instead of the paper record. That is, the Agency may take your business practices into
+194          account in determining whether part 11 applies.
+195          Accordingly, we recommend that, for each record required to be maintained under
+196          predicate rules, you determine in advance whether you plan to rely on the electronic
+197          record or paper record to perform regulated activities. We recommend that you
+198          document this decision (e.g., in a Standard Operating Procedure (SOP), or specification
+199          document).
+200      •   Records submitted to FDA, under predicate rules (even if such records are not
+201          specifically identified in Agency regulations) in electronic format (assuming the records
+202          have been identified in docket number 92S-0251 as the types of submissions the Agency
+203          accepts in electronic format). However, a record that is not itself submitted, but is used
+
+
+                                                   5
+                                  Contains Nonbinding Recommendations
+
+
+204          in generating a submission, is not a part 11 record unless it is otherwise required to be
+205          maintained under a predicate rule and it is maintained in electronic format.
+206      •   Electronic signatures that are intended to be the equivalent of handwritten signatures,
+207          initials, and other general signings required by predicate rules. Part 11 signatures include
+208          electronic signatures that are used, for example, to document the fact that certain events
+209          or actions occurred in accordance with the predicate rule (e.g. approved, reviewed, and
+210          verified).
+211
+212          C.      Approach to Specific Part 11 Requirements
+213
+214                  1.      Validation
+215
+216   The Agency intends to exercise enforcement discretion regarding specific part 11 requirements
+217   for validation of computerized systems (§ 11.10(a) and corresponding requirements in § 11.30).
+218   Although persons must still comply with all applicable predicate rule requirements for validation
+219   (e.g., 21 CFR 820.70(i)), this guidance should not be read to impose any additional requirements
+220   for validation.
+221
+222   We suggest that your decision to validate computerized systems, and the extent of the validation,
+223   take into account the impact the systems have on your ability to meet predicate rule
+224   requirements. You should also consider the impact those systems might have on the accuracy,
+225   reliability, integrity, availability, and authenticity of required records and signatures. Even if
+226   there is no predicate rule requirement to validate a system, in some instances it may still be
+227   important to validate the system.
+228
+229   We recommend that you base your approach on a justified and documented risk assessment and
+230   a determination of the potential of the system to affect product quality and safety, and record
+231   integrity. For instance, validation would not be important for a word processor used only to
+232   generate SOPs.
+233
+234   For further guidance on validation of computerized systems, see FDA’s guidance for industry
+235   and FDA staff General Principles of Software Validation and also industry guidance such as the
+236   GAMP 4 Guide (See References).
+237
+238                  2.      Audit Trail
+239
+240   The Agency intends to exercise enforcement discretion regarding specific part 11 requirements
+241   related to computer- generated, time-stamped audit trails (§ 11.10 (e), (k)(2) and any
+242   corresponding requirement in §11.30). Persons must still comply with all applicable predicate
+243   rule requirements related to documentation of, for example, date (e.g., § 58.130(e)), time, or
+244   sequencing of events, as well as any requirements for ensuring that changes to records do not
+245   obscure previous entries.
+246
+247   Even if there are no predicate rule requirements to document, for example, date, time, or
+248   sequence of events in a particular instance, it may nonetheless be important to have audit trails or
+249   other physical, logical, or procedural security measures in place to ensure the trustworthiness and
+
+
+                                                   6
+                                        Contains Nonbinding Recommendations
+
+
+250   reliability of the records. 6 We recommend that you base your decision on whether to apply audit
+251   trails, or other appropriate measures, on the need to comply with predicate rule requirements, a
+252   justified and documented risk assessment, and a determination of the potential effect on product
+253   quality and safety and record integrity. We suggest that you apply appropriate controls based on
+254   such an assessment. Audit trails can be particularly appropriate when users are expected to
+255   create, modify, or delete regulated records during normal operation.
+256
+257                      3.       Legacy Systems7
+258
+259   The Agency intends to exercise enforcement discretion with respect to all part 11 requirements
+260   for systems that otherwise were operational prior to August 20, 1997, the effective date of part
+261   11, under the circumstances specified below.
+262
+263   This means that the Agency does not intend to take enforcement action to enforce compliance
+264   with any part 11 requirements if all the following criteria are met for a specific system:
+265
+266         •    The system was operational before the effective date.
+267         •    The system met all applicable predicate rule requirements before the effective date.
+268         •    The system currently meets all applicable predicate rule requirements.
+269         •    You have documented evidence and justification that the system is fit for its intended use
+270              (including having an acceptable level of record security and integrity, if applicable).
+271
+272   If a system has been changed since August 20, 1997, and if the changes would prevent the
+273   system from meeting predicate rule requirements, Part 11 controls should be applied to Part 11
+274   records and signatures pursuant to the enforcement policy expressed in this guidance.
+275
+276                      4.       Copies of Records
+277
+278   The Agency intends to exercise enforcement discretion with regard to specific part 11
+279   requirements for generating copies of records (§ 11.10 (b) and any corresponding requirement in
+280   §11.30). You should provide an investigator with reasonable and useful access to records during
+281   an inspection. All records held by you are subject to inspection in accordance with predicate
+282   rules (e.g., §§ 211.180(c), (d), and 108.35(c)(3)(ii)).
+283
+284   We recommend that you supply copies of electronic records by:
+285
+286         •    Producing copies of records held in common portable formats when records are
+287              maintained in these formats
+288         •    Using established automated conversion or export methods, where available, to make
+289              copies in a more common format (examples of such formats include, but are not limited
+290              to, PDF, XML, or SGML)
+
+      6
+          Various guidance documents on information security are available (see References).
+      7
+       In this guidance document, we use the term legacy system to describe systems already in operation before the
+      effective date of part 11.
+
+
+                                                            7
+                                      Contains Nonbinding Recommendations
+
+
+291   In each case, we recommend that the copying process used produces copies that preserve the
+292   content and meaning of the record. If you have the ability to search, sort, or trend part 11
+293   records, copies given to the Agency should provide the same capability if it is reasonable and
+294   technically feasible. You should allow inspection, review, and copying of records in a human
+295   readable form at your site using your hardware and following your established procedures and
+296   techniques for accessing records.
+297
+298                    5.       Record Retention
+299
+300   The Agency intends to exercise enforcement discretion with regard to the part 11 requirements
+301   for the protection of records to enable their accurate and ready retrieval throughout the records
+302   retention period (§ 11.10 (c) and any corresponding requirement in §11.30). Persons must still
+303   comply with all applicable predicate rule requirements for record retention and availability (e.g.,
+304   §§ 211.180(c),(d), 108.25(g), and 108.35(h)).
+305
+306   We suggest that your decision on how to maintain records be based on predicate rule
+307   requirements and that you base your decision on a justified and documented risk assessment and
+308   a determination of the value of the records over time.
+309
+310   FDA does not intend to object if you decide to archive required records in electronic format to
+311   nonelectronic media such as microfilm, microfiche, and paper, or to a standard electronic file
+312   format (examples of such formats include, but are not limited to, PDF, XML, or SGML).
+313   Persons must still comply with all predicate rule requirements, and the records themselves and
+314   any copies of the required records should preserve their content and meaning. As long as
+315   predicate rule requirements are fully satisfied and the content and meaning of the records are
+316   preserved and archived, you can delete the electronic version of the records. In addition, paper
+317   and electronic record and signature components can co-exist (i.e., a hybrid 8 situation) as long as
+318   predicate rule requirements are met and the content and meaning of those records are preserved.
+319
+
+
+
+
+      8
+        Examples of hybrid situations include combinations of paper records (or other nonelectronic media) and electronic
+      records, paper records and electronic signatures, or handwritten signatures executed to electronic records.
+
+
+                                                          8
+                                   Contains Nonbinding Recommendations
+
+
+319
+320   IV.      REFERENCES
+321
+322         Food and Drug Administration References
+323
+324         1. Glossary of Computerized System and Software Development Terminology (Division of
+325            Field Investigations, Office of Regional Operations, Office of Regulatory Affairs, FDA
+326            1995) (http://www. fda.gov/ora/inspect_ref/igs/gloss.html)
+327
+328         2. General Principles of Software Validation; Final Guidance for Industry and FDA Staff
+329            (FDA, Center for Devices and Radiological Health, Center for Biologics Evaluation and
+330            Research, 2002) (http://www.fda.gov/cdrh/comp/guidance/938.html)
+331
+332         3. Guidance for Industry, FDA Reviewers, and Compliance on Off-The-Shelf Software Use
+333            in Medical Devices (FDA, Center for Devices and Radiological Health, 1999)
+334            (http://www.fda.gov/cdrh/ode/guidance/585.html)
+335
+336         4. Pharmaceutical CGMPs for the 21st Century: A Risk-Based Approach; A Science and
+337            Risk-Based Approach to Product Quality Regulation Incorporating an Integrated Quality
+338            Systems Approach (FDA 2002) (http://www.fda.gov/oc/guidance/gmp.html)
+339
+340
+341         Industry References
+342
+343         1. The Good Automated Manufacturing Practice (GAMP) Guide for Validation of
+344            Automated Systems, GAMP 4 (ISPE/GAMP Forum, 2001) (http://www.ispe.org/gamp/)
+345
+346         2. ISO/IEC 17799:2000 (BS 7799:2000) Information technology – Code of practice for
+347            information security management (ISO/IEC, 2000)
+348
+349         3. ISO 14971:2002 Medical Devices- Application of risk management to medical devices
+350            (ISO, 2001)
+351
+352
+
+
+
+
+                                                   9
+

@@ -1,0 +1,18 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pyyaml==6.0.2
+      - name: Every cited clause exists and contains its quote
+        run: python3 scripts/check-register.py --render docs/03-compliance-register.md
+      - name: Rendered register is up to date
+        run: git diff --exit-code docs/03-compliance-register.md
