@@ -45,7 +45,9 @@ export interface Manifest { product: string; database: string; roles: { role: st
 export function manifest(product: string): Manifest {
   const file = path.join(ROOT, 'apps', product, 'manifest.json');
   if (!existsSync(file)) throw new Error(`unknown product "${product}" (no apps/${product}/manifest.json)`);
-  return JSON.parse(readFileSync(file, 'utf8'));
+  const m: Manifest = JSON.parse(readFileSync(file, 'utf8'));
+  if (m.product !== product || m.database !== product) throw new Error(`apps/${product}/manifest.json: product and database must be "${product}"`);
+  return m;
 }
 
 /** Login of a product or outside system. */
@@ -73,7 +75,7 @@ export function checkConfig(raw: unknown, rawSecrets?: unknown): { config: Confi
   let secrets: Secrets | undefined;
   if (rawSecrets !== undefined) {
     secrets = secretsSchema.parse(rawSecrets);
-    const logins = ['core_app', ...config.licences.map(productLogin), ...Object.keys(config.outside_logins).map(outsideLogin)];
+    const logins = ['postgres', 'core_app', ...config.licences.map(productLogin), ...Object.keys(config.outside_logins).map(outsideLogin)];
     for (const l of logins) if (!secrets.logins[l]) problems.push(`secrets: no password for login ${l}`);
     for (const p of config.licences) if (!secrets.oidc.clients[p]) problems.push(`secrets: no OIDC client secret for ${p}`);
   }

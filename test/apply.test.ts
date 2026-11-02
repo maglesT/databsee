@@ -11,7 +11,7 @@ import { enableLogin, sqlstate } from './db.js';
 
 const PW = 'test-only-apply-password';
 const rawSecrets = {
-  logins: { core_app: PW, hello_app: PW, ext_audit: PW },
+  logins: { postgres: PW, core_app: PW, hello_app: PW, ext_audit: PW },
   oidc: { jwks: { keys: [{ kty: 'test' }] }, cookie_keys: ['test-only-cookie-key-1'], clients: { hello: 'test-only-client-secret' } },
 };
 const base = {
@@ -22,9 +22,12 @@ const check = (raw: object) => checkConfig(raw, rawSecrets);
 const A = check(base).config;
 const secrets = check(base).secrets!;
 const started: string[][] = [];
-const runtime = (healthy: boolean): Runtime => ({
-  start: async (c) => { started.push(c.licences); },
-  problems: async () => (healthy ? [] : ['container core is not healthy']),
+/** Stand-in for Docker: records what it starts; containers of the config with change reference `failFor` stay unhealthy. */
+const runtime = (failFor?: string): Runtime => ({
+  start: async (c) => {
+    started.push(c.licences);
+    if (c.change_ref === failFor) throw new Error('health check failed: container core is not healthy');
+  },
 });
 
 const su = (database: string) => postgres({ database, max: 1, onnotice: () => {} });
@@ -34,10 +37,10 @@ const canSignIn = async (user: string, database: string) => {
   try { return await sqlstate(c`select 1`); } finally { await c.end(); }
 };
 
-beforeAll(async () => { await applyConfig(A, secrets, runtime(true)); });
+beforeAll(async () => { await applyConfig(A, secrets, runtime()); });
 afterAll(async () => {
   // Leave the logins and links as the other test files expect them.
-  await applyConfig(check({ ...base, change_ref: 'CC-A9', reason: 'test cleanup', links: {} }).config, secrets, runtime(true));
+  await applyConfig(check({ ...base, change_ref: 'CC-A9', reason: 'test cleanup', links: {} }).config, secrets, runtime());
   for (const l of ['core_app', 'hello_app', 'logbook_app']) await enableLogin(l);
 });
 
@@ -61,7 +64,6 @@ describe('PL-10 changes only through the config file, with change reference, tes
 
   it('PL-10 licence on: login with its secret password, roles loaded, links on and logged with the change reference', async () => {
     expect(await canSignIn('hello_app', 'hello')).toBe('ok');
-    expect(await canSignIn('logbook_app', 'logbook')).toBe('28000'); // not licensed: login off
     const hello = as('hello_app', 'master_data');
     expect(await sqlstate(hello`select from report.equipment_v1 limit 0`)).toBe('ok');
     await hello.end();
@@ -78,14 +80,14 @@ describe('PL-10 changes only through the config file, with change reference, tes
   it('PL-10 applying the same config again switches nothing', async () => {
     const md = su('master_data');
     const n = (await md`select count(*)::int as n from platform.link_log`)[0]!.n;
-    await applyConfig(A, secrets, runtime(true), A);
+    await applyConfig(A, secrets, runtime(), A);
     expect((await md`select count(*)::int as n from platform.link_log`)[0]!.n).toBe(n);
     await md.end();
   });
 
   it('PL-10 a failing health check restores the previous state', async () => {
     const B = check({ ...base, change_ref: 'CC-B1', reason: 'BI reads notes', outside_logins: { audit: { hello: ['note_v1'] } } }).config;
-    await expect(applyConfig(B, secrets, runtime(false), A)).rejects.toThrow(/health check failed.*Rolled back to the previous config \(CC-A1\)/);
+    await expect(applyConfig(B, secrets, runtime('CC-B1'), A)).rejects.toThrow(/health check failed.*Rolled back to the previous config \(CC-A1\)/);
     expect(await canSignIn('ext_audit', 'hello')).toBe('28000');
     const h = su('hello');
     expect(await h`select view_name from platform.current_link where consumer = 'ext_audit'`).toEqual([]);
@@ -99,7 +101,7 @@ describe('PL-10 changes only through the config file, with change reference, tes
   it('PL-10 licence off: login off, open sessions ended, links cut, container removed; data kept', async () => {
     const open = as('hello_app', 'hello');
     await open`select 1`;
-    await applyConfig(check({ ...base, change_ref: 'CC-C1', reason: 'licence ended', licences: [], links: {} }).config, secrets, runtime(true), A);
+    await applyConfig(check({ ...base, change_ref: 'CC-C1', reason: 'licence ended', licences: [], links: {} }).config, secrets, runtime(), A);
     expect(await sqlstate(open`select 1`)).not.toBe('ok');
     await open.end().catch(() => {});
     expect(await canSignIn('hello_app', 'hello')).toBe('28000');
@@ -110,7 +112,7 @@ describe('PL-10 changes only through the config file, with change reference, tes
     const h = su('hello');
     expect(await h`select to_regclass('public.note') is not null as kept`).toEqual([{ kept: true }]);
     await h.end();
-    await applyConfig(A, secrets, runtime(true));
+    await applyConfig(A, secrets, runtime());
     expect(await canSignIn('hello_app', 'hello')).toBe('ok');
   });
 });

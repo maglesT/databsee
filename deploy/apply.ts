@@ -15,30 +15,36 @@ import postgres from 'postgres';
 import { migrate } from '../db/migrate.js';
 import { checkConfig, manifest, outsideLogin, productLogin, readYaml, ROOT, type Config, type Secrets } from './config.js';
 
-/** Starts and checks the containers. The Docker one is below; tests use a stand-in. */
+/** Starts the containers and fails unless they turn healthy. The Docker one is below; tests use a stand-in. */
 export interface Runtime {
   start(config: Config, secrets: Secrets): Promise<void>;
-  problems(config: Config): Promise<string[]>;
 }
 
+const allProducts = () => readdirSync(path.join(ROOT, 'apps')).filter((d) => existsSync(path.join(ROOT, 'apps', d, 'manifest.json')));
 const admin = (database: string) => postgres({ database, max: 1, onnotice: () => {} });
 
 export async function applyConfig(next: Config, secrets: Secrets, runtime: Runtime, previous?: Config): Promise<void> {
   try {
-    await applyOnce(next, secrets, runtime, next.reason);
-    const problems = [...(await dbProblems(next, secrets)), ...(await runtime.problems(next))];
+    const products = next.licences.map(manifest);
+    execFileSync(path.join(ROOT, 'db/server/init.sh'), products.map((m) => m.database), { stdio: 'inherit' });
+    for (const db of ['master_data', 'identity', ...products.map((m) => m.database)]) await migrate(db);
+    await switchAndStart(next, secrets, runtime, next.reason);
+    const problems = await dbProblems(next, secrets);
     if (problems.length) throw new Error(`health check failed: ${problems.join('; ')}`);
   } catch (e) {
     if (!previous) throw e;
-    await applyOnce(previous, secrets, runtime, `rollback: ${next.change_ref} failed`);
+    // Migrations are additive and already ran for the previous config, so the rollback only switches back.
+    try {
+      await switchAndStart(previous, secrets, runtime, `rollback: ${next.change_ref} failed`);
+    } catch (r) {
+      throw new Error(`${(e as Error).message}. ROLLBACK ALSO FAILED: ${(r as Error).message}`);
+    }
     throw new Error(`${(e as Error).message}. Rolled back to the previous config (${previous.change_ref}).`);
   }
 }
 
-async function applyOnce(config: Config, secrets: Secrets, runtime: Runtime, reason: string) {
+async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime, reason: string) {
   const products = config.licences.map(manifest);
-  execFileSync(path.join(ROOT, 'db/server/init.sh'), products.map((m) => m.database), { stdio: 'inherit' });
-  for (const db of ['master_data', 'identity', ...products.map((m) => m.database)]) await migrate(db);
 
   const su = admin('postgres');
   const identity = admin('identity');
@@ -53,7 +59,9 @@ async function applyOnce(config: Config, secrets: Secrets, runtime: Runtime, rea
     const wanted = new Set(['core_app', ...config.licences.map(productLogin), ...Object.keys(config.outside_logins).map(outsideLogin)]);
     for (const l of wanted)
       await ddl(su`select format('create role %I nologin', ${l}::text) as ddl where not exists (select from pg_roles where rolname = ${l})`);
-    const managed = await su<{ rolname: string }[]>`select rolname from pg_roles where rolname ~ '^([a-z][a-z0-9_]*_app|ext_[a-z0-9_]+)$'`;
+    // Managed: the product logins of every known product and all outside logins; other roles are left alone.
+    const known = ['core_app', ...allProducts().map(productLogin)];
+    const managed = await su<{ rolname: string }[]>`select rolname from pg_roles where rolname = any(${known}) or rolname ~ '^ext_[a-z0-9_]+$'`;
     for (const { rolname } of managed) {
       const pw = secrets.logins[rolname];
       if (!wanted.has(rolname)) {
@@ -130,7 +138,11 @@ export const docker: Runtime = {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     const write = (file: string, text: string) => writeFileSync(path.join(dir, file), text, { mode: 0o600 });
     const url = (login: string, db: string) => `postgres://${login}:${encodeURIComponent(secrets.logins[login] ?? '')}@db:5432/${db}`;
-    const env = (vars: Record<string, string>) => Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
+    // Single quotes: Compose takes the value literally (no $ substitution).
+    const env = (vars: Record<string, string>) => Object.entries(vars).map(([k, v]) => {
+      if (v.includes("'") || v.includes('\n')) throw new Error(`setting ${k} must not contain a quote or a line break`);
+      return `${k}='${v}'`;
+    }).join('\n') + '\n';
     write('core.env', env({
       IDENTITY_DATABASE_URL: url('core_app', 'identity'),
       MASTER_DATA_DATABASE_URL: url('core_app', 'master_data'),
@@ -155,24 +167,10 @@ export const docker: Runtime = {
     write('Caddyfile', [`${config.domain} {\n  reverse_proxy core:3000\n}`,
       ...config.licences.map((p) => `${p}.${config.domain} {\n  reverse_proxy ${p}:3000\n}`)].join('\n') + '\n');
 
-    const all = readdirSync(path.join(ROOT, 'apps')).filter((d) => existsSync(path.join(ROOT, 'apps', d, 'manifest.json')));
     const compose = (...args: string[]) => execFileSync('docker', ['compose', '-f', path.join(ROOT, 'deploy/compose.yml'), ...args],
       { stdio: 'inherit', env: { ...process.env, VERSION: config.version } });
-    for (const p of all.filter((p) => !config.licences.includes(p))) compose('--profile', p, 'rm', '--stop', '--force', p);
-    compose(...config.licences.flatMap((p) => ['--profile', p]), 'up', '-d', 'db', 'core', 'caddy', ...config.licences);
-  },
-  async problems(config) {
-    const services = ['db', 'core', 'caddy', ...config.licences];
-    for (let i = 0; i < 30; i++) {
-      const out = execFileSync('docker', ['compose', '-f', path.join(ROOT, 'deploy/compose.yml'), 'ps', '--format', '{{.Service}} {{.Health}} {{.State}}'],
-        { encoding: 'utf8', env: { ...process.env, VERSION: config.version } });
-      const ok = new Set(out.split('\n').map((l) => l.split(' ')).filter(([, health, state]) => state === 'running' && (health === '' || health === 'healthy')).map(([s]) => s));
-      const bad = services.filter((s) => !ok.has(s));
-      if (!bad.length) return [];
-      if (i === 29) return bad.map((s) => `container ${s} is not healthy`);
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-    return [];
+    for (const p of allProducts().filter((p) => !config.licences.includes(p))) compose('--profile', p, 'rm', '--stop', '--force', p);
+    compose(...config.licences.flatMap((p) => ['--profile', p]), 'up', '-d', '--wait', 'db', 'core', 'caddy', ...config.licences);
   },
 };
 
@@ -186,7 +184,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   writeFileSync(path.join(ROOT, 'deploy/secrets/pg_superuser'), secrets!.logins.postgres ?? '', { mode: 0o600 });
   execFileSync('docker', ['compose', '-f', path.join(ROOT, 'deploy/compose.yml'), 'up', '-d', '--wait', 'db'], { stdio: 'inherit' });
   const appliedFile = path.join(ROOT, 'deploy/secrets/applied.yaml');
-  const previous = existsSync(appliedFile) ? checkConfig(readYaml(appliedFile)).config : undefined;
+  // The rollback uses today's secrets, so they must still cover the previous config.
+  const previous = existsSync(appliedFile) ? checkConfig(readYaml(appliedFile), secrets).config : undefined;
   await applyConfig(config, secrets!, docker, previous);
   copyFileSync(configFile, appliedFile);
   console.log(`applied ${config.customer} ${config.version} (${config.change_ref})`);
