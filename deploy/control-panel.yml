@@ -1,0 +1,29 @@
+# The control panel on the owner's server (slice A8): its own PostgreSQL with the control_panel database, and the
+# panel on 127.0.0.1:3010 behind the owner's Caddy (HTTPS). Settings in $MEDHANTA_STATE/control-panel.env:
+# CONTROL_PANEL_DATABASE_URL, GITHUB_REPO, GITHUB_TOKEN, CONTROL_PANEL_USERS (README "Control panel").
+name: medhanta-control-panel
+services:
+  db:
+    image: postgres:17.11
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
+    secrets: [pg_superuser]
+    volumes: [cpdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+  panel:
+    image: medhanta/platform:${VERSION:-0.0.0}
+    restart: unless-stopped
+    command: ["node_modules/.bin/tsx", "apps/control-panel/index.ts"]
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/control-panel.env
+    environment: { PORT: "3000" }
+    ports: ["127.0.0.1:3010:3000"]
+    depends_on:
+      db: { condition: service_healthy }
+secrets:
+  pg_superuser:
+    file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/pg_superuser
+volumes:
+  cpdata:

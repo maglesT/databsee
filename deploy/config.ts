@@ -1,7 +1,7 @@
 // The customer config file (customers/<name>.yaml) and its secrets, checked before anything is applied.
 // PL-09: the file is the customer's system description (products, version, links, outside logins).
 // PL-10: every change is made through this file; each apply needs the customer's change reference and a reason.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import YAML from 'yaml';
@@ -47,7 +47,10 @@ const secretsSchema = z.object({
 }).strict();
 export type Secrets = z.infer<typeof secretsSchema>;
 
-export interface Manifest { product: string; database: string; roles: { role: string; description: string }[]; publishes: string[] }
+export interface Manifest {
+  product: string; database: string; roles: { role: string; description: string }[]; publishes: string[];
+  reads?: Record<string, string[]>;   // provider database -> views this product can read when linked
+}
 
 /** The product's manifest; a product without one cannot be licensed yet. */
 export function manifest(product: string): Manifest {
@@ -57,6 +60,10 @@ export function manifest(product: string): Manifest {
   if (m.product !== product || m.database !== product) throw new Error(`apps/${product}/manifest.json: product and database must be "${product}"`);
   return m;
 }
+
+/** Every product with a manifest (apps/<product>/manifest.json). */
+export const allProducts = () =>
+  readdirSync(path.join(ROOT, 'apps')).filter((d) => existsSync(path.join(ROOT, 'apps', d, 'manifest.json'))).sort();
 
 /** Login of a product or outside system. */
 export const productLogin = (p: string) => `${p}_app`;

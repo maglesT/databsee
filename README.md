@@ -69,3 +69,13 @@ the folder belongs to the database container's user), then start PostgreSQL on i
 6. First install: check the first bundle by hand (`deploy/verify-bundle.sh` from the repo), unpack it to
    `/opt/medhanta/releases/<name>`, link `/opt/medhanta/current` to it and run `current/deploy/apply.sh <bundle>.tar`.
    Then create the first administrator: `docker compose -f /opt/medhanta/current/deploy/compose.yml exec core npx tsx apps/core/server/index.ts create-first-admin ...`.
+
+## Control panel (slice A8, the owner's server only)
+`apps/control-panel` shows each customer's system as a diagram (PL-09) and switches licences, links and outside
+systems. Every switch asks for the customer's change reference and a reason (D-08), is committed to
+`customers/<name>.yaml` through the GitHub API (which starts the apply, A7) and is logged in `switch_log`; the page shows
+each switch's apply result. The customer files stay the only source of truth; the panel keeps just the log.
+Setup: `docker compose -f deploy/control-panel.yml up -d db`, then `db/server/init.sh control_panel` and
+`tsx db/migrate.ts control_panel` against it, then start `panel`. `control-panel.env` holds `CONTROL_PANEL_DATABASE_URL`,
+`GITHUB_REPO=maglesT/databsee`, `GITHUB_TOKEN` (fine-grained, contents read/write and actions read on this repo only) and
+`CONTROL_PANEL_USERS='owner:<hash>'` (single quotes: the hash contains $; hash from `tsx apps/control-panel/index.ts hash-password`). Serve it over HTTPS only.
