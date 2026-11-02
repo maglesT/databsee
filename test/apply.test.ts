@@ -13,9 +13,11 @@ const PW = 'test-only-apply-password';
 const rawSecrets = {
   logins: { postgres: PW, core_app: PW, hello_app: PW, ext_audit: PW },
   oidc: { jwks: { keys: [{ kty: 'test' }] }, cookie_keys: ['test-only-cookie-key-1'], clients: { hello: 'test-only-client-secret' } },
+  backup: { access_key_id: 'test', secret_access_key: 'test' },
 };
 const base = {
   customer: 'ci', version: '0.6.0', domain: 'ci.example', offline: true, security_contact: 'security@ci.example',
+  backup: { endpoint: 'http://127.0.0.1:9000', bucket: 'backups' },
   change_ref: 'CC-A1', reason: 'licence hello', licences: ['hello'], links: { hello: { master_data: ['equipment_v1'] } },
 };
 const check = (raw: object) => checkConfig(raw, rawSecrets);

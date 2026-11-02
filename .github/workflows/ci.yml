@@ -38,5 +38,9 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
+      - name: PostgreSQL 17 binaries for the PL-11 restore test
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-17
       - name: Tests (named by rule ID)
         run: npm test
