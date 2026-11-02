@@ -19,8 +19,8 @@ export async function coreApp() {
   return { app: buildApp(deps), sql, md, mailbox, deps };
 }
 
-/** An employee with a known, non-temporary password and the given core roles. */
-export async function makeEmployee(login: string, roles: string[] = [], opts: { mustChange?: boolean } = {}) {
+/** An employee with a known, non-temporary password and the given permission codes (any product). */
+export async function makeEmployee(login: string, permissions: string[] = [], opts: { mustChange?: boolean } = {}) {
   const su = superuser();
   const hash = await hashPassword(PASSWORD);
   const [e] = await su<{ id: string }[]>`insert into employee (login, identity_verified_by, identity_verified_how)
@@ -28,11 +28,26 @@ export async function makeEmployee(login: string, roles: string[] = [], opts: { 
   await su`insert into employee_version (employee_id, version, full_name, active, changed_by_name, reason)
     values (${e!.id}, 1, ${`Name of ${login}`}, true, 'test', 'test')`;
   await su`insert into credential (employee_id, password_hash, must_change) values (${e!.id}, ${hash}, ${opts.mustChange ?? false})`;
-  for (const role of roles) {
-    await su`insert into grant_event (employee_id, product, role, granted, by_name, reason) values (${e!.id}, 'core', ${role}, true, 'test', 'test')`;
-  }
   await su.end();
+  await grant(e!.id, permissions);
   return e!.id;
+}
+
+/** Grants permission codes directly in the register (the product is the code's first part). */
+export async function grant(employeeId: string, codes: string[]) {
+  const su = superuser();
+  for (const code of codes)
+    await su`insert into permission_grant (employee_id, product, code, granted, by_name, reason) values (${employeeId}, ${code.split('.')[0]!}, ${code}, true, 'test', 'test')`;
+  await su.end();
+}
+
+/** What apply does for a licensed product: its permissions in the catalogue (here: hello's). */
+export async function helloCatalogue() {
+  const su = superuser();
+  await su`insert into permission_event (product, code, label, active, by_name, reason)
+    select 'hello', c.code, c.label, true, 'test', 'test' from (values ('hello.note.sign', 'Write and sign notes'), ('hello.note.read', 'Read notes')) c(code, label)
+    where not exists (select from current_permission p where p.code = c.code)`;
+  await su.end();
 }
 
 type App = ReturnType<typeof buildApp>;
@@ -41,7 +56,7 @@ type App = ReturnType<typeof buildApp>;
 export async function signIn(app: App, login: string, password = PASSWORD) {
   const res = await app.inject({ method: 'POST', url: '/api/login', payload: { login, password } });
   const cookie = res.cookies.find((c) => c.name === 'sid');
-  const call = (method: 'GET' | 'POST' | 'PATCH', url: string, payload?: object) =>
+  const call = (method: 'GET' | 'POST' | 'PUT' | 'PATCH', url: string, payload?: object) =>
     app.inject({ method, url, payload, cookies: cookie ? { sid: cookie.value } : {} });
   return { res, call };
 }

@@ -5,9 +5,10 @@ import path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
-import { applyConfig, type Runtime } from '../deploy/apply.js';
-import { checkConfig } from '../deploy/config.js';
+import { applyConfig, loadPermissions, type Runtime } from '../deploy/apply.js';
+import { checkConfig, checkManifest, manifest, type Manifest } from '../deploy/config.js';
 import { enableLogin, sqlstate } from './db.js';
+import { makeEmployee, run } from './core.js';
 
 const PW = 'test-only-apply-password';
 const rawSecrets = {
@@ -60,7 +61,7 @@ describe('PL-10 changes only through the config file, with change reference, tes
     expect(() => check({ ...base, licences: ['hello', 'unknown'] })).toThrow(/unknown product/);
   });
 
-  it('PL-10 licence on: login with its secret password, roles loaded, links on and logged with the change reference', async () => {
+  it('PL-10 licence on: login with its secret password, permissions loaded, links on and logged with the change reference', async () => {
     expect(await canSignIn('hello_app', 'hello')).toBe('ok');
     const hello = as('hello_app', 'master_data');
     expect(await sqlstate(hello`select from report.equipment_v1 limit 0`)).toBe('ok');
@@ -70,7 +71,8 @@ describe('PL-10 changes only through the config file, with change reference, tes
       .toEqual([{ change_ref: 'CC-A1', reason: 'licence hello' }]);
     await md.end();
     const id = su('identity');
-    expect((await id`select role from product_role where product = 'hello' order by role`).map((r) => r.role)).toContain('operator');
+    expect(await id`select code, label from current_permission where product = 'hello' order by code`)
+      .toEqual([{ code: 'hello.note.read', label: 'Read notes' }, { code: 'hello.note.sign', label: 'Write and sign notes' }]);
     await id.end();
     expect(started.at(-1)).toEqual(['hello']);
     // PL-12: what is on is recorded for the access review report.
@@ -117,6 +119,50 @@ describe('PL-10 changes only through the config file, with change reference, tes
     await h.end();
     await applyConfig(A, secrets, runtime());
     expect(await canSignIn('hello_app', 'hello')).toBe('ok');
+  });
+});
+
+describe('PL-01 the permission catalogue comes from the licensed manifests', () => {
+  it('PL-01 apply loads the catalogue idempotently and marks removed codes inactive, revoking them', async () => {
+    const id = su('identity');
+    const events = async () => (await id`select count(*)::int as n from permission_event`)[0]!.n;
+    const before = await events();
+    await applyConfig(A, secrets, runtime(), A);
+    expect(await events()).toBe(before);                        // same manifests: nothing written
+
+    const p = `probe${run}`;
+    const m = (permissions: Manifest['permissions']): Manifest => ({ product: p, database: p, publishes: [], permissions });
+    await loadPermissions(id, [manifest('hello'), m([{ code: `${p}.a.do`, label: 'A' }, { code: `${p}.b.do`, label: 'B' }])], 'CC-P1: probe');
+    await loadPermissions(id, [manifest('hello'), m([{ code: `${p}.a.do`, label: 'A' }, { code: `${p}.b.do`, label: 'B' }])], 'CC-P1: probe');
+    expect(await events()).toBe(before + 2);
+    const holder = await makeEmployee(`probe${run}`, [`${p}.b.do`]);
+    await loadPermissions(id, [manifest('hello'), m([{ code: `${p}.a.do`, label: 'A renamed' }])], 'CC-P2: b dropped');
+    expect(await id`select code, label from current_permission where product = ${p} order by code`).toEqual([{ code: `${p}.a.do`, label: 'A renamed' }]);
+    expect(await id`select code, label, active, by_name, reason from permission_event where product = ${p} order by id`).toEqual([
+      { code: `${p}.a.do`, label: 'A', active: true, by_name: 'apply', reason: 'CC-P1: probe' },
+      { code: `${p}.b.do`, label: 'B', active: true, by_name: 'apply', reason: 'CC-P1: probe' },
+      { code: `${p}.a.do`, label: 'A renamed', active: true, by_name: 'apply', reason: 'CC-P2: b dropped' },
+      { code: `${p}.b.do`, label: 'B', active: false, by_name: 'apply', reason: 'CC-P2: b dropped' },
+    ]);
+    expect(await id`select code from current_permission_grant where employee_id = ${holder}`).toEqual([]);
+    expect(await id`select granted, reason from permission_grant where employee_id = ${holder} order by id`)
+      .toEqual([{ granted: true, reason: 'test' }, { granted: false, reason: `permission removed from ${p} (CC-P2: b dropped)` }]);
+    // A product no longer licensed has all its codes withdrawn (core is never withdrawn).
+    await loadPermissions(id, [manifest('hello')], 'CC-P3: licence off');
+    expect(await id`select code from current_permission where product = ${p}`).toEqual([]);
+    expect((await id`select count(*)::int as n from current_permission where product = 'core'`)[0]!.n).toBe(3);
+    await id.end();
+  });
+
+  it('PL-01 a manifest with a malformed, foreign, unlabelled or repeated permission code is refused', () => {
+    const ok = manifest('hello');
+    const bad = (permissions: Manifest['permissions']) => () => checkManifest({ ...ok, permissions }, 'hello');
+    expect(bad([{ code: 'hello.Note.sign', label: 'x' }])).toThrow(/must look like/);
+    expect(bad([{ code: 'core.people.manage', label: 'x' }])).toThrow(/must look like/);
+    expect(bad([{ code: 'hello', label: 'x' }])).toThrow(/must look like/);
+    expect(bad([{ code: 'hello.note.read', label: ' ' }])).toThrow(/needs a label/);
+    expect(bad([{ code: 'hello.note.read', label: 'x' }, { code: 'hello.note.read', label: 'y' }])).toThrow(/twice/);
+    expect(bad([])).toThrow(/list of permissions/);
   });
 });
 

@@ -13,7 +13,7 @@ Status: **approved by the owner 2 Nov 2026** ("do what's more simple"; decisions
 |---|---|
 | R1 | One PostgreSQL server per customer with 10 databases: `master_data`, `identity`, and one per product (logbook, materials, deviations, protocols, qms, operations, recruitment, ebmr). |
 | R2 | Master data (machines/instruments/rooms, materials/suppliers, products/codes, and the links between them) edited only in one small screen; every product reads it live through views. |
-| R3 | Identity: employees, single sign-on, permission register (employee, product, role) with history. Deactivate once = out everywhere. |
+| R3 | Identity: employees, single sign-on, permission register (employee, product, permission) with history. Deactivate once = out everywhere. |
 | R4 | Each product writes only its own database; reads others only through `report.*_v1` views it is granted. |
 | R5 | A link = a read grant on views. Cut = revoke, effective on the next query, logged. Cut master-data link = feature shows "connection off". |
 | R6 | All products installed everywhere; unlicensed = containers stopped + login disabled + no grants. |
@@ -26,8 +26,8 @@ Full text: `docs/03-compliance-register.md` (generated from `compliance/register
 
 | ID | Rule | Main clauses |
 |---|---|---|
-| PL-01 | Only authorised people; per-product roles from the register | 11.10(d)(g), 211.68(b), A11 12.1, SchM 20.4 |
-| PL-02 | Access grants (roles, links, outside logins) recorded, never overwritten | A11 12.3 |
+| PL-01 | Only authorised people; per-product permissions from the register | 11.10(d)(g), 211.68(b), A11 12.1, SchM 20.4 |
+| PL-02 | Access grants (permissions, links, outside logins) recorded, never overwritten | A11 12.3 |
 | PL-03 | One verified identity per person, never reused | 11.100(a)(b), 11.300(a) |
 | PL-04 | Password ageing, controlled reset (temporary password), lockout, immediate alert; no admin can sign as someone else | 11.300(b)(c)(d), 11.200(a)(3) |
 | PL-05 | Re-authentication at e-signature through SSO | 11.200(a)(1) |
@@ -61,7 +61,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
  control panel (your server only; control_panel database)
 ```
 - **One `core` app** instead of three: sign-on, people & permissions screen, master-data screen. Fewer containers, one login page, same stack (Node/TypeScript + Fastify + React + postgres). It connects to `identity` and `master_data` only.
-- **Single sign-on: a minimal OIDC provider inside `core`, built on `oidc-provider`** (panva; OpenID-certified library). Why not Keycloak: Keycloak keeps its own user tables and its own admin console, so employees would live in two places, and it needs a Java service with ~1 GB RAM on every customer server. With `oidc-provider` employees, passwords and the register live in one `identity` database, edited in one screen, and the password/lockout code is reused from the products. Each product is an OIDC client; its token carries only that product's roles. Tokens live 5 min and every renewal re-checks the register, so a deactivation reaches every product within 5 min, and immediately at the next e-signature (re-authentication).
+- **Single sign-on: a minimal OIDC provider inside `core`, built on `oidc-provider`** (panva; OpenID-certified library). Why not Keycloak: Keycloak keeps its own user tables and its own admin console, so employees would live in two places, and it needs a Java service with ~1 GB RAM on every customer server. With `oidc-provider` employees, passwords and the register live in one `identity` database, edited in one screen, and the password/lockout code is reused from the products. Each product is an OIDC client; its token carries only that product's permission codes (D-16). Tokens live 5 min and every renewal re-checks the register, so a deactivation reaches every product within 5 min, and immediately at the next e-signature (re-authentication).
 - **Reading another database.** PostgreSQL cannot query across databases, so a product that reads a link opens a second small connection pool to the provider's database with its own login. No postgres_fdw, no gateway.
 - **No data lake, no gateway, no Kubernetes/Terraform/Vault.** Docker Compose, plain SQL, age-encrypted secrets (D-12).
 
@@ -75,8 +75,8 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 **identity**
 - `employee` (id uuid, login — unique for all time, created_at) + `employee_version` (full name, email, active, who, when, reason) — insert-only.
 - `credential` (password hash argon2id, changed_at, failed count, locked_at), `alert` (lockouts, acknowledged by/at).
-- `product_role` (product, role, description) — loaded from each product's manifest.
-- `grant_event` (employee, product, role, grant|revoke, by, at, reason) — insert-only; `current_grant` view.
+- `permission_event` (product, code, label, active, by, at, reason) — the catalogue, loaded by apply from each product's manifest; insert-only; `current_permission` view (D-16).
+- `permission_grant` (employee, product, code, grant|revoke, by, at, reason) — insert-only; `current_permission_grant` view. Each person holds a subset of the catalogue; no roles.
 - `signon_event` (employee, product, at, ok/failed).
 - View `report.employee_v1` (id, login, full name, active) for products that show names of others.
 
@@ -90,7 +90,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 | Role | Kind | Rights |
 |---|---|---|
 | `<db>_owner` | NOLOGIN | Owns the database's tables and views; used only by migrations. |
-| `<product>_app` | LOGIN | DML on its own tables (no UPDATE/DELETE on audit/version tables); CONNECT on its own database only. |
+| `<product>_app` | LOGIN | SELECT and INSERT on its own tables; UPDATE/DELETE only where a migration grants it, never on audit/version tables (D-17); CONNECT on its own database only. |
 | `core_app` | LOGIN | Same, on `identity` and `master_data`. |
 | `ext_<name>` | LOGIN | Outside system; SELECT on chosen views only. |
 | installer | the server's `postgres` superuser, used only by `init.sh` / `apply.sh` | Creates databases and roles, runs migrations, switches links (no separate admin role: simpler). |
@@ -116,7 +116,7 @@ Status 2 Nov 2026: Phase A complete with A9 (A6 shipped as A6a/A6b/A6c, D-13, D-
 | A1 | Database server: Compose, 10 databases, roles, PUBLIC revokes, `platform.set_link` + `link_log` | PL-02, PL-08 |
 | A2 | `core` API: employees (identity verified), passwords, temporary-password reset, lockout + email + alert, permission register, history export | PL-01, PL-03, PL-04, PL-06 |
 | A2b | `core` people & permissions screens (React) on the A2 API | — |
-| A3 | `core`: OIDC sign-on, per-product role claims, re-authentication, deactivate-everywhere | PL-01, PL-05 |
+| A3 | `core`: OIDC sign-on, per-product permission claims, re-authentication, deactivate-everywhere | PL-01, PL-05 |
 | A4 | `core`: master-data screen, items/versions/links, `report.*_v1` views | PL-06, PL-08 |
 | A5 | `hello` product: SSO login, reads master data, signs a note keeping values at signing, publishes `note_v1`, "connection off" | PL-07, PL-08 |
 | A6 | Config schema + `apply.sh` (licences, links, outside logins, migrations + data checks, health, rollback) + age secrets + WAL backup/restore | PL-10, PL-11, PL-13 |

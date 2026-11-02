@@ -7,8 +7,8 @@
 rules:
 - id: PL-01
   title: Only authorised people get in, with per-product authority
-  rule: Every product admits only active employees with a role for that product in the permission register; the product checks
-    the role on the server for each action.
+  rule: Every product admits only active employees holding at least one of that product's permissions in the permission register;
+    the product checks the needed permission on the server for each action.
   clauses:
   - src: CFR11
     clause: 11.10(d)
@@ -26,13 +26,15 @@ rules:
     clause: '20.4'
     quote: sufficient controls to prevent unauthorised access
   breaks_if_dropped: 11.10(d)/(g), A11 12.1, SchM 20.4.
-  implementation: One sign-on (OIDC). The token a product receives carries only that product's roles from the register. Deactivating
-    an employee ends sign-on for every product; access tokens live 5 minutes and every renewal re-checks the register. Products
-    keep their own server-side role checks.
-  test: Deactivated employee cannot sign on to any product; a token for product A carries no roles of product B.
+  implementation: Each product declares its permissions in its manifest; apply loads them into the register's catalogue, and
+    each employee holds a subset of them (D-16). One sign-on (OIDC). The token a product receives carries only that product's
+    permission codes from the register. Deactivating an employee ends sign-on for every product; access tokens live 5 minutes
+    and every renewal re-checks the register. Products keep their own server-side permission checks.
+  test: Deactivated employee cannot sign on to any product; a person gets exactly the ticked permissions; a token for product
+    A carries no permissions of product B.
 - id: PL-02
   title: Access grants are recorded
-  rule: Creating, changing and cancelling access (employee roles, product-to-product links, outside-system logins) is recorded
+  rule: Creating, changing and cancelling access (employee permissions, product-to-product links, outside-system logins) is recorded
     with who, when and why, and never overwritten.
   clauses:
   - src: A11
@@ -47,7 +49,7 @@ rules:
   implementation: The permission register is insert-only grant/revoke events (current rights are a view over them). Every
     link grant/revoke on a database writes an insert-only row to that database's link log in the same transaction. The control
     panel keeps its own switch log.
-  test: Grant then revoke leaves two rows; the app role cannot update or delete them.
+  test: Grant then revoke leaves two rows; the app login cannot update or delete them.
 - id: PL-03
   title: One verified identity per person, never reused
   rule: Login IDs are unique and are never reused or reassigned, even after deactivation. The identity of each person is verified
@@ -131,10 +133,11 @@ rules:
     clause: '9'
     quote: convertible to a generally intelligible form
   breaks_if_dropped: SchM 20.4 (no risk qualifier), A11 9 (reason).
-  implementation: Master data and employees are insert-only versions (who, server UTC time, reason); nothing is deleted. The
-    version history is the audit trail and is shown on the screen. Each history can be printed / exported as CSV. Regular
+  implementation: Master data, employees and permission grants are insert-only versions or events (who, server UTC time, reason);
+    nothing is deleted. App logins get only SELECT and INSERT on new tables; UPDATE or DELETE only by an explicit grant on
+    current-state tables, never on history (D-17). The version history is the audit trail and is shown on the screen. Each history can be printed / exported as CSV. Regular
     review is CP-03.
-  test: An edit without a reason is refused; the old version stays readable; the app role cannot update a version.
+  test: An edit without a reason is refused; the old version stays readable; the app login cannot update a version.
 - id: PL-07
   title: Signed records keep their meaning without master data
   rule: A signed product record keeps the signer's printed name and the master-data values it relied on as they were at signing,
@@ -227,7 +230,7 @@ rules:
     or changes a copied file.
 - id: PL-12
   title: Access review report
-  rule: The site can review periodically who has which role in which product, and which links and outside logins are on.
+  rule: The site can review periodically who has which permission in which product, and which links and outside logins are on.
   clauses:
   - src: A11
     clause: '11'
@@ -236,7 +239,7 @@ rules:
     clause: '2'
     quote: level of access
   breaks_if_dropped: A11 11 (security is in the evaluation), A11 2.
-  implementation: One printable report from the register (employee, product, role, granted by/when, last sign-on) and the
+  implementation: One printable report from the register (employee, product, permission, granted by/when, last sign-on) and the
     link logs. The review itself is customer procedure CP-03.
   test: Report lists every active grant and no revoked one.
 - id: PL-13

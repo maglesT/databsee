@@ -12,19 +12,19 @@ Generated from `compliance/register.yaml` by `scripts/check-register.py --render
 
 ### PL-01 — Only authorised people get in, with per-product authority
 
-**Rule.** Every product admits only active employees with a role for that product in the permission register; the product checks the role on the server for each action.
+**Rule.** Every product admits only active employees holding at least one of that product's permissions in the permission register; the product checks the needed permission on the server for each action.
 
 **Clauses.** CFR11 11.10(d) "Limiting system access to authorized individuals"; CFR11 11.10(g) "Use of authority checks to ensure that only authorized individuals"; CFR211 211.68(b) "instituted only by authorized personnel"; A11 12.1 "restrict access to computerised system to authorised persons"; SCHM 20.4 "sufficient controls to prevent unauthorised access"
 
 **Breaks if dropped.** 11.10(d)/(g), A11 12.1, SchM 20.4.
 
-**Implementation (least strict).** One sign-on (OIDC). The token a product receives carries only that product's roles from the register. Deactivating an employee ends sign-on for every product; access tokens live 5 minutes and every renewal re-checks the register. Products keep their own server-side role checks.
+**Implementation (least strict).** Each product declares its permissions in its manifest; apply loads them into the register's catalogue, and each employee holds a subset of them (D-16). One sign-on (OIDC). The token a product receives carries only that product's permission codes from the register. Deactivating an employee ends sign-on for every product; access tokens live 5 minutes and every renewal re-checks the register. Products keep their own server-side permission checks.
 
-**Test.** Deactivated employee cannot sign on to any product; a token for product A carries no roles of product B.
+**Test.** Deactivated employee cannot sign on to any product; a person gets exactly the ticked permissions; a token for product A carries no permissions of product B.
 
 ### PL-02 — Access grants are recorded
 
-**Rule.** Creating, changing and cancelling access (employee roles, product-to-product links, outside-system logins) is recorded with who, when and why, and never overwritten.
+**Rule.** Creating, changing and cancelling access (employee permissions, product-to-product links, outside-system logins) is recorded with who, when and why, and never overwritten.
 
 **Clauses.** A11 12.3 "Creation"; CFR11 11.10(e) "Record changes shall not obscure previously recorded information"
 
@@ -32,7 +32,7 @@ Generated from `compliance/register.yaml` by `scripts/check-register.py --render
 
 **Implementation (least strict).** The permission register is insert-only grant/revoke events (current rights are a view over them). Every link grant/revoke on a database writes an insert-only row to that database's link log in the same transaction. The control panel keeps its own switch log.
 
-**Test.** Grant then revoke leaves two rows; the app role cannot update or delete them.
+**Test.** Grant then revoke leaves two rows; the app login cannot update or delete them.
 
 ### PL-03 — One verified identity per person, never reused
 
@@ -78,9 +78,9 @@ Generated from `compliance/register.yaml` by `scripts/check-register.py --render
 
 **Breaks if dropped.** SchM 20.4 (no risk qualifier), A11 9 (reason).
 
-**Implementation (least strict).** Master data and employees are insert-only versions (who, server UTC time, reason); nothing is deleted. The version history is the audit trail and is shown on the screen. Each history can be printed / exported as CSV. Regular review is CP-03.
+**Implementation (least strict).** Master data, employees and permission grants are insert-only versions or events (who, server UTC time, reason); nothing is deleted. App logins get only SELECT and INSERT on new tables; UPDATE or DELETE only by an explicit grant on current-state tables, never on history (D-17). The version history is the audit trail and is shown on the screen. Each history can be printed / exported as CSV. Regular review is CP-03.
 
-**Test.** An edit without a reason is refused; the old version stays readable; the app role cannot update a version.
+**Test.** An edit without a reason is refused; the old version stays readable; the app login cannot update a version.
 
 ### PL-07 — Signed records keep their meaning without master data
 
@@ -144,13 +144,13 @@ Generated from `compliance/register.yaml` by `scripts/check-register.py --render
 
 ### PL-12 — Access review report
 
-**Rule.** The site can review periodically who has which role in which product, and which links and outside logins are on.
+**Rule.** The site can review periodically who has which permission in which product, and which links and outside logins are on.
 
 **Clauses.** A11 11 "periodically evaluated"; A11 2 "level of access"
 
 **Breaks if dropped.** A11 11 (security is in the evaluation), A11 2.
 
-**Implementation (least strict).** One printable report from the register (employee, product, role, granted by/when, last sign-on) and the link logs. The review itself is customer procedure CP-03.
+**Implementation (least strict).** One printable report from the register (employee, product, permission, granted by/when, last sign-on) and the link logs. The review itself is customer procedure CP-03.
 
 **Test.** Report lists every active grant and no revoked one.
 

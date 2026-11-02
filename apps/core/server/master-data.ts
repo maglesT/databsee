@@ -1,11 +1,11 @@
 // Master data API (slice A4): items with insert-only versions and reasons (PL-06), links between items, history
-// and CSV export. Read: viewer or master_data_editor; write: master_data_editor (PL-01).
+// and CSV export. Read: core.masterdata.view or core.masterdata.edit; write: core.masterdata.edit (PL-01).
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Sql } from 'postgres';
 import { z } from 'zod';
 import { csv, HttpError } from './app.js';
 
-type Need = (req: FastifyRequest, roles: string[]) => { id: string; fullName: string };
+type Need = (req: FastifyRequest, codes: string[]) => { id: string; fullName: string };
 
 const text = z.string().trim().max(200).optional();
 /** The system checks on each kind's own fields (A11 6 / SchM 20.6: no critical batch data is entered here). */
@@ -28,8 +28,8 @@ const LINKS = {
 } as const;
 
 const reason = z.string().trim().min(1, 'A reason is required.');
-const READ = ['viewer', 'master_data_editor'];
-const WRITE = ['master_data_editor'];
+const READ = ['core.masterdata.view', 'core.masterdata.edit'];
+const WRITE = ['core.masterdata.edit'];
 
 export function registerMasterData(app: FastifyInstance, md: Sql, need: Need) {
   app.get('/api/items', async (req) => {

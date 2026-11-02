@@ -1,4 +1,4 @@
-// Applies a customer config to its server: databases and migrations, product roles, logins, links, containers,
+// Applies a customer config to its server: databases and migrations, product permissions, logins, links, containers,
 // then a health check. If anything fails, the previous config is applied again (PL-10).
 // Usage (from apply.sh): tsx deploy/apply.ts customers/<name>.yaml <decrypted secrets.yaml>
 // Connection: PG* env as the server's superuser (the installer); PGPASSWORD defaults to secrets.logins.postgres.
@@ -13,7 +13,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
 import { migrate } from '../db/migrate.js';
-import { allProducts, checkConfig, manifest, outsideLogin, productLogin, readYaml, ROOT, STATE, type Config, type Secrets } from './config.js';
+import { allProducts, checkConfig, manifest, outsideLogin, productLogin, readYaml, ROOT, STATE, type Config, type Manifest, type Secrets } from './config.js';
 
 /** Starts the containers and fails unless they turn healthy. The Docker one is below; tests use a stand-in. */
 export interface Runtime {
@@ -48,10 +48,7 @@ async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime
   const su = admin('postgres');
   const identity = admin('identity');
   try {
-    for (const m of products)
-      for (const r of m.roles)
-        await identity`insert into product_role values (${m.product}, ${r.role}, ${r.description})
-                       on conflict (product, role) do update set description = excluded.description`;
+    await loadPermissions(identity, products, `${config.change_ref}: ${reason}`);
 
     // Logins: on with the password from the secrets, or off and disconnected. format() quotes names and passwords.
     const ddl = async (rows: Promise<{ ddl: string }[]>) => { for (const r of await rows) await su.unsafe(r.ddl); };
@@ -107,6 +104,35 @@ async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime
     await identity.end();
   }
   await runtime.start(config, secrets);
+}
+
+/**
+ * PL-01/PL-02: loads the licensed products' permissions into the catalogue (identity.permission_event). Only
+ * differences are written: a new code or a new label is an active event; a code gone from a licensed manifest is an
+ * inactive event, and whoever holds it gets a revoke event, so a code that comes back later grants nothing by itself.
+ * An unlicensed product (other than core) has all its codes withdrawn the same way.
+ */
+export async function loadPermissions(identity: postgres.Sql, products: Manifest[], why: string) {
+  await identity.begin(async (tx) => {
+    const licensed = new Set(products.map((m) => m.product));
+    const unlicensed = (await tx<{ product: string }[]>`select distinct product from current_permission where product <> 'core'`)
+      .map((r) => r.product).filter((p) => !licensed.has(p));
+    for (const m of [...products, ...unlicensed.map((product) => ({ product, permissions: [] as Manifest['permissions'] }))]) {
+      const have = new Map((await tx<{ code: string; label: string }[]>`select code, label from current_permission where product = ${m.product}`)
+        .map((r) => [r.code, r.label]));
+      for (const p of m.permissions)
+        if (have.get(p.code) !== p.label)
+          await tx`insert into permission_event (product, code, label, active, by_name, reason) values (${m.product}, ${p.code}, ${p.label}, true, 'apply', ${why})`;
+      for (const [code, label] of have) {
+        if (m.permissions.some((p) => p.code === code)) continue;
+        // Revoke first: once the code is inactive, current_permission_grant no longer shows who holds it.
+        await tx`insert into permission_grant (employee_id, product, code, granted, by_name, reason)
+          select employee_id, product, code, false, 'apply', ${`permission removed from ${m.product} (${why})`}
+          from current_permission_grant where code = ${code}`;
+        await tx`insert into permission_event (product, code, label, active, by_name, reason) values (${m.product}, ${code}, ${label}, false, 'apply', ${why})`;
+      }
+    }
+  });
 }
 
 /** provider database -> login -> views, from the config's links and outside logins. */

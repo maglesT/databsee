@@ -18,8 +18,8 @@ the `report` schema for published views and `platform.set_link` + `platform.link
 ## Single sign-on (slice A3)
 The core app is the OIDC provider for every product (issuer `OIDC_ISSUER`, e.g. `https://site/oidc`; clients in
 `OIDC_CLIENTS`, signing key in `OIDC_JWKS`, cookie keys in `OIDC_COOKIE_KEYS`, all from the customer secrets).
-Products use the authorization-code flow with PKCE and scope `openid profile roles`; the `roles` claim holds only
-that product's roles. For an e-signature a product asks with `prompt=login&max_age=0` and must check that the
+Products use the authorization-code flow with PKCE and scope `openid profile permissions`; the `permissions` claim
+holds only that product's permission codes (e.g. `["hello.note.read", "hello.note.sign"]`, D-16). For an e-signature a product asks with `prompt=login&max_age=0` and must check that the
 returned `sub` is the person signing.
 
 ## Customer config and apply (slice A6)
@@ -28,7 +28,7 @@ outside logins, and the customer's change reference and reason for the change (t
 Secrets (database passwords, OIDC keys) are in `customers/<name>.secrets.yaml.age`, encrypted with age (D-12).
 `deploy/apply.sh customers/<name>.yaml` decrypts the secrets and runs `deploy/apply.ts`: create databases, migrate
 (a data-moving migration ships `NNNN_name.check.sql`, two queries split by `-- after` that must return the same rows,
-PL-13), load product roles, switch logins and links (only the differences, each logged with the change reference),
+PL-13), load the products' permissions into the register, switch logins and links (only the differences, each logged with the change reference),
 start the containers (`deploy/compose.yml`), check health, and re-apply the previous config if anything fails (PL-10).
 
 ## Backups (PL-11, slice A6b)
@@ -82,7 +82,7 @@ Setup: `docker compose -f deploy/control-panel.yml up -d db`, then `db/server/in
 
 ## Access review and adding products (slice A9)
 - **Access review report** (PL-12): core, People screen, "access review report" (identity administrators). It is one
-  printable page listing every active role (granted by, when, last sign-on to that product) and every link and outside
+  printable page listing every active permission (granted by, when, last sign-on to that product) and every link and outside
   login that is on, as recorded by the last apply. The periodic review itself is the site's procedure (CP-03).
 - **Adding a product**: `docs/05-add-a-product.md`.
 - **Traceability**: `scripts/check-traceability.py` (CI) fails if a register rule has no test named by its ID.

@@ -48,16 +48,34 @@ const secretsSchema = z.object({
 export type Secrets = z.infer<typeof secretsSchema>;
 
 export interface Manifest {
-  product: string; database: string; roles: { role: string; description: string }[]; publishes: string[];
+  product: string; database: string; publishes: string[];
+  permissions: { code: string; label: string }[];   // what the product offers in the permission register (D-16)
   reads?: Record<string, string[]>;   // provider database -> views this product can read when linked
 }
+
+/** A permission code: <product>.<thing>.<action>, lower case and dotted (same check as db/identity/0004). */
+export const PERMISSION_CODE = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/;
 
 /** The product's manifest; a product without one cannot be licensed yet. */
 export function manifest(product: string): Manifest {
   const file = path.join(ROOT, 'apps', product, 'manifest.json');
   if (!existsSync(file)) throw new Error(`unknown product "${product}" (no apps/${product}/manifest.json)`);
   const m: Manifest = JSON.parse(readFileSync(file, 'utf8'));
-  if (m.product !== product || m.database !== product) throw new Error(`apps/${product}/manifest.json: product and database must be "${product}"`);
+  return checkManifest(m, product, `apps/${product}/manifest.json`);
+}
+
+/** PL-01: a product offers at least one permission; each code is its own, well-formed, labelled and listed once. */
+export function checkManifest(m: Manifest, product: string, where = product): Manifest {
+  if (m.product !== product || m.database !== product) throw new Error(`${where}: product and database must be "${product}"`);
+  if (!Array.isArray(m.permissions) || m.permissions.length === 0) throw new Error(`${where}: needs a list of permissions`);
+  const seen = new Set<string>();
+  for (const p of m.permissions) {
+    if (typeof p.code !== 'string' || !PERMISSION_CODE.test(p.code) || !p.code.startsWith(`${product}.`))
+      throw new Error(`${where}: permission "${p.code}" must look like ${product}.<thing>.<action> (lower case)`);
+    if (typeof p.label !== 'string' || !p.label.trim()) throw new Error(`${where}: permission ${p.code} needs a label`);
+    if (seen.has(p.code)) throw new Error(`${where}: permission ${p.code} is listed twice`);
+    seen.add(p.code);
+  }
   return m;
 }
 

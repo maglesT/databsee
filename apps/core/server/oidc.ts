@@ -1,7 +1,8 @@
 // Single sign-on for every product (slice A3, decision D-05): an OIDC provider (oidc-provider, OpenID-certified)
 // on the same password check, lockout and register as the core screens.
-// PL-01: a product's token carries only that product's roles; an inactive or locked employee has no account, so
-// renewals fail (access tokens live 5 minutes). PL-05: prompt=login / max_age=0 forces the password again.
+// PL-01: a product's token carries only that product's permission codes (claim `permissions`, D-16); an inactive or
+// locked employee has no account, so renewals fail (access tokens live 5 minutes). PL-05: prompt=login / max_age=0
+// forces the password again.
 import Provider, { type Adapter, type AdapterPayload, type Configuration, type KoaContextWithOIDC } from 'oidc-provider';
 import type { Sql } from 'postgres';
 
@@ -43,10 +44,10 @@ export async function findAccount(sql: Sql, sub: string, product: string | undef
     select e.login, e.full_name from employee_current e join credential c on c.employee_id = e.id
     where e.id = ${sub} and e.active and c.locked_at is null`;
   if (!row) return undefined;
-  const roles = product
-    ? (await sql<{ role: string }[]>`select role from current_grant where employee_id = ${sub} and product = ${product} order by role`).map((r) => r.role)
+  const permissions = product
+    ? (await sql<{ code: string }[]>`select code from current_permission_grant where employee_id = ${sub} and product = ${product} order by code`).map((r) => r.code)
     : [];
-  return { accountId: sub, claims: async () => ({ sub, name: row.full_name, preferred_username: row.login, roles }) };
+  return { accountId: sub, claims: async () => ({ sub, name: row.full_name, preferred_username: row.login, permissions }) };
 }
 
 export function buildProvider(sql: Sql, s: OidcSettings) {
@@ -55,8 +56,8 @@ export function buildProvider(sql: Sql, s: OidcSettings) {
     clients: s.clients.map((c) => ({ ...c, grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'] })),
     jwks: s.jwks as Configuration['jwks'],
     cookies: { keys: s.cookieKeys },
-    scopes: ['openid', 'profile', 'roles'],
-    claims: { openid: ['sub'], profile: ['name', 'preferred_username'], roles: ['roles'] },
+    scopes: ['openid', 'profile', 'permissions'],
+    claims: { openid: ['sub'], profile: ['name', 'preferred_username'], permissions: ['permissions'] },
     pkce: { required: () => true },
     features: { devInteractions: { enabled: false }, revocation: { enabled: true }, rpInitiatedLogout: { enabled: true } },
     ttl: { AccessToken: 300, IdToken: 300, AuthorizationCode: 60, Interaction: 600, Session: 8 * 3600, Grant: 8 * 3600, RefreshToken: 8 * 3600 },

@@ -3,10 +3,14 @@
 set client_min_messages = warning;
 begin;
 
--- The app writes its own tables (created later by its migrations, owned by <db>_owner); nobody else gets anything.
+-- The app reads and adds to its own tables (created later by its migrations, owned by <db>_owner); nobody else gets anything.
 revoke all on schema public from public;
 grant usage on schema public to :"app";
-alter default privileges for role :"owner" in schema public grant select, insert, update, delete on tables to :"app";
+-- Least privilege (D-17): SELECT and INSERT only. A table whose rows the app must change or remove gets UPDATE or
+-- DELETE from an explicit grant in a migration of its database; insert-only and audit tables never do. The revoke
+-- removes the broader default from servers set up before D-17.
+alter default privileges for role :"owner" in schema public revoke update, delete, truncate on tables from :"app";
+alter default privileges for role :"owner" in schema public grant select, insert on tables to :"app";
 alter default privileges for role :"owner" in schema public grant usage, select on sequences to :"app";
 -- New functions are not executable by PUBLIC (a linked reader must not call the provider's functions).
 alter default privileges for role :"owner" revoke execute on routines from public;

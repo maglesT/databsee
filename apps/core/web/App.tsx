@@ -1,13 +1,13 @@
-// Core screens (slice A2b): sign in, change password, people, one person (details, roles, history), alerts.
+// Core screens (slice A2b): sign in, change password, people, one person (details, permissions, history), alerts.
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { api } from './api.js';
 import { form, Link, useAction, when } from './ui.js';
 import { MasterData } from './MasterData.js';
 
-interface Me { id: string; login: string; fullName: string; roles: string[]; mustChange: boolean }
+interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean }
 interface Person { id: string; login: string; fullName: string; email: string | null; active: boolean; lockedAt: string | null }
-interface Role { product: string; role: string; description: string }
-interface Grant { employeeId: string; product: string; role: string; grantedBy: string; grantedAt: string }
+interface Permission { product: string; code: string; label: string }
+interface Grant { product: string; code: string; grantedBy: string; grantedAt: string }
 interface Alert { id: string; message: string; at: string; emailedAt: string | null; emailError: string | null }
 
 export function App() {
@@ -19,18 +19,20 @@ export function App() {
   if (me === undefined) return null;
   if (me === null) return <SignIn onDone={load} />;
   if (me.mustChange) return <Shell me={me} onSignOut={() => setMe(null)} go={setPage}><ChangePassword me={me} onDone={load} /></Shell>;
-  const people = me.roles.includes('identity_admin');
-  const md = me.roles.includes('viewer') || me.roles.includes('master_data_editor');
+  const people = can(me, 'core.people.manage');
+  const md = can(me, 'core.masterdata.view', 'core.masterdata.edit');
   const name = page.name === 'home' ? (people ? 'people' : md ? 'master-data' : 'none') : page.name;
   return (
     <Shell me={me} onSignOut={() => setMe(null)} go={setPage}>
       {name === 'none' && <div className="card">Signed in. You have no rights in the core screens.</div>}
       {name === 'people' && people && <People open={(id) => setPage({ name: 'person', id })} />}
       {page.name === 'person' && people && <PersonPage id={page.id} me={me} back={() => setPage({ name: 'people' })} />}
-      {name === 'master-data' && md && <MasterData canEdit={me.roles.includes('master_data_editor')} />}
+      {name === 'master-data' && md && <MasterData canEdit={can(me, 'core.masterdata.edit')} />}
     </Shell>
   );
 }
+
+const can = (me: Me, ...codes: string[]) => codes.some((c) => me.permissions.includes(c));
 
 type Page = { name: 'home' } | { name: 'people' } | { name: 'person'; id: string } | { name: 'master-data' };
 
@@ -42,8 +44,8 @@ function Shell({ me, children, onSignOut, go }: { me: Me; children: ReactNode; o
     <>
       <header>
         <strong>Medhanta core</strong>
-        {!me.mustChange && me.roles.includes('identity_admin') && <Link onClick={() => go({ name: 'people' })}>People</Link>}
-        {!me.mustChange && (me.roles.includes('viewer') || me.roles.includes('master_data_editor')) && <Link onClick={() => go({ name: 'master-data' })}>Master data</Link>}
+        {!me.mustChange && can(me, 'core.people.manage') && <Link onClick={() => go({ name: 'people' })}>People</Link>}
+        {!me.mustChange && can(me, 'core.masterdata.view', 'core.masterdata.edit') && <Link onClick={() => go({ name: 'master-data' })}>Master data</Link>}
         <span className="muted">{me.fullName}</span>
         <button className="plain" onClick={() => api('POST', '/api/logout').finally(onSignOut)}>Sign out</button>
       </header>
@@ -153,21 +155,16 @@ function People({ open }: { open: (id: string) => void }) {
 interface History {
   employee: { login: string; full_name: string; email: string | null; active: boolean; identity_verified_by: string; identity_verified_how: string };
   versions: { version: number; full_name: string; email: string | null; active: boolean; changed_by_name: string; changed_at: string; reason: string }[];
-  grants: { product: string; role: string; granted: boolean; by_name: string; at: string; reason: string }[];
+  grants: { product: string; code: string; granted: boolean; by_name: string; at: string; reason: string }[];
   credentialEvents: { kind: string; product: string; by_name: string | null; reason: string | null; at: string }[];
 }
 
 function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) {
   const [h, setH] = useState<History | null>(null);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [grants, setGrants] = useState<Grant[]>([]);
   const [temp, setTemp] = useState('');
   const a = useAction();
-  const load = useCallback(async () => {
-    setH(await api<History>('GET', `/api/employees/${id}/history`));
-    setGrants((await api<Grant[]>('GET', '/api/grants')).filter((g) => g.employeeId === id));
-  }, [id]);
-  useEffect(() => { void load(); void api<Role[]>('GET', '/api/roles').then(setRoles); }, [load]);
+  const load = useCallback(async () => { setH(await api<History>('GET', `/api/employees/${id}/history`)); }, [id]);
+  useEffect(() => { void load(); }, [load]);
   if (!h) return null;
   const ask = (q: string) => { const r = window.prompt(q); if (!r?.trim()) throw new Error('A reason is required.'); return r; };
   const e = h.employee;
@@ -206,37 +203,7 @@ function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) 
         <a.Error />
       </div>
 
-      <div className="card">
-        <h3>Roles</h3>
-        <table>
-          <thead><tr><th>Product</th><th>Role</th><th>Granted by</th><th>When</th><th /></tr></thead>
-          <tbody>
-            {grants.map((g) => (
-              <tr key={g.product + g.role}>
-                <td>{g.product}</td><td>{g.role}</td><td>{g.grantedBy}</td><td>{when(g.grantedAt)}</td>
-                <td><Link onClick={() => void a.run(async () => {
-                  await api('POST', '/api/grants', { employeeId: id, product: g.product, role: g.role, granted: false, reason: ask(`Reason for removing ${g.product} / ${g.role}:`) });
-                  await load();
-                })}>Remove</Link></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <form className="row" onSubmit={(ev) => {
-          ev.preventDefault();
-          const f = form(ev);
-          const [product, role] = (f.role ?? '').split('/');
-          void a.run(async () => { await api('POST', '/api/grants', { employeeId: id, product, role, granted: true, reason: f.reason }); await load(); });
-        }}>
-          <label>Add role<select name="role" required>
-            {roles.filter((r) => !grants.some((g) => g.product === r.product && g.role === r.role)).map((r) => (
-              <option key={r.product + r.role} value={`${r.product}/${r.role}`}>{r.product} / {r.role}: {r.description}</option>
-            ))}
-          </select></label>
-          <label>Reason<input name="reason" required /></label>
-          <button>Grant</button>
-        </form>
-      </div>
+      <Permissions id={id} onChange={load} />
 
       <div className="card">
         <h3>History</h3>
@@ -245,7 +212,7 @@ function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) 
           <tbody>
             {[
               ...h.versions.map((v) => ({ at: v.changed_at, what: `Version ${v.version}: ${v.full_name}, ${v.email ?? 'no email'}, ${v.active ? 'active' : 'inactive'}`, by: v.changed_by_name, reason: v.reason })),
-              ...h.grants.map((g) => ({ at: g.at, what: `${g.granted ? 'Granted' : 'Removed'} ${g.product} / ${g.role}`, by: g.by_name, reason: g.reason })),
+              ...h.grants.map((g) => ({ at: g.at, what: `${g.granted ? 'Granted' : 'Removed'} ${g.code}`, by: g.by_name, reason: g.reason })),
               ...h.credentialEvents.map((c) => ({ at: c.at, what: `${c.kind.replace('_', ' ')} (${c.product})`, by: c.by_name ?? '', reason: c.reason ?? '' })),
             ].sort((x, y) => x.at.localeCompare(y.at)).map((r, i) => (
               <tr key={i}><td>{when(r.at)}</td><td>{r.what}</td><td>{r.by}</td><td>{r.reason}</td></tr>
@@ -254,5 +221,62 @@ function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) 
         </table>
       </div>
     </>
+  );
+}
+
+/** PL-01: one person's permissions in one product: tick exactly the ones they need, or copy another person's. */
+function Permissions({ id, onChange }: { id: string; onChange: () => Promise<void> }) {
+  const [catalogue, setCatalogue] = useState<Permission[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [grants, setGrants] = useState<Grant[]>([]);
+  const [product, setProduct] = useState('core');
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
+  const [reason, setReason] = useState('');
+  const [fromId, setFromId] = useState('');
+  const a = useAction();
+  const load = useCallback(async () => setGrants(await api<Grant[]>('GET', `/api/employees/${id}/permissions`)), [id]);
+  useEffect(() => {
+    void load();
+    void api<Permission[]>('GET', '/api/permissions').then(setCatalogue);
+    void api<Person[]>('GET', '/api/employees').then(setPeople);
+  }, [load]);
+  useEffect(() => { setTicked(new Set(grants.filter((g) => g.product === product).map((g) => g.code))); }, [grants, product]);
+  const products = [...new Set(catalogue.map((p) => p.product))];
+  const save = (path: string, body: object) => void a.run(async () => {
+    await api(path.endsWith('copy') ? 'POST' : 'PUT', path, { product, reason, ...body });
+    setReason('');
+    await load();
+    await onChange();
+  });
+  return (
+    <div className="card">
+      <h3>Permissions</h3>
+      <label>Product<select value={product} onChange={(e) => setProduct(e.target.value)}>
+        {products.map((p) => <option key={p}>{p}</option>)}
+      </select></label>
+      {catalogue.filter((p) => p.product === product).map((p) => {
+        const g = grants.find((x) => x.code === p.code);
+        return (
+          <label className="check" key={p.code}>
+            <input type="checkbox" checked={ticked.has(p.code)} onChange={(e) => {
+              const next = new Set(ticked);
+              if (e.target.checked) next.add(p.code); else next.delete(p.code);
+              setTicked(next);
+            }} />
+            <span><code>{p.code}</code> {p.label}{g && <span className="muted"> (granted by {g.grantedBy}, {when(g.grantedAt)})</span>}</span>
+          </label>
+        );
+      })}
+      <label>Reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. new job role, HR ticket 123" /></label>
+      <p className="row">
+        <button onClick={() => save(`/api/employees/${id}/permissions`, { codes: [...ticked] })}>Save</button>
+        <label>Copy from<select value={fromId} onChange={(e) => setFromId(e.target.value)}>
+          <option value="">choose a person</option>
+          {people.filter((p) => p.id !== id).map((p) => <option key={p.id} value={p.id}>{p.login}: {p.fullName}</option>)}
+        </select></label>
+        <button className="plain" disabled={!fromId} onClick={() => save(`/api/employees/${id}/permissions/copy`, { fromId })}>Copy</button>
+      </p>
+      <a.Error />
+    </div>
   );
 }

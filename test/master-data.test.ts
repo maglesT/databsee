@@ -10,7 +10,7 @@ const code = (s: string) => `${s}-${run}`.toUpperCase();
 
 beforeAll(async () => {
   t = await coreApp();
-  await makeEmployee(`mdedit${run}`, ['master_data_editor']);
+  await makeEmployee(`mdedit${run}`, ['core.masterdata.edit']);
   editor = await signIn(t.app, `mdedit${run}`);
 });
 afterAll(async () => { await t.sql.end(); await t.md.end(); });
@@ -23,7 +23,7 @@ async function add(kind: string, c: string, name: string, fields: object = {}) {
 
 describe('PL-01 only master-data editors change master data', () => {
   it('PL-01 a viewer reads but cannot add or change', async () => {
-    await makeEmployee(`mdview${run}`, ['viewer']);
+    await makeEmployee(`mdview${run}`, ['core.masterdata.view']);
     const viewer = await signIn(t.app, `mdview${run}`);
     expect((await viewer.call('GET', '/api/items?kind=room')).statusCode).toBe(200);
     expect((await viewer.call('POST', '/api/items', { kind: 'room', code: code('VR'), name: 'x', reason: 'r' })).statusCode).toBe(403);
