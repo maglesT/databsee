@@ -131,7 +131,7 @@ The hello product exists only in the platform repo and CI; it is never installed
 4. One `core` app for sign-on + people/permissions + master data, instead of separate apps. OK?
 5. "Connections (links) table" in master_data = relationships between master items (equipment in room, material from supplier). Product-to-product links live in the config file and the database grants. Right?
 6. Every switch needs the customer's change reference (their SchM 20.8 change control, CP-02). OK?
-7. Lockout alert: on-screen only (as Logbook D-10), or also an email to the site security contact? The verifier reads 11.300(d) "immediate and urgent" as needing the email. I recommend adding the email (one setting, no new service).
+7. ~~Lockout alert by email too?~~ **Decided D-03 (owner, 2 Nov): yes, email the site security contact plus on-screen alert.**
 
 ## 10. Simplicity review
 - **Removed:** API gateway, data lake, postgres_fdw, Keycloak, Kubernetes/Terraform/Vault, separate master-data and identity apps, separate audit tables (insert-only versions are the audit trail), MFA, approval signatures on master data, local copies of master data.

@@ -6,7 +6,7 @@
 |---|---|---|
 | PL-02 | 11.10(e) applies to predicate-rule records; register is not one. | 11.10(e) kept only as support; A11 12.3 carries the rule. |
 | PL-03 | 11.100(b) identity verification missing. | Added: "identity verified by / how" at employee creation. |
-| PL-04 | 11.300(c) controlled reset missing; on-screen alert may not be "immediate and urgent" (11.300(d)). | Temporary password changed at first use. Alert stays on-screen per Logbook D-10; **email to security contact put to the owner**. |
+| PL-04 | 11.300(c) controlled reset missing; on-screen alert may not be "immediate and urgent" (11.300(d)). | Temporary password changed at first use. Alert stays on-screen per Logbook D-10; email to the site security contact added (owner decision D-03). |
 | PL-05/PL-04 | 11.200(a)(3): admins must not be able to sign as someone else. | Admins never know a usable password (temporary + forced change). |
 | PL-06 | A11 9 "convertible to a generally intelligible form" and "regularly reviewed" missing. | Print/CSV export; review added to CP-03. |
 | PL-08 | read_at not required by any clause. | Kept as the existing products' convention, stated as not a compliance rule. |
