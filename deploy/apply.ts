@@ -163,14 +163,9 @@ export const docker: Runtime = {
         OIDC_REDIRECT_URI: `https://${p}.${config.domain}/cb`,
       }));
     }
-    write('backup.env', env({ // read by deploy/backup.sh (rclone settings from the environment)
-      RCLONE_CONFIG_OFFSITE_TYPE: 's3',
-      RCLONE_CONFIG_OFFSITE_PROVIDER: 'Other',
-      RCLONE_CONFIG_OFFSITE_ENDPOINT: config.backup.endpoint,
-      RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET: 'true',          // the key may not create buckets
-      RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: secrets.backup.access_key_id,
-      RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: secrets.backup.secret_access_key,
-      BACKUP_REMOTE: `offsite:${config.backup.bucket}/${config.customer}`,
+    write('backup.env', env({ // read by deploy/backup.sh: the rclone remote "offsite" from the secrets
+      ...Object.fromEntries(Object.entries(secrets.backup).map(([k, v]) => [`RCLONE_CONFIG_OFFSITE_${k.toUpperCase()}`, v])),
+      BACKUP_REMOTE: `offsite:${config.backup.path}`,
     }));
     write('Caddyfile', [`${config.domain} {\n  reverse_proxy core:3000\n}`,
       ...config.licences.map((p) => `${p}.${config.domain} {\n  reverse_proxy ${p}:3000\n}`)].join('\n') + '\n');
@@ -179,8 +174,7 @@ export const docker: Runtime = {
       { stdio: 'inherit', env: { ...process.env, VERSION: config.version } });
     for (const p of allProducts().filter((p) => !config.licences.includes(p))) compose('--profile', p, 'rm', '--stop', '--force', p);
     compose(...config.licences.flatMap((p) => ['--profile', p]), 'up', '-d', '--wait', 'db', 'core', 'caddy', ...config.licences);
-    // PL-11: the real off-server store must refuse a delete by this server, or the apply fails.
-    execFileSync(path.join(ROOT, 'deploy/backup.sh'), ['check'], { stdio: 'inherit' });
+    execFileSync(path.join(ROOT, 'deploy/backup.sh'), ['check'], { stdio: 'inherit', env: { ...process.env, MEDHANTA_STATE: STATE } });
   },
 };
 
