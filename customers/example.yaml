@@ -6,6 +6,7 @@ customer: example
 version: 0.6.0                    # platform release
 domain: medhanta.example.com      # core at https://<domain>, product p at https://<p>.<domain>
 host: deploy@medhanta.example.com # SSH target (online sites); offline sites set "offline: true" instead
+host_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyReplaceWithTheServerHostKey000000
 security_contact: it-security@example.com
 backup:                           # off-server copy (PL-11): S3-compatible bucket with Object Lock, see README "Backups"
   endpoint: https://s3.eu-central-003.backblazeb2.com

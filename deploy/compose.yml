@@ -1,6 +1,8 @@
-# One customer server. deploy/apply.ts writes the settings in deploy/secrets/ (never committed) from the customer
+# One customer server. deploy/apply.ts writes the settings in $MEDHANTA_STATE (on a server /var/lib/medhanta/state;
+# never committed) from the customer
 # config and its secrets, then starts db, core, caddy and the licensed products (each product has a profile
 # named after it, so it runs only when licensed). VERSION is the platform release from the config.
+name: medhanta                     # same project for every release folder
 x-platform: &platform
   image: medhanta/platform:${VERSION:-0.0.0}
   restart: unless-stopped
@@ -11,7 +13,7 @@ x-platform: &platform
     interval: 10s
 services:
   db:
-    image: postgres:17
+    image: postgres:17.11
     restart: unless-stopped
     # PL-11: every WAL file is archived to /archive/wal (at least every 5 minutes); deploy/backup.sh adds the
     # nightly base backup and copies the archive off the server.
@@ -31,27 +33,27 @@ services:
   core:
     <<: *platform
     command: ["npx", "tsx", "apps/core/server/index.ts"]
-    env_file: ./secrets/core.env
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/core.env
     environment: { PORT: "3000" }
   hello:                             # reference product: CI and demos only, never licensed at a customer
     <<: *platform
     profiles: [hello]
     command: ["npx", "tsx", "apps/hello/index.ts"]
-    env_file: ./secrets/hello.env
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/hello.env
     environment: { PORT: "3000" }
   caddy:
-    image: caddy:2
+    image: caddy:2.10.2
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     volumes:
-      - ./secrets/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${MEDHANTA_STATE:-/var/lib/medhanta/state}/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy:/data
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
       interval: 10s
 secrets:
   pg_superuser:
-    file: ./secrets/pg_superuser
+    file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/pg_superuser
 volumes:
   pgdata:
   caddy:

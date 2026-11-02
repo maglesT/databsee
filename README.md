@@ -34,8 +34,8 @@ start the containers (`deploy/compose.yml`), check health, and re-apply the prev
 ## Backups (PL-11, slice A6b)
 PostgreSQL archives every WAL file (at least every 5 minutes) to `/var/lib/medhanta/archive/wal`. Cron on the server:
 ```
-15 1 * * *   root  /opt/medhanta/deploy/backup.sh base    # nightly base backup of all databases
-*/5 * * * *  root  /opt/medhanta/deploy/backup.sh copy    # copy the archive off the server
+15 1 * * *   root  /opt/medhanta/current/deploy/backup.sh base    # nightly base backup of all databases
+*/5 * * * *  root  /opt/medhanta/current/deploy/backup.sh copy    # copy the archive off the server
 ```
 Off-server store: an S3-compatible bucket (e.g. Backblaze B2) created with Object Lock and a default retention in
 COMPLIANCE mode (at least the customer's record retention period), set in the customer config (`backup:`). Object
@@ -46,3 +46,27 @@ Restore to a point in time: `deploy/restore.sh <base backup> "<time>" <empty dat
 the folder belongs to the database container's user), then start PostgreSQL on it and take a new base backup at once.
 `test/pl11-restore.sh` does exactly this in CI for all 10 databases. The site restores a real backup periodically
 (CP-04), using its own copy of the archive, never the live one.
+
+## Releases and applying configs (slice A7)
+- **Release** (PL-10): tag `v<version>` on a green `main` commit, with release notes on the GitHub release. A customer
+  config names the version it runs.
+- **Apply**: `.github/workflows/apply.yml` runs on every commit that changes `customers/<name>.yaml` or its secrets
+  (or by hand, "Run workflow"). It checks the config, builds the bundle (`deploy/bundle.sh`: release `v<version>` with its
+  node_modules and images, plus the config and encrypted secrets) and signs it with `ssh-keygen -Y sign`.
+  Online sites: the bundle is copied over SSH (host key pinned in the config) and applied. Offline sites: download the
+  bundle and its `.sig` from the run and run `/opt/medhanta/current/deploy/apply.sh <bundle>.tar` on site.
+  `apply.sh` checks the signature first and refuses anything else. One apply per customer runs at a time.
+- **Infrastructure changes** (host, OS, PostgreSQL, Docker) are recorded as a dated entry in
+  `customers/<name>.changes.md` (template `customers/example.changes.md`), with the customer's change reference.
+
+## Server setup (once per customer server)
+1. Ubuntu LTS with Docker (Compose plugin), Node 22, age, rclone and openssh; only ports 22, 80 and 443 open.
+2. `age-keygen -o /etc/medhanta/age.key` (mode 600); add its public key as a recipient of the customer's secrets file.
+3. `/etc/medhanta/allowed_signers`: `medhanta-release namespaces="medhanta-bundle" <release public key>`.
+4. GitHub: Environment `production` limited to the `main` branch, holding the secrets `BUNDLE_SIGNING_KEY` and
+   `DEPLOY_SSH_KEY`. Online sites: user `deploy` with the Actions public key, allowed `sudo /opt/medhanta/current/deploy/apply.sh *` only;
+   put the server's `ssh-ed25519` host key in the config (`host_key`).
+5. Cron lines from "Backups" above.
+6. First install: check the first bundle by hand (`deploy/verify-bundle.sh` from the repo), unpack it to
+   `/opt/medhanta/releases/<name>`, link `/opt/medhanta/current` to it and run `current/deploy/apply.sh <bundle>.tar`.
+   Then create the first administrator: `docker compose -f /opt/medhanta/current/deploy/compose.yml exec core npx tsx apps/core/server/index.ts create-first-admin ...`.

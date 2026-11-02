@@ -13,7 +13,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
 import { migrate } from '../db/migrate.js';
-import { checkConfig, manifest, outsideLogin, productLogin, readYaml, ROOT, type Config, type Secrets } from './config.js';
+import { checkConfig, manifest, outsideLogin, productLogin, readYaml, ROOT, STATE, type Config, type Secrets } from './config.js';
 
 /** Starts the containers and fails unless they turn healthy. The Docker one is below; tests use a stand-in. */
 export interface Runtime {
@@ -134,7 +134,7 @@ async function dbProblems(config: Config, secrets: Secrets): Promise<string[]> {
  *  the unlicensed ones, and waits until the started services report healthy. */
 export const docker: Runtime = {
   async start(config, secrets) {
-    const dir = path.join(ROOT, 'deploy/secrets');
+    const dir = STATE;
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     const write = (file: string, text: string) => writeFileSync(path.join(dir, file), text, { mode: 0o600 });
     const url = (login: string, db: string) => `postgres://${login}:${encodeURIComponent(secrets.logins[login] ?? '')}@db:5432/${db}`;
@@ -191,10 +191,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const { config, secrets } = checkConfig(readYaml(configFile), readYaml(secretsFile));
   process.env.PGPASSWORD ??= secrets!.logins.postgres;
   // The database runs first: everything else is applied through it.
-  mkdirSync(path.join(ROOT, 'deploy/secrets'), { recursive: true, mode: 0o700 });
-  writeFileSync(path.join(ROOT, 'deploy/secrets/pg_superuser'), secrets!.logins.postgres ?? '', { mode: 0o600 });
+  mkdirSync(STATE, { recursive: true, mode: 0o700 });
+  writeFileSync(path.join(STATE, 'pg_superuser'), secrets!.logins.postgres ?? '', { mode: 0o600 });
   execFileSync('docker', ['compose', '-f', path.join(ROOT, 'deploy/compose.yml'), 'up', '-d', '--wait', 'db'], { stdio: 'inherit' });
-  const appliedFile = path.join(ROOT, 'deploy/secrets/applied.yaml');
+  const appliedFile = path.join(STATE, 'applied.yaml');
   // The rollback uses today's secrets, so they must still cover the previous config.
   const previous = existsSync(appliedFile) ? checkConfig(readYaml(appliedFile), secrets).config : undefined;
   await applyConfig(config, secrets!, docker, previous);
