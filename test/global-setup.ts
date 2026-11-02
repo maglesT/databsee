@@ -4,5 +4,5 @@ import { migrate } from '../db/migrate.js';
 
 export default async function setup() {
   execFileSync('db/server/init.sh', ['logbook', 'hello'], { stdio: 'inherit' });
-  for (const db of ['identity', 'master_data']) await migrate(db);
+  for (const db of ['identity', 'master_data', 'hello']) await migrate(db);
 }

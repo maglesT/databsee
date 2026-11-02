@@ -12,3 +12,4 @@
 | D-08 | 2026-11-02 | Every switch in the control panel asks for the customer's change reference (one free-text field), for the site's change control (SchM 20.8). | Owner (same) |
 | D-09 | 2026-11-02 | Plan draft 2 approved; build starts with slice A1. | Owner (same) |
 | D-10 | 2026-11-02 | Standing OK: squash-merge each Phase A slice once CI is green and its review pass is done; email after each merge. | Owner ("keep merging") |
+| D-11 | 2026-11-02 | Phase B is rewire only: each product gets its own database on the shared server, reads master data through the read-only views, swaps its login for the core sign-on, and moves its data. No new features, no rewrites. | Owner (via lead) |

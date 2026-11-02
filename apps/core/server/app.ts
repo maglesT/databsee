@@ -386,6 +386,11 @@ function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings) {
 
       const id = await checkPassword(deps, login, b.password ?? '', product);
       if (!id) return show({ error: 'Wrong login or password, or the account is locked or inactive.' });
+      // PL-05: re-authentication (e.g. for an e-signature) confirms the person already signed in; nobody else may
+      // answer it. Switching person needs a sign-out first.
+      if (d.session?.accountId && d.prompt.name === 'login' && d.session.accountId !== id) {
+        return show({ error: 'Only the person signed in can confirm here. To switch person, sign out first.', reauth: true, login: '' });
+      }
 
       // PL-04: a temporary or expired password is changed here before the product gets anything.
       const [c] = await sql<{ full_name: string; must_change: boolean }[]>`
