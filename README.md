@@ -43,5 +43,5 @@ Lock keeps every version, so even an overwrite cannot alter a stored backup. The
 `rclone copy --immutable` never changes a copied file, so the server cannot erase or alter a backup.
 Restore to a point in time: `deploy/restore.sh <base backup> "<time>" <empty data folder>` (as root on the server, so
 the folder belongs to the database container's user), then start PostgreSQL on it and take a new base backup at once.
-A trial restore (CP-04) uses its own copy of the archive, never the live one
-(`test/pl11-restore.sh` does exactly this in CI for all 10 databases). The site restores a real backup periodically (CP-04).
+`test/pl11-restore.sh` does exactly this in CI for all 10 databases. The site restores a real backup periodically
+(CP-04), using its own copy of the archive, never the live one.
