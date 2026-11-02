@@ -1,0 +1,10 @@
+{
+  "product": "hello",
+  "database": "hello",
+  "roles": [
+    { "role": "operator", "description": "Writes and signs notes" },
+    { "role": "reader", "description": "Reads notes" }
+  ],
+  "publishes": ["note_v1"],
+  "reads": { "master_data": ["equipment_v1"] }
+}
