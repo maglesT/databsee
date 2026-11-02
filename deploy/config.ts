@@ -114,7 +114,6 @@ export function checkConfig(raw: unknown, rawSecrets?: unknown): { config: Confi
     const logins = ['postgres', 'core_app', ...config.licences.map(productLogin), ...Object.keys(config.outside_logins).map(outsideLogin)];
     for (const l of logins) if (!secrets.logins[l]) problems.push(`secrets: no password for login ${l}`);
     for (const p of config.licences) if (!secrets.oidc.clients[p]) problems.push(`secrets: no OIDC client secret for ${p}`);
-    for (const p of Object.keys(secrets.env)) if (!licensed.has(p)) problems.push(`secrets: env for ${p}, which is not licensed`);
   }
   if (problems.length) throw new Error(`config ${config.customer}: ${problems.join('; ')}`);
   return { config, secrets };

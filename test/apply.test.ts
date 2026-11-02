@@ -218,9 +218,9 @@ describe('PL-08 the Logbook, a product kept in its own repo (D-29)', () => {
     expect(productEnv(config, s!, 'hello')).not.toHaveProperty('GEMINI_API_KEY');
   });
 
-  it('PL-10 its image is pinned to a full commit, and extra settings only for a licensed product', () => {
+  it('PL-10 its image is pinned to a full commit; its extra settings do not stop a config that does not license it', () => {
     expect(imageTags().LOGBOOK_COMMIT).toBe(manifest('logbook').source!.commit);
     expect(imageTags().LOGBOOK_COMMIT).toMatch(/^[0-9a-f]{40}$/);
-    expect(() => checkConfig(base, raw)).toThrow(/env for logbook, which is not licensed/);
+    expect(() => checkConfig(base, raw)).not.toThrow();   // e.g. the previous config, checked again on rollback
   });
 });
