@@ -105,7 +105,7 @@ async function setOwnPassword(sql: Sql, me: { id: string; login: string; fullNam
   });
 }
 
-const esc = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** The sign-in page a product sends people to (server-rendered: works without JavaScript). */
 function signInPage(product: string, uid: string, o: { error?: string; login?: string; change?: boolean; reauth?: boolean }) {
@@ -352,9 +352,8 @@ export function buildApp(deps: Deps) {
         (select max(c.at) from credential_event c
           where c.employee_id = g.employee_id and c.kind = 'signon_ok' and c.product = g.product) as last_signon
       from current_grant g join employee_current e on e.id = g.employee_id order by e.login, g.product, g.role`;
-    const links = await sql<{ provider: string; consumer: string; view_name: string; applied_at: Date; change_ref: string }[]>`
-      select provider, consumer, view_name, applied_at, change_ref from link_state order by consumer, provider, view_name`;
-    const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    const links = await sql<{ provider: string; consumer: string; view_name: string; switched_on_at: Date | null; change_ref: string | null }[]>`
+      select provider, consumer, view_name, switched_on_at, change_ref from link_state order by consumer, provider, view_name`;
     const when = (d: Date | null) => (d ? d.toISOString().slice(0, 16).replace('T', ' ') : 'never');
     const table = (head: string[], rows: unknown[][]) => `<table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${
       rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</table>`;
@@ -364,10 +363,10 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding
 @media print{button{display:none}}</style></head><body>
 <h1>Access review report</h1><p class="muted">Printed ${esc(when(new Date()))} UTC from the permission register. Reviewed by: ______________ Date: ________ Signature: ______________</p>
 <button onclick="print()">Print</button>
-<h2>Active roles (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Role', 'Granted by', 'Granted (UTC)', 'Last sign-on to product (UTC)'],
+<h2>Active roles (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Role', 'Granted by', 'Granted (UTC)', 'Last sign-in with password to product (UTC)'],
       grants.map((g) => [g.login, g.full_name, g.active ? 'yes' : 'NO', g.product, g.role, g.granted_by, when(g.granted_at), when(g.last_signon)]))}
-<h2>Links and outside logins that are on (${links.length})</h2>${table(['Reader', 'Reads database', 'View', 'Since apply (UTC)', 'Change reference'],
-      links.map((l) => [l.consumer, l.provider, l.view_name, when(l.applied_at), l.change_ref]))}
+<h2>Links and outside logins that are on, as recorded by the last apply (${links.length})</h2>${table(['Reader', 'Reads database', 'View', 'Switched on (UTC)', 'Change reference'],
+      links.map((l) => [l.consumer, l.provider, l.view_name, when(l.switched_on_at), l.change_ref]))}
 <p class="muted">Revoked roles and switched-off links are not listed; their history is in the grant history export and each database's link log.</p>
 </body></html>`);
   });

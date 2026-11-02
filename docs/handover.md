@@ -29,7 +29,19 @@ Date: 2026-11-02 (second platform session). For the next platform session. Read 
 | A8 | #12 | Control panel (`apps/control-panel`): diagram (PL-09), switches with change reference committed through the GitHub API, `switch_log` (PL-10), D-15 |
 | A9 | #13 | Access review report in core (PL-12) with `identity.link_state` written by apply, recipe `docs/05-add-a-product.md` (mandatory write-time active-item check, A11 5), secrets template, traceability check in CI, Simplicity review `docs/06-simplicity-review.md` |
 
-## Repo map (additions this session)
+## Repo map
+`maglesT/databsee` (D-01), private. Customer configs live in its `customers/` folder (D-04). Layout:
+- `db/server/` holds `init.sh`, `cluster.sql` and `database.sql`. They create the databases and roles and install `platform.set_link` and `platform.link_log` (A1).
+- `db/migrate.ts` is the migration runner. It reads `db/<database>/NNNN_*.sql` files and runs each as `<db>_owner`, recording it in `platform.migration` with its sha256.
+- `db/identity/` holds the identity schema (0001) and the OIDC state table (0002). `db/master_data/0001` holds master data. `db/hello/0001` is the hello product.
+- `apps/core/server/` is Fastify. `app.ts` has the API, sessions, the shared `checkPassword`, the sign-in page and the provider mount; `oidc.ts` has the provider config and the PG adapter; `master-data.ts` has the master-data API.
+- `apps/core/web/` is React built by Vite into `dist/core-web`.
+- `apps/hello/` is the reference product: `app.ts`, `index.ts` and `manifest.json`.
+- `compliance/register.yaml` and `scripts/check-register.py` produce `docs/03-compliance-register.md` (36/36 citations verified). `docs/04-register-verification.md` records the findings of the AI verifier.
+- `test/` holds vitest tests named by rule ID. They need a PostgreSQL superuser in the `PG*` env vars; the global setup runs `init.sh logbook hello` and migrates identity, master_data and hello. The browser tests use the preinstalled Playwright 1.63.0.
+- CI (`.github/workflows/ci.yml`) has two jobs. `register` checks the citations, that the rendered register is current, and rule-to-test traceability. `database` runs on a PostgreSQL 17 service with typecheck, Chromium and `npm test`.
+
+Added this session:
 - `deploy/config.ts`: the config and secrets schema, `checkConfig`, `manifest`, `allProducts`, and `STATE`
   (`/var/lib/medhanta/state` on servers).
 - `deploy/apply.ts`, called by `apply.sh`: init, migrate, roles, logins, links, `link_state`, containers, `backup.sh
@@ -46,8 +58,7 @@ Date: 2026-11-02 (second platform session). For the next platform session. Read 
   `scripts/check-traceability.py` reports 13/13 rules.
 
 ## Running tests locally
-Start PostgreSQL 16 as described in the old handover: `initdb` in `/var/lib/postgresql/medhanta-test`, port 55432, run
-as the postgres user. Then run `PGHOST=127.0.0.1 PGPORT=55432 PGUSER=postgres PGPASSWORD=postgres npx vitest run`.
+Local test database in this container (gone with it): `su postgres -c "/usr/lib/postgresql/16/bin/initdb -D /var/lib/postgresql/medhanta-test ..."`, then start it on port 55432 and run with `PGHOST=127.0.0.1 PGPORT=55432 PGUSER=postgres PGPASSWORD=postgres npx vitest run`. initdb refuses to run as root, and the scratchpad directory's permissions block the postgres user. Start it with `su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/postgresql/medhanta-test -o '-p 55432 -k /tmp' -l /var/lib/postgresql/medhanta-test/log start"` and set the postgres password to `postgres`. The global setup now also creates and migrates `control_panel`.
 - The restore test runs itself through `su postgres` when you are root.
 - The bundle and backup tests need `ssh-keygen` and `rclone`: `apt-get install openssh-client rclone`.
 - Downloading binaries such as sops is blocked by the permission classifier; apt packages work.

@@ -7,7 +7,7 @@ and whether something smaller would do.
 | Part | Lines | What it is |
 |---|---|---|
 | `apps/core/server` | 788 | Sign-on (OIDC), people and permissions, master data, access review report |
-| `apps/core/web` | 498 | The two screens: people and permissions, master data |
+| `apps/core/web` | 530 | The two screens: people and permissions, master data |
 | `apps/hello` | 129 | Reference product (CI and demos only) |
 | `apps/control-panel` | 323 | The owner's panel: diagram, switches, log |
 | `db` | 496 | Server setup, link function, migration runner, schemas |
@@ -49,8 +49,8 @@ Each item below is the smallest form found for its rule:
 ## Could be simpler later (not worth changing now)
 1. Tests use two PostgreSQL clients: `pg` in the older helpers and `postgres` everywhere else. Moving the helpers to
    `postgres` would drop one dev dependency.
-2. Three small copies of an HTML-escape helper (core report, control panel, diagram). Sharing one would save about
-   five lines.
+2. Two small copies of an HTML-escape helper (control panel app and diagram) besides core's. Sharing one would save
+   a few lines.
 3. `init.sh` always creates `master_data` and `identity`, including on the owner's control-panel server, where they
    stay empty. This is harmless.
 
