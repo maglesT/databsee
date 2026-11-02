@@ -1,0 +1,298 @@
+                                                                                Ref. Ares(2014)968036 - 28/03/2014
+
+
+
+
+                        EUROPEAN COMMISSION
+                        HEALTH AND CONSUMERS DIRECTORATE-GENERAL
+
+                        Health systems and products
+                        Medicinal products – quality, safety and efficacy
+
+
+                                                             Brussels, 28 March 2014
+
+
+
+
+                                                   EudraLex
+
+
+                The Rules Governing Medicinal Products in the European Union
+
+                                            Volume 4
+                                       EU Guidelines for
+                                Good Manufacturing Practice for
+                        Medicinal Products for Human and Veterinary Use
+
+                                                 Part 1
+                                       Chapter 6: Quality Control
+
+
+
+
+Legal basis for publishing the detailed guidelines: Article 47 of Directive 2001/83/EC on the
+Community code relating to medicinal products for human use and Article 51 of Directive
+2001/82/EC on the Community code relating to veterinary medicinal products. This document
+provides guidance for the interpretation of the principles and guidelines of good manufacturing
+practice (GMP) for medicinal products as laid down in Directive 2003/94/EC for medicinal products
+for human use and Directive 91/412/EEC for veterinary use.
+
+Status of the document: Revision
+
+Reasons for changes:
+Inclusion of a new section on technical transfer of testing methods and other items such as Out Of
+Specification results.
+
+
+
+Deadline for coming into operation: 1 October 2014
+
+
+
+
+                                                         1
+Commission Européenne, B-1049 Bruxelles / Europese Commissie, B-1049 Brussel – Belgium. Telephone: (32-2) 299 11 11
+
+
+
+
+                                                                    2
+Principle
+This chapter should be read in conjunction with all relevant sections of the GMP guide
+Quality Control is concerned with sampling, specifications and testing as well as the organisation,
+documentation and release procedures which ensure that the necessary and relevant tests are carried
+out, and that materials are not released for use, nor products released for sale or supply, until their
+quality has been judged satisfactory. Quality Control is not confined to laboratory operations, but must
+be involved in all decisions which may concern the quality of the product. The independence of
+Quality Control from Production is considered fundamental to the satisfactory operation of Quality
+Control.
+
+General
+6.1   Each holder of a manufacturing authorisation should have a Quality Control Department. This
+      department should be independent from other departments, and under the authority of a person
+      with appropriate qualifications and experience, who has one or several control laboratories at his
+      disposal. Adequate resources must be available to ensure that all the Quality Control
+      arrangements are effectively and reliably carried out.
+6.2   The principal duties of the head of Quality Control are summarised in Chapter 2. The Quality
+      Control Department as a whole will also have other duties, such as to establish, validate and
+      implement all quality control procedures, oversee the control of the reference and/or retention
+      samples of materials and products when applicable, ensure the correct labelling of containers of
+      materials and products, ensure the monitoring of the stability of the products, participate in the
+      investigation of complaints related to the quality of the product, etc. All these operations should
+      be carried out in accordance with written procedures and, where necessary, recorded.
+6.3   Finished product assessment should embrace all relevant factors, including production
+      conditions, results of in-process testing, a review of manufacturing (including packaging)
+      documentation, compliance with Finished Product Specification and examination of the final
+      finished pack.
+6.4   Quality Control personnel should have access to production areas for sampling and investigation
+      as appropriate.
+
+
+Good Quality Control Laboratory Practice
+
+6.5   Control laboratory premises and equipment should meet the general and specific requirements
+      for Quality Control areas given in Chapter 3. Laboratory equipment should not be routinely
+      moved between high risk areas to avoid accidental cross-contamination. In particular, the
+      microbiological laboratory should be arranged so as to minimize risk of cross-contamination.
+6.6   The personnel, premises, and equipment in the laboratories should be appropriate to the tasks
+      imposed by the nature and the scale of the manufacturing operations. The use of outside
+      laboratories, in conformity with the principles detailed in Chapter 7, Contract Analysis, can be
+      accepted for particular reasons, but this should be stated in the Quality Control records.
+
+Documentation
+6.7   Laboratory documentation should follow the principles given in Chapter 4. An important part of
+      this documentation deals with Quality Control and the following details should be readily
+                                                    3
+      available to the Quality Control Department:
+         i.   Specifications;
+        ii.   Procedures describing sampling, testing, records (including test worksheets and/or
+              laboratory notebooks), recording and verifying;
+       iii.   Procedures for and records of the calibration/qualification of instruments and
+              maintenance of equipment;
+       iv.    A procedure for the investigation of Out of Specification and Out Of Trend results;
+        v.    Testing reports and/or certificates of analysis;
+       vi.    Data from environmental (air, water and other utilities) monitoring, where required;
+      vii.    Validation records of test methods, where applicable.
+6.8   Any Quality Control documentation relating to a batch record should be retained following the
+      principles given in chapter 4 on retention of batch documentation.
+6.9   Some kinds of data (e.g. tests results, yields, environmental controls) should be recorded in a
+      manner permitting trend evaluation. Any out of trend or out of specification data should be
+      addressed and subject to investigation.
+6.10 In addition to the information which is part of the batch documentation, other raw data such as
+     laboratory notebooks and/or records should be retained and readily available
+
+Sampling
+6.11 The sample taking should be done and recorded in accordance with approved written procedures
+     that describe:
+         i.   The method of sampling;
+        ii.   The equipment to be used;
+       iii.   The amount of the sample to be taken;
+       iv.    Instructions for any required sub-division of the sample;
+        v.    The type and condition of the sample container to be used;
+       vi.    The identification of containers sampled;
+      vii.    Any special precautions to be observed, especially with regard to the sampling of sterile
+              or noxious materials;
+      viii.   The storage conditions;
+       ix.    Instructions for the cleaning and storage of sampling equipment.
+6.12 Samples should be representative of the batch of materials or products from which they are
+     taken. Other samples may also be taken to monitor the most stressed part of a process (e.g.
+     beginning or end of a process). The sampling plan used should be appropriately justified and
+     based on a risk management approach.
+6.13 Sample containers should bear a label indicating the contents, with the batch number, the date of
+     sampling and the containers from which samples have been drawn. They should be managed in a
+     manner to minimize the risk of mix-up and to protect the samples from adverse storage
+                                                     4
+     conditions.
+6.14 Further guidance on reference and retention samples is given in Annex 19.
+
+
+Testing
+6.15 Testing methods should be validated. A laboratory that is using a testing method and which did
+     not perform the original validation, should verify the appropriateness of the testing method. All
+     testing operations described in the marketing authorisation or technical dossier should be carried
+     out according to the approved methods.
+6.16 The results obtained should be recorded. Results of parameters identified as quality attribute or
+     as critical should be trended and checked to make sure that they are consistent with each other.
+     Any calculations should be critically examined.
+6.17 The tests performed should be recorded and the records should include at least the following
+     data:
+          i.   Name of the material or product and, where applicable, dosage form;
+       ii.     Batch number and, where appropriate, the manufacturer and/or supplier;
+      iii.     References to the relevant specifications and testing procedures;
+       iv.     Test results, including observations and calculations, and reference to any certificates of
+               analysis;
+          v.   Dates of testing;
+       vi.     Initials of the persons who performed the testing;
+      vii.     Initials of the persons who verified the testing and the calculations, where appropriate;
+     viii.     A clear statement of approval or rejection (or other status decision) and the dated
+               signature of the designated responsible person;
+       ix.     Reference to the equipment used.
+6.18 All the in-process controls, including those made in the production area by production
+     personnel, should be performed according to methods approved by Quality Control and the
+     results recorded.
+6.19 Special attention should be given to the quality of laboratory reagents, solutions, glassware,
+     reference standards and culture media. They should be prepared and controlled in accordance
+     with written procedures. The level of controls should be commensurate to their use and to the
+     available stability data.
+6.20 Reference standards should be established as suitable for their intended use. Their qualification
+     and certification as such should be clearly stated and documented. Whenever compendial
+     reference standards from an officially recognised source exist, these should preferably be used as
+     primary reference standards unless fully justified (the use of secondary standards is permitted
+     once their traceability to primary standards has been demonstrated and is documented). These
+     compendial materials should be used for the purpose described in the appropiate monograph
+     unless otherwise authorised by the National Competent Authority.
+6.21 Laboratory reagents, solutions, reference standards and culture media should be marked with the
+                                                     5
+     preparation and opening date and the signature of the person who prepared them. The expiry
+     date of reagents and culture media should be indicated on the label, together with specific
+     storage conditions. In addition, for volumetric solutions, the last date of standardisation and the
+     last current factor should be indicated.
+6.22 Where necessary, the date of receipt of any substance used for testing operations (e.g. reagents,
+     solutions and reference standards) should be indicated on the container. Instructions for use and
+     storage should be followed. In certain cases it may be necessary to carry out an identification
+     test and/or other testing of reagent materials upon receipt or before use.
+6.23 Culture media should be prepared in accordance with the media manufacturer’s requirements
+     unless scientifically justified. The performance of all culture media should be verified prior to
+     use.
+6.24 Used microbiological media and strains should be decontaminated according to a standard
+     procedure and disposed of in a manner to prevent the cross-contamination and retention of
+     residues. The in-use shelf life of microbiological media should be established, documented and
+     scientifically justified.
+6.25 Animals used for testing components, materials or products, should, where appropriate, be
+     quarantined before use. They should be maintained and controlled in a manner that assures their
+     suitability for the intended use. They should be identified, and adequate records should be
+     maintained, showing the history of their use.
+
+On-going stability programme
+6.26 After marketing, the stability of the medicinal product should be monitored according to a
+     continuous appropriate programme that will permit the detection of any stability issue (e.g.
+     changes in levels of impurities or dissolution profile) associated with the formulation in the
+     marketed package.
+6.27 The purpose of the on-going stability programme is to monitor the product over its shelf life and
+     to determine that the product remains, and can be expected to remain, within specifications
+     under the labelled storage conditions.
+6.28 This mainly applies to the medicinal product in the package in which it is sold, but consideration
+     should also be given to the inclusion in the programme of bulk product. For example, when the
+     bulk product is stored for a long period before being packaged and/or shipped from a
+     manufacturing site to a packaging site, the impact on the stability of the packaged product
+     should be evaluated and studied under ambient conditions. In addition, consideration should be
+     given to intermediates that are stored and used over prolonged periods. Stability studies on
+     reconstituted product are performed during product development and need not be monitored on
+     an on-going basis. However, when relevant, the stability of reconstituted product can also be
+     monitored.
+6.29 The on-going stability programme should be described in a written protocol following the
+     general rules of Chapter 4 and results formalised as a report. The equipment used for the on-
+     going stability programme (stability chambers among others) should be qualified and maintained
+     following the general rules of Chapter 3 and Annex 15.
+6.30 The protocol for an on-going stability programme should extend to the end of the shelf life
+     period and should include, but not be limited to, the following parameters:
+
+                                                   6
+        i.   Number of batch(es) per strength and different batch sizes, if applicable;
+       ii.   Relevant physical, chemical, microbiological and biological test methods;
+      iii.   Acceptance criteria;
+       iv.   Reference to test methods;
+       v.    Description of the container closure system(s);
+       vi.   Testing intervals (time points);
+      vii.   Description of the conditions of storage (standardised ICH/VICH conditions for long
+             term testing, consistent with the product labelling, should be used);
+     viii.   Other applicable parameters specific to the medicinal product.
+6.31 The protocol for the on-going stability programme can be different from that of the initial long-
+     term stability study as submitted in the marketing authorisation dossier provided that this is
+     justified and documented in the protocol (for example the frequency of testing, or when updating
+     to ICH/VICH recommendations).
+6.32 The number of batches and frequency of testing should provide a sufficient amount of data to
+     allow for trend analysis. Unless otherwise justified, at least one batch per year of product
+     manufactured in every strength and every primary packaging type, if relevant, should be
+     included in the stability programme (unless none are produced during that year). For products
+     where on-going stability monitoring would normally require testing using animals and no
+     appropriate alternative, validated techniques are available, the frequency of testing may take
+     account of a risk-benefit approach. The principle of bracketing and matrixing designs may be
+     applied if scientifically justified in the protocol.
+6.33 In certain situations, additional batches should be included in the on-going stability programme.
+     For example, an on-going stability study should be conducted after any significant change or
+     significant deviation to the process or package. Any reworking, reprocessing or recovery
+     operation should also be considered for inclusion.
+6.34 Results of on-going stability studies should be made available to key personnel and, in
+     particular, to the Qualified Person(s). Where on-going stability studies are carried out at a site
+     other than the site of manufacture of the bulk or finished product, there should be a written
+     agreement between the parties concerned. Results of on-going stability studies should be
+     available at the site of manufacture for review by the competent authority.
+6.35 Out of specification or significant atypical trends should be investigated. Any confirmed out of
+     specification result, or significant negative trend, affecting product batches released on the
+     market should be reported to the relevant competent authorities. The possible impact on batches
+     on the market should be considered in accordance with Chapter 8 of the GMP Guide and in
+     consultation with the relevant competent authorities.
+6.36 A summary of all the data generated, including any interim conclusions on the programme,
+     should be written and maintained. This summary should be subjected to periodic review.
+
+Technical transfer of testing methods
+6.37 Prior to transferring a test method, the transferring site should verify that the test method(s)
+     comply with those as described in the Marketing Authorisation or the relevant technical dossier.
+     The original validation of the test method(s) should be reviewed to ensure compliance with
+                                                   7
+     current ICH/VICH requirements. A gap analysis should be performed and documented to
+     identify any supplementary validation that should be performed, prior to commencing the
+     technical transfer process.
+6.38 The transfer of testing methods from one laboratory (transferring laboratory) to another
+     laboratory (receiving laboratory) should be described in a detailed protocol.
+6.39 The transfer protocol should include, but not be limited to, the following parameters:
+        i.   Identification of the testing to be performed and the relevant test method(s) undergoing
+             transfer;
+       ii.   Identification of the additional training requirements;
+      iii.   Identification of standards and samples to be tested;
+       iv.   Identification of any special transport and storage conditions of test items;
+       v.    The acceptance criteria which should be based upon the current validation study of the
+             methodology and with respect to ICH/VICH requirements.
+6.40 Deviations from the protocol should be investigated prior to closure of the technical transfer
+     process. The technical transfer report should document the comparative outcome of the process
+     and should identify areas requiring further test method revalidation, if applicable.
+6.41 Where appropriate, specific requirements described in others European Guidelines, should be
+     addressed for the transfer of particular testing methods (e.g Near Infrared Spectroscopy).
+
+
+
+
+                                                    8
+

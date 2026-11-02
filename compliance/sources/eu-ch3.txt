@@ -1,0 +1,269 @@
+                                                                                          Ref. Ares(2015)283695 - 23/01/2015
+
+
+PT CHAPTER 5 PRODUCTION
+                               EUROPEAN COMMISSION
+                               HEALTH AND CONSUMERS DIRECTORATE-GENERAL
+
+                               Health systems and products
+                               Medicinal products – quality, safety and efficacy
+
+
+
+
+                                                                                      Brussels, 13 August 2014
+                                                    EudraLex
+
+               The Rules Governing Medicinal Products in the European Union
+                                        Volume 4
+
+                                       EU Guidelines for
+                                Good Manufacturing Practice for
+                        Medicinal Products for Human and Veterinary Use
+
+                                                Part 1
+                                  Chapter 3: Premises and Equipment
+
+
+Legal basis for publishing the detailed guidelines: Article 47 of Directive 2001/83/EC on
+the Community code relating to medicinal products for human use and Article 51 of Directive
+2001/82/EC on the Community code relating to veterinary medicinal products. This document
+provides guidance for the interpretation of the principles and guidelines of good
+manufacturing practice (GMP) for medicinal products as laid down in Directive 2003/94/EC
+for medicinal products for human use and Directive 91/412/EEC for veterinary use.
+
+
+Status of the document: Revisiona.
+
+
+Reasons for changes: The only change is to section 6 as part of the improved guidance on
+prevention of cross-contamination involving also Chapter 5.
+
+
+Deadline for coming into operation: 1 March 2015. However, the toxicological evaluation
+mentioned in section 6 is to be carried out:
+
+
+        from 1 June 2015 onwards for any medicinal product newly introduced into shared
+         manufacturing facilities;
+        before 1 December 2015 for medicinal products already produced in a shared
+         manufacturing facility producing only medicinal products for human use or both
+         producing medicinal products for human use and veterinary medicinal products on 31
+         May 2015;
+        before 1 June 2016 for veterinary medicinal products already produced in a shared
+         manufacturing facility producing only veterinary medicinal products on 31 May 2015.
+
+
+a
+  In January 2015 the deadline for coming into operation was adapted with regard to the toxicological evaluation
+to align with the coming effect of the EMA guideline on setting health based exposure limits for use in risk
+identification in the manufacture of different medicinal products in shared facilities.
+Commission Européenne, B-1049 Bruxelles / Europese Commissie, B-1049 Brussel – Belgium. Telephone: (32-2) 299 11 11
+ER 3 PREMISES AND EQUIPMENT
+PRINCIPLE
+Premises and equipment must be located, designed, constructed, adapted and maintained to
+suit the operations to be carried out. Their layout and design must aim to minimise the risk of
+errors and permit effective cleaning and maintenance in order to avoid cross-contamination,
+build-up of dust or dirt and, in general, any adverse effect on the quality of products.
+
+PREMISES
+
+General
+
+3.1    Premises should be situated in an environment which, when considered together with
+       measures to protect the manufacture, presents minimal risk of causing contamination of
+       materials or products.
+
+3.2    Premises should be carefully maintained, ensuring that repair and maintenance
+       operations do not present any hazard to the quality of products. They should be cleaned
+       and, where applicable, disinfected according to detailed written procedures.
+
+3.3    Lighting, temperature, humidity and ventilation should be appropriate and such that
+       they do not adversely affect, directly or indirectly, either the medicinal products during
+       their manufacture and storage, or the accurate functioning of equipment.
+
+3.4    Premises should be designed and equipped so as to afford maximum protection against
+       the entry of insects or other animals.
+
+3.5    Steps should be taken in order to prevent the entry of unauthorised people. Production,
+       storage and quality control areas should not be used as a right of way by personnel who
+       do not work in them.
+
+Production Area
+
+3.6    Cross-contamination should be prevented for all products by appropriate design and
+       operation of manufacturing facilities. The measures to prevent cross-contamination
+       should be commensurate with the risks. Quality Risk Management principles should be
+       used to assess and control the risks.
+       Depending of the level of risk, it may be necessary to dedicate premises and equipment
+       for manufacturing and/or packaging operations to control the risk presented by some
+       medicinal products.
+
+       Dedicated facilities are required for manufacturing when a medicinal product presents a
+       risk because:
+
+        i.   the risk cannot be adequately controlled by operational and/ or technical measures,
+       ii.   scientific data from the toxicological evaluation does not support a controllable
+             risk (e.g. allergenic potential from highly sensitising materials such as beta
+             lactams) or
+      iii.   relevant residue limits, derived from the toxicological evaluation, cannot be
+             satisfactorily determined by a validated analytical method.
+
+
+                                                2
+      Further guidance can be found in Chapter 5 and in Annexes 2, 3, 4, 5 & 6.
+
+3.7   Premises should preferably be laid out in such a way as to allow the production to take
+      place in areas connected in a logical order corresponding to the sequence of the
+      operations and to the requisite cleanliness levels.
+
+3.8   The adequacy of the working and in-process storage space should permit the orderly
+      and logical positioning of equipment and materials so as to minimise the risk of
+      confusion between different medicinal products or their components, to avoid cross-
+      contamination and to minimise the risk of omission or wrong application of any of the
+      manufacturing or control steps.
+
+3.9   Where starting and primary packaging materials, intermediate or bulk products are
+      exposed to the environment, interior surfaces (walls, floors and ceilings) should be
+      smooth, free from cracks and open joints, and should not shed particulate matter and
+      should permit easy and effective cleaning and, if necessary, disinfection.
+
+3.10 Pipework, light fittings, ventilation points and other services should be designed and
+     sited to avoid the creation of recesses which are difficult to clean. As far as possible,
+     for maintenance purposes, they should be accessible from outside the manufacturing
+     areas.
+
+3.11 Drains should be of adequate size, and have trapped gullies. Open channels should be
+     avoided where possible, but if necessary, they should be shallow to facilitate cleaning
+     and disinfection.
+
+3.12 Production areas should be effectively ventilated, with air control facilities (including
+     temperature and, where necessary, humidity and filtration) appropriate both to the
+     products handled, to the operations undertaken within them and to the external
+     environment.
+
+3.13 Weighing of starting materials usually should be carried out in a separate weighing
+     room designed for such use.
+
+3.14 In cases where dust is generated (e.g. during sampling, weighing, mixing and
+     processing operations, packaging of dry products), specific provisions should be taken
+     to avoid cross-contamination and facilitate cleaning.
+
+3.15 Premises for the packaging of medicinal products should be specifically designed and
+     laid out so as to avoid mix-ups or cross-contamination.
+
+3.16 Production areas should be well lit, particularly where visual on-line controls are carried
+     out.
+
+3.17 In-process controls may be carried out within the production area provided they do not
+     carry any risk to production.
+
+Storage Areas
+
+3.18 Storage areas should be of sufficient capacity to allow orderly storage of the various
+     categories of materials and products: starting and packaging materials, intermediate,
+     bulk and finished products, products in quarantine, released, rejected, returned or
+     recalled.
+                                               3
+3.19 Storage areas should be designed or adapted to ensure good storage conditions. In
+     particular, they should be clean and dry and maintained within acceptable temperature
+     limits. Where special storage conditions are required (e.g. temperature, humidity) these
+     should be provided, checked and monitored.
+
+3.20 Receiving and dispatch bays should protect materials and products from the weather.
+     Reception areas should be designed and equipped to allow containers of incoming
+     materials to be cleaned where necessary before storage.
+
+3.21 Where quarantine status is ensured by storage in separate areas, these areas must be
+     clearly marked and their access restricted to authorised personnel. Any system replacing
+     the physical quarantine should give equivalent security.
+
+3.22 There should normally be a separate sampling area for starting materials. If sampling is
+     performed in the storage area, it should be conducted in such a way as to prevent
+     contamination or cross-contamination.
+
+3.23 Segregated areas should be provided for the storage of rejected, recalled or returned
+     materials or products.
+
+3.24 Highly active materials or products should be stored in safe and secure areas.
+
+3.25 Printed packaging materials are considered critical to the conformity of the medicinal
+     product and special attention should be paid to the safe and secure storage of these
+     materials.
+
+Quality Control Areas
+
+3.26 Normally, Quality Control laboratories should be separated from production areas. This
+     is particularly important for laboratories for the control of biologicals, microbiologicals
+     and radioisotopes, which should also be separated from each other.
+
+3.27 Control laboratories should be designed to suit the operations to be carried out in them.
+     Sufficient space should be given to avoid mix-ups and cross-contamination. There
+     should be adequate suitable storage space for samples and records.
+
+3.28 Separate rooms may be necessary to protect sensitive instruments from vibration,
+     electrical interference, humidity, etc.
+
+3.29 Special requirements are needed in laboratories handling particular substances, such as
+     biological or radioactive samples.
+
+Ancillary Areas
+
+3.30 Rest and refreshment rooms should be separate from other areas.
+
+3.31 Facilities for changing clothes and for washing and toilet purposes should be easily
+     accessible and appropriate for the number of users. Toilets should not directly
+     communicate with production or storage areas.
+
+3.32 Maintenance workshops should as far as possible be separated from production areas.
+     Whenever parts and tools are stored in the production area, they should be kept in
+     rooms or lockers reserved for that use.
+                                               4
+3.33 Animal houses should be well isolated from other areas, with separate entrance (animal
+     access) and air handling facilities.
+
+EQUIPMENT
+
+3.34 Manufacturing equipment should be designed, located and maintained to suit its
+     intended purpose.
+
+3.35 Repair and maintenance operations should not present any hazard to the quality of the
+     products.
+
+3.36 Manufacturing equipment should be designed so that it can be easily and thoroughly
+     cleaned. It should be cleaned according to detailed and written procedures and stored
+     only in a clean and dry condition.
+
+3.37 Washing and cleaning equipment should be chosen and used in order not to be a source
+     of contamination.
+
+3.38 Equipment should be installed in such a way as to prevent any risk of error or of
+     contamination.
+
+3.39 Production equipment should not present any hazard to products. Parts of production
+     equipment that come into contact with the product must not be reactive, additive or
+     absorptive to such an extent that it will affect the quality of the product and thus present
+     any hazard.
+
+3.40 Balances and measuring equipment of an appropriate range and precision should be
+     available for production and control operations.
+
+3.41 Measuring, weighing, recording and control equipment should be calibrated and
+     checked at defined intervals by appropriate methods. Adequate records of such tests
+     should be maintained.
+
+3.42 Fixed pipework should be clearly labelled to indicate the contents and, where
+     applicable, the direction of flow.
+
+3.43 Distilled, deionised and, where appropriate, other water pipes should be sanitised
+     according to written procedures that detail the action limits for microbiological
+     contamination and the measures to be taken.
+
+3.44 Defective equipment should, if possible, be removed from production and quality
+     control areas, or at least be clearly labelled as defective.
+
+
+
+
+                                                5
+

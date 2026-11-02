@@ -1,0 +1,303 @@
+# Minimum compliance register for the Medhanta platform (master data, identity + SSO, links, control panel,
+# GitOps pipeline). Source of truth for docs/03-compliance-register.md.
+# Each clause: src (key in scripts/check-register.py SOURCES), clause (as numbered in the source), quote (a short
+# verbatim phrase that scripts/check-register.py checks inside that clause of the official text).
+# Rule tests start with the rule ID (e.g. "PL-05 ...").
+# Scope: only what the PLATFORM does. Each product keeps its own register for its own records and e-signatures.
+rules:
+- id: PL-01
+  title: Only authorised people get in, with per-product authority
+  rule: Every product admits only active employees with a role for that product in the permission register; the product checks
+    the role on the server for each action.
+  clauses:
+  - src: CFR11
+    clause: 11.10(d)
+    quote: Limiting system access to authorized individuals
+  - src: CFR11
+    clause: 11.10(g)
+    quote: Use of authority checks to ensure that only authorized individuals
+  - src: CFR211
+    clause: 211.68(b)
+    quote: instituted only by authorized personnel
+  - src: A11
+    clause: '12.1'
+    quote: restrict access to computerised system to authorised persons
+  - src: SCHM
+    clause: '20.4'
+    quote: sufficient controls to prevent unauthorised access
+  breaks_if_dropped: 11.10(d)/(g), A11 12.1, SchM 20.4.
+  implementation: One sign-on (OIDC). The token a product receives carries only that product's roles from the register. Deactivating
+    an employee ends sign-on for every product; access tokens live 5 minutes and every renewal re-checks the register. Products
+    keep their own server-side role checks.
+  test: Deactivated employee cannot sign on to any product; a token for product A carries no roles of product B.
+- id: PL-02
+  title: Access grants are recorded
+  rule: Creating, changing and cancelling access (employee roles, product-to-product links, outside-system logins) is recorded
+    with who, when and why, and never overwritten.
+  clauses:
+  - src: A11
+    clause: '12.3'
+    quote: Creation
+    change: null
+    and cancellation of access authorisations should be recorded: null
+  - src: CFR11
+    clause: 11.10(e)
+    quote: Record changes shall not obscure previously recorded information
+  breaks_if_dropped: 'A11 12.3 (11.10(e) only supporting: the register is not a predicate-rule record).'
+  implementation: The permission register is insert-only grant/revoke events (current rights are a view over them). Every
+    link grant/revoke on a database writes an insert-only row to that database's link log in the same transaction. The control
+    panel keeps its own switch log.
+  test: Grant then revoke leaves two rows; the app role cannot update or delete them.
+- id: PL-03
+  title: One verified identity per person, never reused
+  rule: Login IDs are unique and are never reused or reassigned, even after deactivation. The identity of each person is verified
+    before they get a login, and who verified it is recorded.
+  clauses:
+  - src: CFR11
+    clause: 11.100(a)
+    quote: shall not be reused by
+    or reassigned to: null
+    anyone else: null
+  - src: CFR11
+    clause: 11.300(a)
+    quote: no two individuals have the same combination
+  - src: CFR11
+    clause: 11.100(b)
+    quote: shall verify the identity of the individual
+  breaks_if_dropped: 11.100(a), 11.300(a).
+  implementation: Employees are deactivated, never deleted; login ID is unique for all time and cannot be renamed. Creating
+    an employee requires "identity verified by" (the admin) and "how" (e.g. ID card seen).
+  test: Creating an employee with a deactivated person's login ID is refused; no delete path exists.
+- id: PL-04
+  title: Password controls, controlled reset, misuse alerts
+  rule: Passwords age out; resets are controlled; repeated failed sign-ons lock the account and alert the site at once; no
+    admin can sign as someone else.
+  clauses:
+  - src: CFR11
+    clause: 11.300(b)
+    quote: periodically checked
+    recalled: null
+    or revised: null
+  - src: CFR11
+    clause: 11.300(d)
+    quote: detect and report in an immediate and urgent manner
+  - src: CFR11
+    clause: 11.300(c)
+    quote: suitable, rigorous controls
+  - src: CFR11
+    clause: 11.200(a)(3)
+    quote: requires collaboration of two or more individuals
+  breaks_if_dropped: 11.300(b), 11.300(d).
+  implementation: Password expiry (default 90 days; the clause gives ageing as an example). Admin reset sets a temporary password
+    that must be changed at first use, so no admin ever knows a usable password. Lockout after 5 failures emails the
+    site security contact at once (decision D-03) and raises an alert on every core screen for identity admins until
+    acknowledged, plus an audit row.
+  test: Fifth failure locks, sends the email and raises the alert; temporary password must be changed before any token
+    is issued.
+- id: PL-05
+  title: Re-authentication at e-signature through the sign-on
+  rule: A product that signs can demand both components again (or one within a continuous session) through the sign-on, so
+    e-signatures keep working with SSO.
+  clauses:
+  - src: CFR11
+    clause: 11.200(a)(1)
+    quote: Employ at least two distinct identification components
+  breaks_if_dropped: 11.200(a)(1).
+  implementation: Standard OIDC re-authentication (prompt=login, max_age=0); the fresh token proves who signed and when. The
+    product records the signature itself (its own register).
+  test: A re-auth request with a wrong password yields no token; a correct one returns a token issued now.
+- id: PL-06
+  title: Audit trail of platform data
+  rule: Every create and change of master data, employees and permissions is recorded by the system with who, when, the previous
+    value and the reason, and kept as long as the data. The audit trail can be shown and exported in readable form.
+  clauses:
+  - src: CFR11
+    clause: 11.10(e)
+    quote: computer-generated
+    time-stamped audit trails: null
+  - src: SCHM
+    clause: '20.4'
+    quote: record of any data change made
+    the previous entry: null
+  - src: A11
+    clause: '9'
+    quote: the reason should be documented
+  - src: A11
+    clause: '12.4'
+    quote: record the identity of operators entering
+    changing: null
+    confirming or deleting data: null
+  - src: A11
+    clause: '9'
+    quote: convertible to a generally intelligible form
+  breaks_if_dropped: SchM 20.4 (no risk qualifier), A11 9 (reason).
+  implementation: Master data and employees are insert-only versions (who, server UTC time, reason); nothing is deleted. The
+    version history is the audit trail and is shown on the screen. Each history can be printed / exported as CSV. Regular
+    review is CP-03.
+  test: An edit without a reason is refused; the old version stays readable; the app role cannot update a version.
+- id: PL-07
+  title: Signed records keep their meaning without master data
+  rule: A signed product record keeps the signer's printed name and the master-data values it relied on as they were at signing,
+    so it stays readable for its retention period even if master data changes or a link is cut.
+  clauses:
+  - src: CFR11
+    clause: 11.50(a)
+    quote: The printed name of the signer
+  - src: A11
+    clause: '7.1'
+    quote: Access to data should be ensured throughout the retention period
+  breaks_if_dropped: 11.50(a), A11 7.1.
+  implementation: Recipe rule for every product, proven in the hello product - store the master-data ID plus the few display
+    values at signing (code, name, version). No other local copy of master lists.
+  test: Hello note signed, then the equipment renamed and the link cut - the note still shows the old name.
+- id: PL-08
+  title: Checked, read-only data exchange between products
+  rule: Products exchange data only through published, versioned read-only views; no product writes another product's database;
+    a cut link is refused clearly, never served from stale copies.
+  clauses:
+  - src: A11
+    clause: '5'
+    quote: built-in checks for the correct and secure entry and processing of data
+  - src: SCHM
+    clause: '20.4'
+    quote: prevent unauthorised access or changes to data
+  breaks_if_dropped: A11 5, SchM 20.4.
+  implementation: 'SELECT-only grants on report.*_v1 views; a CI contract test fails if a _v1 column is removed or renamed.
+    A refused read shows "connection off". (Rows carry data_as_of / read_at as in existing products: a convention, not a clause.)'
+  test: Consumer cannot write or read raw tables of the provider; after revoke its next read is refused.
+- id: PL-09
+  title: System description with data flows
+  rule: 'For each customer an up-to-date description exists: products, versions, interfaces, plus the fixed architecture and
+    security measures.'
+  clauses:
+  - src: A11
+    clause: '4.3'
+    quote: data flows and interfaces with other systems
+  - src: A11
+    clause: '4.3'
+    quote: security measures should be available
+  breaks_if_dropped: A11 4.3 (critical systems).
+  implementation: The customer config file (products, licences, links, versions) drawn as the diagram in the control panel,
+    plus a fixed architecture and security section in the install guide (host, database server, sign-on, grants, backups).
+  test: Diagram generated from a config file lists every product, version and link in it.
+- id: PL-10
+  title: Controlled, recorded changes to each customer system
+  rule: Every change - licences, links, configuration, platform/product releases and infrastructure (host, OS, PostgreSQL)
+    - is authorised, tested before going live and recorded.
+  clauses:
+  - src: SCHM
+    clause: '20.8'
+    quote: formally authorised
+    documented and tested: null
+  - src: A11
+    clause: '10'
+    quote: only be made in a controlled manner in accordance with a defined procedure
+  - src: SCHM
+    clause: '20.8'
+    quote: hardware, software and any other critical component
+  breaks_if_dropped: SchM 20.8, A11 10.
+  implementation: 'Config changes only through the config file: Git history is the record (who, when, what, reason, customer
+    change reference, required by the control panel). Releases: version tag + release notes + CI result. Infrastructure changes:
+    a dated entry in the customer''s change log file in the same repo. The pipeline also rolls back on a failed health check
+    - a design choice, not a clause.'
+  test: A switch without a change reference is refused; a failing health check restores the previous state.
+- id: PL-11
+  title: Backup with no permanent loss
+  rule: 'No permanent loss: all 10 databases are backed up continuously and consistently, off the server, protected from alteration
+    and erasure, and a restore is proven.'
+  clauses:
+  - src: SCHM
+    clause: '20.9'
+    quote: no permanent loss of records
+  - src: A11
+    clause: '7.2'
+    quote: Regular back-ups of all relevant data should be done
+  - src: CFR211
+    clause: 211.68(b)
+    quote: A backup file of data entered into the computer
+  - src: CFR211
+    clause: 211.68(b)
+    quote: secure from alteration, inadvertent erasures, or loss
+  breaks_if_dropped: SchM 20.9, A11 7.2, 211.68(b).
+  implementation: PostgreSQL WAL archiving (built-in archive_command) plus a nightly pg_basebackup, both copied to off-server
+    storage the database server can add to but not delete (append-only), so any point in time can be restored. The config
+    repo and the SOPS keys are backed up the same way. Restore script tested in CI; periodic restore of real backups is CP-04.
+  test: CI restores to a point in time and finds the rows written up to it in all databases; the server cannot delete an archived
+    file.
+- id: PL-12
+  title: Access review report
+  rule: The site can review periodically who has which role in which product, and which links and outside logins are on.
+  clauses:
+  - src: A11
+    clause: '11'
+    quote: periodically evaluated
+  - src: A11
+    clause: '2'
+    quote: level of access
+  breaks_if_dropped: A11 11 (security is in the evaluation), A11 2.
+  implementation: One printable report from the register (employee, product, role, granted by/when, last sign-on) and the
+    link logs. The review itself is customer procedure CP-03.
+  test: Report lists every active grant and no revoked one.
+- id: PL-13
+  title: Data unchanged by migrations
+  rule: Upgrades that move or reshape data, and a new _v2 view, are checked so values and meaning are unchanged.
+  clauses:
+  - src: A11
+    clause: '4.8'
+    quote: not altered in value and/or meaning
+  breaks_if_dropped: A11 4.8.
+  implementation: Migrations are additive by default. A migration that moves data ships a check (row counts + checksums before/after)
+    that apply.sh runs; a _v2 view has a CI test comparing its rows with _v1.
+  test: A migration that loses a row fails its check and is rolled back.
+customer_procedures:
+- id: CP-01
+  rule: Documented risk assessment; validate the installed system and configuration (IQ/OQ); supplier QMS evidence available.
+  clauses: A11 1, 4, 4.5; SchM 20.1-20.3; 11.10(a)
+  support: Owner supplies risk assessment, IQ/OQ templates, QMS evidence; rule-to-test traceability and CI reports per version.
+- id: CP-02
+  rule: Authorise every change (licence
+  link: null
+  upgrade) in the site's change procedure before the owner applies it.: null
+  clauses: SchM 20.8; A11 10
+  support: Control panel requires the customer change reference per switch.
+- id: CP-03
+  rule: Periodic review of access and of audit trails; periodic evaluation of the system.
+  clauses: A11 9, 11
+  support: PL-12 report and PL-06 audit-trail export.
+- id: CP-04
+  rule: Periodically restore a real backup and check it.
+  clauses: A11 7.2; SchM 20.9
+  support: Restore script (PL-11).
+- id: CP-05
+  rule: Record and investigate incidents.
+  clauses: SchM 20.7; A11 13
+  support: Health-check and pipeline failures are logged; investigation stays in the site QMS.
+- id: CP-06
+  rule: Written agreement with the owner as service provider (hosting, remote changes, disk protection); supplier audit as
+    risk-based.
+  remote changes).: null
+  clauses: A11 3.1, 3.2
+  support: Owner provides the agreement template and an audit package.
+- id: CP-07
+  rule: Written procedures for operation and maintenance; business continuity when down.
+  clauses: SchM 20.5; A11 16
+  support: Install and operation guide.
+not_applicable:
+- clause: A11 8.2 printouts of changed data
+  why: The platform holds no batch-release records; products cover it.
+- clause: A11 6 / SchM 20.6 accuracy checks
+  why: Master-data fields get system checks (type Holds only while no master-data field is critical (e.g. specification limits
+    entered by hand); recorded in the risk assessment.
+  unique code); no critical batch data is entered here.: null
+dropped:
+- candidate: Multi-factor sign-on
+  why: No binding clause requires it (11.200 asks for two components = ID + password).
+- candidate: Approval e-signature on each master-data change
+  why: No binding clause; authorised editors + audit trail with reason meet 211.68(b) and SchM 20.4.
+- candidate: Logging of every read
+  why: No clause requires read logging; access grants are logged (PL-02).
+- candidate: Encryption at rest
+  why: Not required by a clause (A11 7.1 / SchM 20.9 ask for protection, not encryption); disk protection is in the hosting
+    agreement (CP-06).
+- candidate: Local copies of master data when a link is cut
+  why: Not required; signed records keep what they need (PL-07).
