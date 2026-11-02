@@ -176,6 +176,19 @@ describe('the hello product proves the recipe', () => {
     await bi.end(); await hsu.end();
   });
 
+  it('PL-08 at writing, hello refuses an inactive or unknown master-data item (recipe step 4, A11 5)', async () => {
+    await makeEmployee(`hret${run}`, ['master_data_editor']);
+    const editor = await signIn(t.app, `hret${run}`);
+    const retired = (await editor.call('POST', '/api/items', { kind: 'equipment', code: `HR-${run}`, name: 'Old blender', reason: 'load' })).json().id;
+    await editor.call('PATCH', `/api/items/${retired}`, { active: false, reason: 'retired' });
+    const b = await operator(`hchk${run}`);
+    for (const id of [retired, '00000000-0000-4000-8000-000000000000']) {
+      const start = await b.api('POST', '/api/notes/sign', { equipmentId: id, text: 'should not be stored' });
+      expect((await b.flow(start.json.redirect, `hchk${run}`)).body).toContain('No such active equipment');
+    }
+    expect((await b.api('GET', '/api/notes')).json.some((n: { text: string }) => n.text === 'should not be stored')).toBe(false);
+  });
+
   it('PL-07 signed notes cannot be changed by the product', async () => {
     expect(await sqlstate(helloDb`update note set equipment_name = 'x'`)).toBe('42501');
     expect(await sqlstate(helloDb`delete from note`)).toBe('42501');

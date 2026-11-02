@@ -109,6 +109,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 5. **Backups**: PostgreSQL's built-in WAL archiving plus a nightly `pg_basebackup` (one consistent copy of all 10 databases) to off-server storage the server can add to but not delete; point-in-time restore script tested in CI. Config repo and age keys backed up too.
 
 ## 8. Slices (each: branch, tests named by rule ID, CI green, one review, squash-merge, email)
+Status 2 Nov 2026: Phase A complete with A9 (A6 shipped as A6a/A6b/A6c, D-13, D-14). Details in docs/handover.md.
 | # | Slice | Proves |
 |---|---|---|
 | A0 | Repo skeleton, CI, register + checker, this plan | — |

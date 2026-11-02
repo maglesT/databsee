@@ -72,6 +72,7 @@ async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime
 
     // Links: wanted[db][login] = views; switch only the differences.
     const links = wantedLinks(config);
+    const state: { provider: string; consumer: string; view_name: string; at: Date | null; change_ref: string | null }[] = [];
     const dbs = await su<{ datname: string }[]>`select datname from pg_database where datname not in ('postgres', 'template0', 'template1')`;
     for (const { datname } of dbs) {
       const db = admin(datname);
@@ -87,10 +88,20 @@ async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime
           if (cut.length) await db`select platform.set_link(${login}, ${cut}, false, ${config.change_ref}, ${reason})`;
           if (add.length) await db`select platform.set_link(${login}, ${add}, true, ${config.change_ref}, ${reason})`;
         }
+        state.push(...await db<typeof state>`
+          select ${datname}::text as provider, c.consumer, c.view_name, l.at, l.change_ref from platform.current_link c
+          left join lateral (select at, change_ref from platform.link_log l where l.consumer = c.consumer and c.view_name = any(l.views)
+                             and l.switched_on order by l.id desc limit 1) l on true`);
       } finally {
         await db.end();
       }
     }
+    // PL-12: what is on now, for the access review report in core.
+    await identity.begin(async (tx) => {
+      await tx`delete from link_state`;
+      for (const l of state) await tx`insert into link_state (provider, consumer, view_name, switched_on_at, change_ref)
+                                      values (${l.provider}, ${l.consumer}, ${l.view_name}, ${l.at}, ${l.change_ref})`;
+    });
   } finally {
     await su.end();
     await identity.end();

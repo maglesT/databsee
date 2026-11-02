@@ -105,7 +105,7 @@ async function setOwnPassword(sql: Sql, me: { id: string; login: string; fullNam
   });
 }
 
-const esc = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** The sign-in page a product sends people to (server-rendered: works without JavaScript). */
 function signInPage(product: string, uid: string, o: { error?: string; login?: string; change?: boolean; reauth?: boolean }) {
@@ -342,6 +342,33 @@ export function buildApp(deps: Deps) {
           : await sql`select login, kind, product, by_name, reason, at from credential_event order by id`;
     reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', `attachment; filename="${what}"`);
     return csv(rows as unknown as Record<string, unknown>[]);
+  });
+
+  // ---- Access review report (PL-12, A11 11): who has which role in which product, and which links are on ----
+  app.get('/api/access-review', async (req, reply) => {
+    need(req, 'identity_admin');
+    const grants = await sql<{ login: string; full_name: string; active: boolean; product: string; role: string; granted_by: string; granted_at: Date; last_signon: Date | null }[]>`
+      select e.login, e.full_name, e.active, g.product, g.role, g.granted_by, g.granted_at,
+        (select max(c.at) from credential_event c
+          where c.employee_id = g.employee_id and c.kind = 'signon_ok' and c.product = g.product) as last_signon
+      from current_grant g join employee_current e on e.id = g.employee_id order by e.login, g.product, g.role`;
+    const links = await sql<{ provider: string; consumer: string; view_name: string; switched_on_at: Date | null; change_ref: string | null }[]>`
+      select provider, consumer, view_name, switched_on_at, change_ref from link_state order by consumer, provider, view_name`;
+    const when = (d: Date | null) => (d ? d.toISOString().slice(0, 16).replace('T', ' ') : 'never');
+    const table = (head: string[], rows: unknown[][]) => `<table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${
+      rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</table>`;
+    reply.type('text/html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Access review report</title>
+<style>body{font:13px/1.4 system-ui,sans-serif;margin:24px;color:#1d2433}h1{font-size:20px}h2{font-size:15px;margin-top:24px}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding:4px 6px;text-align:left}.muted{color:#667085}
+@media print{button{display:none}}</style></head><body>
+<h1>Access review report</h1><p class="muted">Printed ${esc(when(new Date()))} UTC from the permission register. Reviewed by: ______________ Date: ________ Signature: ______________</p>
+<button onclick="print()">Print</button>
+<h2>Active roles (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Role', 'Granted by', 'Granted (UTC)', 'Last sign-in with password to product (UTC)'],
+      grants.map((g) => [g.login, g.full_name, g.active ? 'yes' : 'NO', g.product, g.role, g.granted_by, when(g.granted_at), when(g.last_signon)]))}
+<h2>Links and outside logins that are on, as recorded by the last apply (${links.length})</h2>${table(['Reader', 'Reads database', 'View', 'Switched on (UTC)', 'Change reference'],
+      links.map((l) => [l.consumer, l.provider, l.view_name, when(l.switched_on_at), l.change_ref]))}
+<p class="muted">Revoked roles and switched-off links are not listed; their history is in the grant history export and each database's link log.</p>
+</body></html>`);
   });
 
   return app;
