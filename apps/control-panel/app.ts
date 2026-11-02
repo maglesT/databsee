@@ -45,9 +45,16 @@ export function buildPanel(deps: PanelDeps) {
   // Sign-in: HTTP Basic; the user name goes into every log entry and commit.
   app.decorateRequest('user', '');
   app.addHook('onRequest', async (req, reply) => {
+    reply.header('x-frame-options', 'DENY');
+    // Browsers resend Basic credentials to any page's form, so a switch must come from the panel's own pages.
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      const site = req.headers['sec-fetch-site'], origin = req.headers.origin;
+      if (site ? site !== 'same-origin' : origin && new URL(origin).host !== req.headers.host)
+        return reply.code(403).send('Refused: switches can only be made from the control panel itself.');
+    }
     const [, b64] = (req.headers.authorization ?? '').split(' ');
     const [name, ...rest] = Buffer.from(b64 ?? '', 'base64').toString('utf8').split(':');
-    const hash = deps.users[name ?? ''];
+    const hash = Object.hasOwn(deps.users, name ?? '') ? deps.users[name!] : undefined;
     if (!hash || !(await verifyPassword(rest.join(':'), hash))) {
       return reply.code(401).header('www-authenticate', 'Basic realm="Medhanta control panel"').send('Sign in required.');
     }
@@ -60,7 +67,9 @@ export function buildPanel(deps: PanelDeps) {
   };
   const load = async (customer: string) => {
     const { text, sha } = await repo.read(customerName(customer));
-    return { text, sha, config: checkConfig(YAML.parse(text)).config };
+    const { config } = checkConfig(YAML.parse(text));
+    if (config.customer !== customer) throw bad(`customers/${customer}.yaml says customer "${config.customer}"; fix the file first.`);
+    return { text, sha, config };
   };
 
   app.get('/', async (_req, reply) => {
@@ -83,7 +92,8 @@ export function buildPanel(deps: PanelDeps) {
     const products = allProducts();
     const log = await db<{ at: Date; by_user: string; action: string; change_ref: string; reason: string; commit_sha: string }[]>`
       select at, by_user, action, change_ref, reason, commit_sha from switch_log where customer = ${c} order by id desc limit 20`;
-    const results = await Promise.all(log.map((l) => repo.applyResult(l.commit_sha).catch(() => 'unknown')));
+    // The apply result of the newest switch (older ones: see the repository's Actions runs).
+    const results = log.length ? [await repo.applyResult(log[0]!.commit_sha).catch(() => 'unknown')] : [];
     reply.type('text/html').send(page(c, `<h1>${esc(c)}</h1>
       <p>Platform ${esc(config.version)} · ${config.offline ? 'offline site (signed bundle)' : `online: ${esc(config.host)}`} ·
         last change ${esc(config.change_ref)}: ${esc(config.reason)}</p>
@@ -105,33 +115,36 @@ export function buildPanel(deps: PanelDeps) {
         views <input type="text" name="views" placeholder="material_v1, supplier_v1" style="width:14em"> <button>Next</button></p></form>
       <h2>Switch log</h2><table><tr><th>When (UTC)</th><th>Who</th><th>Switch</th><th>Change ref.</th><th>Reason</th><th>Apply</th></tr>
       ${log.map((l, i) => `<tr><td>${esc(l.at.toISOString().slice(0, 16).replace('T', ' '))}</td><td>${esc(l.by_user)}</td><td>${esc(l.action)}</td>
-        <td>${esc(l.change_ref)}</td><td>${esc(l.reason)}</td><td class="${results[i] === 'success' ? 'ok' : results[i] === 'failure' ? 'bad' : 'muted'}">${esc(results[i])}</td></tr>`).join('')}</table>`));
+        <td>${esc(l.change_ref)}</td><td>${esc(l.reason)}</td><td class="${results[i] === 'success' ? 'ok' : results[i] === 'failure' ? 'bad' : 'muted'}">${esc(results[i] ?? '')}</td></tr>`).join('')}</table>`));
   });
 
   // The confirmation form: what will change, plus the customer's change reference and a reason.
   app.get<{ Params: { customer: string }; Querystring: Switch }>('/c/:customer/switch', async (req, reply) => {
-    const { config } = await load(req.params.customer);
+    const { config, sha } = await load(req.params.customer);
     const s = req.query;
     reply.type('text/html').send(page('Switch', `<h1>${esc(config.customer)}: ${esc(describe(s))}</h1>
       <form method="post" class="switch">
         ${Object.entries(s).map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`).join('')}
+        <input type="hidden" name="sha" value="${esc(sha)}">
         <label>Customer change reference (from the site's change control)<input type="text" name="change_ref" required></label>
         <label>Reason<input type="text" name="reason" required></label>
         <button>Commit the switch</button> <a href="/c/${esc(config.customer)}">Cancel</a>
       </form>`));
   });
 
-  app.post<{ Params: { customer: string }; Body: Switch & { change_ref?: string; reason?: string } }>('/c/:customer/switch', async (req, reply) => {
+  app.post<{ Params: { customer: string }; Body: Switch & { change_ref?: string; reason?: string; sha?: string } }>('/c/:customer/switch', async (req, reply) => {
     const ref = (req.body.change_ref ?? '').trim(), reason = (req.body.reason ?? '').trim();
     if (!ref || !reason) return reply.code(400).type('text/html').send(page('Refused', '<h1>Refused</h1><p>A switch needs the customer change reference and a reason.</p>'));
     const { text, sha, config } = await load(req.params.customer);
+    if (req.body.sha !== sha) throw Object.assign(new Error('The config changed since you opened this form. Go back and try again.'), { statusCode: 409 });
     const action = describe(req.body);
     const next = switched(config, req.body);
     next.change_ref = ref;
     next.reason = reason;
-    checkConfig(next);                                         // never commit a config apply.sh would refuse
+    try { checkConfig(next); } catch (e) { throw bad(`The switch would make the config invalid: ${(e as Error).message}`); } // apply.sh would refuse it
     const doc = YAML.parseDocument(text);
-    for (const k of ['change_ref', 'reason', 'licences', 'links', 'outside_logins'] as const) doc.set(k, next[k]);
+    for (const k of ['change_ref', 'reason', 'licences', 'links', 'outside_logins'] as const)    // other keys and comments stay
+      if (JSON.stringify(next[k]) !== JSON.stringify(config[k])) doc.set(k, next[k]);
     const commit = await repo.write(config.customer, doc.toString(), sha,
       `${config.customer}: ${action} (${ref})\n\nReason: ${reason}\nSwitched by: ${who(req)} (control panel)\n`);
     await db`insert into switch_log (by_user, customer, action, change_ref, reason, commit_sha)
@@ -139,11 +152,16 @@ export function buildPanel(deps: PanelDeps) {
     reply.redirect(`/c/${config.customer}`, 303);
   });
 
-  app.setErrorHandler((err: Error & { statusCode?: number }, _req, reply) => {
-    reply.code(err.statusCode ?? 400).type('text/html').send(page('Error', `<h1>Not done</h1><p>${esc(err.message)}</p>`));
+  app.setErrorHandler((err: Error & { statusCode?: number }, req, reply) => {
+    const known = err.statusCode !== undefined && err.statusCode < 500;
+    if (!known) req.log.error(err);
+    reply.code(known ? err.statusCode! : 500).type('text/html')
+      .send(page('Error', `<h1>Not done</h1><p>${esc(known ? err.message : 'Something went wrong; nothing was switched unless the log shows it. Details are in the server log.')}</p>`));
   });
   return app;
 }
+
+const bad = (message: string) => Object.assign(new Error(message), { statusCode: 400 });
 
 function describe(s: Switch) {
   const state = s.on === '1' ? 'on' : 'off';
@@ -156,9 +174,9 @@ function describe(s: Switch) {
 export function switched(config: Config, s: Switch): Config {
   const c: Config = structuredClone(config);
   const name = s.name, on = s.on === '1';
-  if (!/^[a-z][a-z0-9_]*$/.test(name ?? '')) throw new Error('Bad name.');
+  if (!/^[a-z][a-z0-9_]*$/.test(name ?? '')) throw bad('Bad name.');
   if (s.kind === 'licence') {
-    manifest(name);
+    try { manifest(name); } catch (e) { throw bad((e as Error).message); }
     if (on) { if (!c.licences.includes(name)) c.licences.push(name); return c; }
     c.licences = c.licences.filter((p) => p !== name);
     delete c.links[name];
@@ -170,16 +188,16 @@ export function switched(config: Config, s: Switch): Config {
     return c;
   }
   const provider = s.provider ?? '';
-  if (!/^[a-z][a-z0-9_]*$/.test(provider)) throw new Error('Bad provider.');
+  if (!/^[a-z][a-z0-9_]*$/.test(provider)) throw bad('Bad provider.');
   const target = s.kind === 'link' ? c.links : c.outside_logins;
   if (on) {
     const views = s.kind === 'link'
       ? manifest(name).reads?.[provider]
       : (s.views ?? '').split(',').map((v) => v.trim()).filter(Boolean);
-    if (!views?.length) throw new Error(`No views to switch on for ${name} → ${provider}.`);
+    if (!views?.length) throw bad(`No views to switch on for ${name} → ${provider}.`);
     target[name] = { ...(target[name] ?? {}), [provider]: views };
   } else {
-    if (!target[name]?.[provider]) throw new Error('That link is already off.');
+    if (!target[name]?.[provider]) throw bad('That link is already off.');
     delete target[name]![provider];
     if (!Object.keys(target[name]!).length) delete target[name];
   }

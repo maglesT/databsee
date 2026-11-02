@@ -31,8 +31,10 @@ const repo: Repo = {
 let db: postgres.Sql;
 let panel: ReturnType<typeof buildPanel>;
 const auth = (user = 'owner', pw = 'test-only-owner-pw') => ({ authorization: `Basic ${Buffer.from(`${user}:${pw}`).toString('base64')}` });
-const post = (url: string, form: Record<string, string>) => panel.inject({
-  method: 'POST', url, headers: { ...auth(), 'content-type': 'application/x-www-form-urlencoded' }, payload: new URLSearchParams(form).toString() });
+/** Posts a switch form the way the panel's own page does (same origin, with the file version it showed). */
+const post = async (url: string, form: Record<string, string>, headers: Record<string, string> = { 'sec-fetch-site': 'same-origin' }) =>
+  panel.inject({ method: 'POST', url, headers: { ...auth(), ...headers, 'content-type': 'application/x-www-form-urlencoded' },
+    payload: new URLSearchParams({ sha: (await repo.read('acme')).sha, ...form }).toString() });
 const current = () => checkConfig(YAML.parse(files.get('acme')!)).config;
 
 beforeAll(async () => {
@@ -98,6 +100,15 @@ describe('PL-10 switches are authorised, recorded and committed to the config', 
     await post('/c/acme/switch', { kind: 'licence', name: 'hello', on: '0', change_ref: 'CC-2026-050', reason: 'Contract ended' });
     const config = current();
     expect([config.licences, config.links, config.outside_logins]).toEqual([[], {}, {}]);
+  });
+
+  it('PL-10 a switch posted from another site, or against a config that changed meanwhile, is refused', async () => {
+    const before = files.get('acme');
+    const form = { kind: 'licence', name: 'hello', on: '1', change_ref: 'CC-X', reason: 'x' };
+    expect((await post('/c/acme/switch', form, { 'sec-fetch-site': 'cross-site' })).statusCode).toBe(403);
+    expect((await post('/c/acme/switch', form, { origin: 'https://evil.example' })).statusCode).toBe(403);
+    expect((await post('/c/acme/switch', { ...form, sha: 'v0' })).statusCode).toBe(409);
+    expect(files.get('acme')).toBe(before);
   });
 
   it('PL-10 the switch log cannot be changed', async () => {
