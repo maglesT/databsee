@@ -1,6 +1,6 @@
 # Medhanta platform — plan (draft 2, 2 Nov 2026)
 
-Status: **for owner approval** (draft 2: AI verifier findings folded in, see docs/04-register-verification.md). Nothing is built until you approve.
+Status: **approved by the owner 2 Nov 2026** ("do what's more simple"; decisions D-01 to D-08 in docs/decisions.md). Draft 2: AI verifier findings folded in, see docs/04-register-verification.md.
 
 ## 1. Sources
 - Your agreed design of 2 Nov 2026 (relayed by the lead session).
@@ -56,7 +56,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
  │   products read report.*_v1 views of others via grants       │
  └─────────────────────────────────────────────────────────────┘
         ▲ apply.sh (same script online and offline)
- GitHub Actions ◄── medhanta-customers repo (one YAML per customer, SOPS secrets)
+ GitHub Actions ◄── customers/ folder in this repo (one YAML per customer, SOPS secrets)
         ▲ commits
  control panel (your server only; control_panel database)
 ```
@@ -102,7 +102,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 - Views follow the Logbook rule: columns may be added to `_v1`, never removed or renamed; a breaking change is `_v2`. A CI contract test per view enforces it.
 
 ## 7. GitOps flow
-1. **Config file** `customers/<customer>.yaml` in private repo `maglesT/medhanta-customers`: platform version, host (online) or `offline: true`, licences, links (`consumer → provider: [views]`), outside logins. Secrets in `customers/<customer>.secrets.yaml`, SOPS-encrypted to your age key and the customer server's age key.
+1. **Config file** `customers/<customer>.yaml` in the `customers/` folder of this private repo (D-04; can move to its own repo later if access must be split): platform version, host (online) or `offline: true`, licences, links (`consumer → provider: [views]`), outside logins. Secrets in `customers/<customer>.secrets.yaml`, SOPS-encrypted to your age key and the customer server's age key.
 2. **Control panel** (your server only, only you log in): customer list, licence switches, the product/link diagram with arrows you cut or restore. Each switch asks for a reason and the customer's change reference, writes `switch_log`, and commits the YAML via the GitHub API.
 3. **GitHub Actions** on each commit: validate the file against the schema → for online customers SSH to the server and run `apply.sh`; for offline customers build a **bundle** (images via `docker save`, config, migrations, encrypted secrets) signed with `ssh-keygen -Y sign` (no extra tool); the site runs `apply.sh bundle.tar`, which verifies the signature first.
 4. **`apply.sh`** (same for both): back up → pull/load images → run migrations (each in a transaction; additive only) → start licensed / stop unlicensed containers → set links and outside logins → health checks → on failure, re-apply the previous config and images → report result (and commit status).
@@ -124,17 +124,17 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 
 The hello product exists only in the platform repo and CI; it is never installed at a customer.
 
-## 9. Decisions for you
-1. Code repo: **`maglesT/databsee` (decided D-01, owner gave it)**. Still open: a separate private repo for customer configs, suggested **`maglesT/medhanta-customers`** (customer config + encrypted secrets, kept separate so access to customer data can be limited). OK?
-2. ~~Cut master-data link → feature stops, no local copies.~~ **Decided D-02 (owner, 2 Nov): yes.**
-3. SSO: minimal OIDC provider in `core` rather than Keycloak (reasons in §4). OK?
-4. One `core` app for sign-on + people/permissions + master data, instead of separate apps. OK?
-5. "Connections (links) table" in master_data = relationships between master items (equipment in room, material from supplier). Product-to-product links live in the config file and the database grants. Right?
-6. Every switch needs the customer's change reference (their SchM 20.8 change control, CP-02). OK?
-7. ~~Lockout alert by email too?~~ **Decided D-03 (owner, 2 Nov): yes, email the site security contact plus on-screen alert.**
+## 9. Decisions (all settled, see docs/decisions.md)
+1. Code repo `maglesT/databsee` (D-01); customer configs in its `customers/` folder, not a second repo (D-04).
+2. Cut master-data link → feature stops, no local copies (D-02).
+3. Lockout also emails the site security contact (D-03).
+4. Single sign-on built into `core`, not Keycloak (D-05).
+5. One `core` app for sign-on + people/permissions + master data (D-06).
+6. "Links table" in master_data = relationships between master items; product-to-product links are the config file + grants (D-07).
+7. Each switch asks for the customer's change reference: one free-text field (D-08).
 
 ## 10. Simplicity review
 - **Removed:** API gateway, data lake, postgres_fdw, Keycloak, Kubernetes/Terraform/Vault, separate master-data and identity apps, separate audit tables (insert-only versions are the audit trail), MFA, approval signatures on master data, local copies of master data.
-- **Kept small:** one Postgres server, one `core` app, one SQL function for links, one shell script for online and offline, one YAML per customer.
+- **Kept small:** one repo (code + customer configs), one Postgres server, one `core` app, one SQL function for links, one shell script for online and offline, one YAML per customer.
 - **Reused:** Logbook view pattern, Material Management register checker and source texts, products' password/lockout code.
 - **Open risk:** 5-minute token lifetime is the deactivation delay outside e-signatures; shorter costs more renewals. I think 5 minutes is right.
