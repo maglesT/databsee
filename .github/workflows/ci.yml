@@ -36,5 +36,6 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
       - name: Tests (named by rule ID)
         run: npm test
