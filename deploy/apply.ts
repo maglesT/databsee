@@ -140,6 +140,26 @@ async function dbProblems(config: Config, secrets: Secrets): Promise<string[]> {
   return problems;
 }
 
+/** A product's settings: its own database, each linked provider, sign-on, and its extra settings from the secrets. */
+export function productEnv(config: Config, secrets: Secrets, p: string): Record<string, string> {
+  const own = manifest(p).database;
+  const url = (db: string) => `postgres://${productLogin(p)}:${encodeURIComponent(secrets.logins[productLogin(p)] ?? '')}@db:5432/${db}`;
+  return {
+    ...secrets.env[p],
+    [`${own.toUpperCase()}_DATABASE_URL`]: url(own),
+    ...Object.fromEntries(Object.keys(config.links[p] ?? {}).map((db) => [`${db.toUpperCase()}_DATABASE_URL`, url(db)])),
+    OIDC_ISSUER: `https://${config.domain}/oidc`,
+    OIDC_CLIENT_SECRET: secrets.oidc.clients[p] ?? '',
+    OIDC_REDIRECT_URI: `https://${p}.${config.domain}/cb`,
+  };
+}
+
+/** <PRODUCT>_COMMIT for compose: the image tag of each product kept in its own repo (D-29). */
+export const imageTags = () => Object.fromEntries(allProducts().flatMap((p) => {
+  const s = manifest(p).source;
+  return s ? [[`${p.toUpperCase()}_COMMIT`, s.commit]] : [];
+}));
+
 /** Docker Compose runtime: writes each service's settings, starts core, Caddy and the licensed products, removes
  *  the unlicensed ones, and waits until the started services report healthy. */
 export const docker: Runtime = {
@@ -164,16 +184,7 @@ export const docker: Runtime = {
       OIDC_JWKS: JSON.stringify(secrets.oidc.jwks),
       OIDC_COOKIE_KEYS: secrets.oidc.cookie_keys.join(','),
     }));
-    for (const p of config.licences) {
-      const own = manifest(p).database;
-      write(`${p}.env`, env({
-        [`${own.toUpperCase()}_DATABASE_URL`]: url(productLogin(p), own),
-        ...Object.fromEntries(Object.keys(config.links[p] ?? {}).map((db) => [`${db.toUpperCase()}_DATABASE_URL`, url(productLogin(p), db)])),
-        OIDC_ISSUER: `https://${config.domain}/oidc`,
-        OIDC_CLIENT_SECRET: secrets.oidc.clients[p] ?? '',
-        OIDC_REDIRECT_URI: `https://${p}.${config.domain}/cb`,
-      }));
-    }
+    for (const p of config.licences) write(`${p}.env`, env(productEnv(config, secrets, p)));
     write('backup.env', env({ // read by deploy/backup.sh: the rclone remote "offsite" from the secrets
       ...Object.fromEntries(Object.entries(secrets.backup).map(([k, v]) => [`RCLONE_CONFIG_OFFSITE_${k.toUpperCase()}`, v])),
       BACKUP_REMOTE: `offsite:${config.backup.path}`,
@@ -182,7 +193,7 @@ export const docker: Runtime = {
       ...config.licences.map((p) => `${p}.${config.domain} {\n  reverse_proxy ${p}:3000\n}`)].join('\n') + '\n');
 
     const compose = (...args: string[]) => execFileSync('docker', ['compose', '-f', path.join(ROOT, 'deploy/compose.yml'), ...args],
-      { stdio: 'inherit', env: { ...process.env, VERSION: config.version } });
+      { stdio: 'inherit', env: { ...process.env, VERSION: config.version, ...imageTags() } });
     for (const p of allProducts().filter((p) => !config.licences.includes(p))) compose('--profile', p, 'rm', '--stop', '--force', p);
     compose(...config.licences.flatMap((p) => ['--profile', p]), 'up', '-d', '--wait', 'db', 'core', 'caddy', ...config.licences);
     execFileSync(path.join(ROOT, 'deploy/backup.sh'), ['check'], { stdio: 'inherit', env: { ...process.env, MEDHANTA_STATE: STATE } });

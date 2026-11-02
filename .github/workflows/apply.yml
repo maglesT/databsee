@@ -65,6 +65,7 @@ jobs:
       - name: Build and sign the bundle (release v<version> + config)
         env:
           BUNDLE_SIGNING_KEY: ${{ secrets.BUNDLE_SIGNING_KEY }}
+          PRODUCT_SOURCE_TOKEN: ${{ secrets.PRODUCT_SOURCE_TOKEN }}   # reads products kept in their own repo (D-29)
         run: |
           key=$RUNNER_TEMP/signing_key && printf '%s\n' "$BUNDLE_SIGNING_KEY" > "$key" && chmod 600 "$key"
           bundle=$(deploy/bundle.sh "$CONFIG" "$RUNNER_TEMP/out" "$key")

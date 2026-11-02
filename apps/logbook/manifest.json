@@ -1,0 +1,14 @@
+{
+  "product": "logbook",
+  "database": "logbook",
+  "roles": [
+    { "role": "operator", "description": "Records equipment use, cleaning and other logbook entries" },
+    { "role": "supervisor", "description": "Records entries, corrects others' entries, views reviews and exports" },
+    { "role": "engineering", "description": "Records maintenance, breakdowns and calibrations" },
+    { "role": "qa", "description": "Verifies, releases, approves settings and signs period reviews" },
+    { "role": "admin", "description": "Site record, logbook settings drafts and per-item logbook settings; never signs" }
+  ],
+  "publishes": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1"],
+  "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"] },
+  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "778735430a31ab7f218defb96e103a0b569647b0" }
+}
