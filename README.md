@@ -21,3 +21,12 @@ The core app is the OIDC provider for every product (issuer `OIDC_ISSUER`, e.g. 
 Products use the authorization-code flow with PKCE and scope `openid profile roles`; the `roles` claim holds only
 that product's roles. For an e-signature a product asks with `prompt=login&max_age=0` and must check that the
 returned `sub` is the person signing.
+
+## Customer config and apply (slice A6)
+`customers/<name>.yaml` is the customer's system: version, licences, links (`product -> provider database -> views`),
+outside logins, and the customer's change reference and reason for the change (template: `customers/example.yaml`).
+Secrets (database passwords, OIDC keys) are in `customers/<name>.secrets.yaml.age`, encrypted with age (D-12).
+`deploy/apply.sh customers/<name>.yaml` decrypts the secrets and runs `deploy/apply.ts`: create databases, migrate
+(a data-moving migration ships `NNNN_name.check.sql`, two queries split by `-- after` that must return the same rows,
+PL-13), load product roles, switch logins and links (only the differences, each logged with the change reference),
+start the containers (`deploy/compose.yml`), check health, and re-apply the previous config if anything fails (PL-10).

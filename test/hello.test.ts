@@ -164,6 +164,7 @@ describe('the hello product proves the recipe', () => {
     const su = postgres({ database: 'postgres', onnotice: () => {}, max: 1 });
     await su.unsafe(`do $$ begin if not exists (select from pg_roles where rolname = 'ext_demo') then create role ext_demo login password 'test-only'; end if; end $$`);
     await su.end();
+    await enableLogin('ext_demo'); // an earlier apply may have switched it off
     const hsu = postgres({ database: 'hello', onnotice: () => {}, max: 1 });
     await hsu`select platform.set_link('ext_demo', array['note_v1'], true, 'CC-X1', 'BI reads notes')`;
     const bi = postgres({ database: 'hello', username: 'ext_demo', password: 'test-only', onnotice: () => {}, max: 1 });

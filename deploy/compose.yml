@@ -1,6 +1,14 @@
-# One customer server. Slice A1: the database server only; core, products and Caddy are added in later slices.
-# The superuser password comes from the customer's SOPS secrets (decrypted by apply.sh, slice A6) into
-# deploy/secrets/pg_superuser, which is never committed.
+# One customer server. deploy/apply.ts writes the settings in deploy/secrets/ (never committed) from the customer
+# config and its secrets, then starts db, core, caddy and the licensed products (each product has a profile
+# named after it, so it runs only when licensed). VERSION is the platform release from the config.
+x-platform: &platform
+  image: medhanta/platform:${VERSION:-0.0.0}
+  restart: unless-stopped
+  depends_on:
+    db: { condition: service_healthy }
+  healthcheck:
+    test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))"]
+    interval: 10s
 services:
   db:
     image: postgres:17
@@ -8,14 +16,36 @@ services:
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
     secrets: [pg_superuser]
+    ports: ["127.0.0.1:5432:5432"]   # for apply.ts on the host only
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ../db/server:/platform/db/server:ro
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+  core:
+    <<: *platform
+    command: ["npx", "tsx", "apps/core/server/index.ts"]
+    env_file: ./secrets/core.env
+    environment: { PORT: "3000" }
+  hello:                             # reference product: CI and demos only, never licensed at a customer
+    <<: *platform
+    profiles: [hello]
+    command: ["npx", "tsx", "apps/hello/index.ts"]
+    env_file: ./secrets/hello.env
+    environment: { PORT: "3000" }
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./secrets/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
       interval: 10s
 secrets:
   pg_superuser:
     file: ./secrets/pg_superuser
 volumes:
   pgdata:
+  caddy:
