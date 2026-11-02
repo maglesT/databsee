@@ -3,11 +3,13 @@
 // PL-10: every change is made through this file; each apply needs the customer's change reference and a reason.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import YAML from 'yaml';
 import { z } from 'zod';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+/** Settings and the applied config, kept across releases (on a server /var/lib/medhanta/state; never committed). */
+export const STATE = process.env.MEDHANTA_STATE ?? path.join(ROOT, 'deploy/secrets');
 const name = z.string().regex(/^[a-z][a-z0-9_]*$/);
 const views = z.array(z.string().regex(/^[a-z][a-z0-9_]*_v[0-9]+$/)).min(1);
 /** reader -> provider database -> views it may read */
@@ -17,7 +19,8 @@ const configSchema = z.object({
   customer: name,
   version: z.string().regex(/^\d+\.\d+\.\d+$/),          // platform release (image tag)
   domain: z.string().regex(/^[a-z0-9.-]+$/),            // core at https://<domain>, product p at https://<p>.<domain>
-  host: z.string().optional(),                          // SSH target for online sites (A7)
+  host: z.string().regex(/^[a-z0-9_.-]+@[a-z0-9.-]+$/).optional(), // SSH target user@host for online sites
+  host_key: z.string().regex(/^ssh-ed25519 [A-Za-z0-9+/=]+$/).optional(), // its SSH host key (pinned, no trust on first use)
   offline: z.boolean().default(false),                  // offline sites get a signed bundle (A7)
   security_contact: z.string().email(),                 // lockout emails (D-03)
   change_ref: z.string().trim().min(1),                 // the customer's change reference (D-08, CP-02)
@@ -63,7 +66,7 @@ export const outsideLogin = (n: string) => `ext_${n}`;
 export function checkConfig(raw: unknown, rawSecrets?: unknown): { config: Config; secrets?: Secrets } {
   const config = configSchema.parse(raw);
   const problems: string[] = [];
-  if (!config.offline && !config.host) problems.push('an online site needs a host');
+  if (!config.offline && !(config.host && config.host_key)) problems.push('an online site needs host and host_key');
   const licensed = new Set(config.licences);
   const providers = new Set(['master_data', 'identity', ...config.licences.map((p) => manifest(p).database)]);
   for (const [reader, map] of Object.entries(config.links)) {
@@ -89,3 +92,9 @@ export function checkConfig(raw: unknown, rawSecrets?: unknown): { config: Confi
 }
 
 export const readYaml = (file: string): unknown => YAML.parse(readFileSync(file, 'utf8'));
+
+// CLI for the apply workflow: tsx deploy/config.ts customers/<name>.yaml  (checks the file; secrets stay encrypted)
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  const { config } = checkConfig(readYaml(process.argv[2] ?? ''));
+  console.log(`${config.customer}: version ${config.version}, ${config.offline ? 'offline' : `online ${config.host}`}, licences ${config.licences.join(', ') || 'none'}`);
+}

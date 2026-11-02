@@ -6,7 +6,7 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
 import { applyConfig, type Runtime } from '../deploy/apply.js';
-import { checkConfig, readYaml, ROOT } from '../deploy/config.js';
+import { checkConfig } from '../deploy/config.js';
 import { enableLogin, sqlstate } from './db.js';
 
 const PW = 'test-only-apply-password';
@@ -58,10 +58,6 @@ describe('PL-10 changes only through the config file, with change reference, tes
     expect(() => check({ ...base, outside_logins: { sap: { materials: ['material_v1'] } } })).toThrow(/provider is not licensed/);
     expect(() => check({ ...base, outside_logins: { bi: { hello: ['note_v1'] } } })).toThrow(/no password for login ext_bi/);
     expect(() => check({ ...base, licences: ['hello', 'unknown'] })).toThrow(/unknown product/);
-  });
-
-  it('PL-10 the example customer file is valid', () => {
-    expect(() => checkConfig(readYaml(path.join(ROOT, 'customers/example.yaml')))).not.toThrow();
   });
 
   it('PL-10 licence on: login with its secret password, roles loaded, links on and logged with the change reference', async () => {

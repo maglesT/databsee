@@ -10,8 +10,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # Settings written by apply.ts; a value already set by the caller wins.
-if [ -f deploy/secrets/backup.env ]; then
-  while IFS='=' read -r k v; do v=${v#\'}; [ -n "${!k:-}" ] || export "$k=${v%\'}"; done < deploy/secrets/backup.env
+state=${MEDHANTA_STATE:-deploy/secrets}
+if [ -f "$state/backup.env" ]; then
+  while IFS='=' read -r k v; do v=${v#\'}; [ -n "${!k:-}" ] || export "$k=${v%\'}"; done < "$state/backup.env"
 fi
 ARCHIVE=${ARCHIVE:-/var/lib/medhanta/archive}       # archive folder on the host
 DB_ARCHIVE=${DB_ARCHIVE:-/archive}                  # the same folder as the database container sees it

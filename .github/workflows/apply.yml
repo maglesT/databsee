@@ -1,0 +1,83 @@
+name: apply
+# PL-10: every commit that changes a customer's config (or its secrets) is applied to that customer, and this run is the
+# record of the result. Online sites: the signed bundle is copied over SSH and applied. Offline sites: the signed bundle
+# is kept as a download for 90 days. One apply per customer at a time.
+# Repository secrets: BUNDLE_SIGNING_KEY (ed25519 private key; its public key is in each server's
+# /etc/medhanta/allowed_signers) and DEPLOY_SSH_KEY (key of the "deploy" user on online servers).
+on:
+  push:
+    branches: [main]
+    paths: ['customers/*.yaml', 'customers/*.secrets.yaml.age']
+  workflow_dispatch:
+    inputs:
+      customer:
+        description: Customer name (customers/<name>.yaml)
+        required: true
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      customers: ${{ steps.list.outputs.customers }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: list
+        env:
+          INPUT: ${{ inputs.customer }}
+        run: |
+          if [ -n "$INPUT" ]; then names=$INPUT; else
+            names=$(git diff --name-only HEAD~1 HEAD -- customers \
+              | sed -n 's#^customers/\([a-z0-9_]*\)\(\.secrets\.yaml\.age\|\.yaml\)$#\1#p' | grep -vx example | sort -u || true)
+          fi
+          echo "customers=$(printf '%s\n' $names | jq -R . | jq -sc 'map(select(test("^[a-z][a-z0-9_]*$")))')" >> "$GITHUB_OUTPUT"
+  apply:
+    needs: plan
+    if: needs.plan.outputs.customers != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        customer: ${{ fromJSON(needs.plan.outputs.customers) }}
+    concurrency:
+      group: apply-${{ matrix.customer }}
+      cancel-in-progress: false
+    env:
+      CONFIG: customers/${{ matrix.customer }}.yaml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Check the config
+        id: config
+        run: |
+          npx tsx deploy/config.ts "$CONFIG"
+          echo "offline=$(yq -r '.offline // false' "$CONFIG")" >> "$GITHUB_OUTPUT"
+      - name: Build and sign the bundle (release v<version> + config)
+        env:
+          BUNDLE_SIGNING_KEY: ${{ secrets.BUNDLE_SIGNING_KEY }}
+        run: |
+          key=$RUNNER_TEMP/signing_key && printf '%s\n' "$BUNDLE_SIGNING_KEY" > "$key" && chmod 600 "$key"
+          echo "BUNDLE=$(deploy/bundle.sh "$CONFIG" "$RUNNER_TEMP/out" "$key")" >> "$GITHUB_ENV"
+      - name: Offline site - keep the signed bundle for download
+        if: steps.config.outputs.offline == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.customer }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 90
+      - name: Online site - copy and apply over SSH
+        if: steps.config.outputs.offline != 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          host=$(yq -r .host "$CONFIG")
+          echo "${host#*@} $(yq -r .host_key "$CONFIG")" > "$RUNNER_TEMP/known_hosts"
+          key=$RUNNER_TEMP/ssh_key && printf '%s\n' "$DEPLOY_SSH_KEY" > "$key" && chmod 600 "$key"
+          opts=(-i "$key" -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o StrictHostKeyChecking=yes)
+          scp "${opts[@]}" "$BUNDLE" "$BUNDLE.sig" "$host:/tmp/"
+          ssh "${opts[@]}" "$host" sudo /opt/medhanta/current/deploy/apply.sh "/tmp/$(basename "$BUNDLE")"
