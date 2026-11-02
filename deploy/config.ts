@@ -42,6 +42,7 @@ const secretsSchema = z.object({
     clients: z.record(name, z.string().min(16)),        // product -> OIDC client secret
   }),
   smtp_url: z.string().optional(),
+  env: z.record(name, z.record(z.string().regex(/^[A-Z][A-Z0-9_]*$/), z.string())).default({}), // product -> its own extra settings (API keys)
   backup: z.record(z.string().regex(/^[a-z_]+$/), z.string())   // rclone remote settings, e.g. type: drive, scope, token
     .refine((b) => !!b.type, 'backup needs the rclone remote type (e.g. drive)'),
 }).strict();
@@ -51,6 +52,7 @@ export interface Manifest {
   product: string; database: string; publishes: string[];
   permissions: { code: string; label: string }[];   // what the product offers in the permission register (D-16)
   reads?: Record<string, string[]>;   // provider database -> views this product can read when linked
+  source?: { repo: string; commit: string };   // a product kept in its own repo: built into medhanta/<product>:<commit> (D-29)
 }
 
 /** A permission code: <product>.<thing>.<action>, lower case and dotted (same check as db/identity/0004). */
@@ -67,6 +69,7 @@ export function manifest(product: string): Manifest {
 /** PL-01: a product offers at least one permission; each code is its own, well-formed, labelled and listed once. */
 export function checkManifest(m: Manifest, product: string, where = product): Manifest {
   if (m.product !== product || m.database !== product) throw new Error(`${where}: product and database must be "${product}"`);
+  if (m.source && !/^[0-9a-f]{40}$/.test(m.source.commit)) throw new Error(`${where}: source.commit must be a full commit id`);
   if (!Array.isArray(m.permissions) || m.permissions.length === 0) throw new Error(`${where}: needs a list of permissions`);
   const seen = new Set<string>();
   for (const p of m.permissions) {
@@ -111,6 +114,7 @@ export function checkConfig(raw: unknown, rawSecrets?: unknown): { config: Confi
     const logins = ['postgres', 'core_app', ...config.licences.map(productLogin), ...Object.keys(config.outside_logins).map(outsideLogin)];
     for (const l of logins) if (!secrets.logins[l]) problems.push(`secrets: no password for login ${l}`);
     for (const p of config.licences) if (!secrets.oidc.clients[p]) problems.push(`secrets: no OIDC client secret for ${p}`);
+    for (const p of Object.keys(secrets.env)) if (!licensed.has(p)) problems.push(`secrets: env for ${p}, which is not licensed`);
   }
   if (problems.length) throw new Error(`config ${config.customer}: ${problems.join('; ')}`);
   return { config, secrets };
