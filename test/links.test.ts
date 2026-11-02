@@ -1,7 +1,7 @@
 // Slice A1: the database server, link switch and link log.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type pg from 'pg';
-import { admin, enableLogin, login, sqlstate } from './db';
+import { admin, enableLogin, login, sqlstate } from './db.js';
 
 let hello: pg.Client;
 

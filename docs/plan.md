@@ -113,7 +113,8 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 |---|---|---|
 | A0 | Repo skeleton, CI, register + checker, this plan | — |
 | A1 | Database server: Compose, 10 databases, roles, PUBLIC revokes, `platform.set_link` + `link_log` | PL-02, PL-08 |
-| A2 | `core`: employees (identity verified), passwords, temporary-password reset, lockout + alert, permission register, people screen, history export | PL-01, PL-03, PL-04, PL-06 |
+| A2 | `core` API: employees (identity verified), passwords, temporary-password reset, lockout + email + alert, permission register, history export | PL-01, PL-03, PL-04, PL-06 |
+| A2b | `core` people & permissions screens (React) on the A2 API | — |
 | A3 | `core`: OIDC sign-on, per-product role claims, re-authentication, deactivate-everywhere | PL-01, PL-05 |
 | A4 | `core`: master-data screen, items/versions/links, `report.*_v1` views | PL-06, PL-08 |
 | A5 | `hello` product: SSO login, reads master data, signs a note keeping values at signing, publishes `note_v1`, "connection off" | PL-07, PL-08 |
