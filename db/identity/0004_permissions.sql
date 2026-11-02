@@ -53,7 +53,7 @@ create index permission_grant_employee on permission_grant (employee_id, code, i
 create view current_permission_grant as
 select g.employee_id, g.product, g.code, g.by_name as granted_by, g.at as granted_at
 from (select distinct on (employee_id, code) * from permission_grant order by employee_id, code, id desc) g
-where g.granted;
+where g.granted and exists (select from current_permission p where p.code = g.code);   -- a withdrawn code grants nothing
 
 create trigger permission_event_insert_only before update or delete or truncate on permission_event for each statement execute function refuse_change();
 create trigger permission_grant_insert_only before update or delete or truncate on permission_grant for each statement execute function refuse_change();

@@ -132,11 +132,11 @@ describe('PL-01 the permission catalogue comes from the licensed manifests', () 
 
     const p = `probe${run}`;
     const m = (permissions: Manifest['permissions']): Manifest => ({ product: p, database: p, publishes: [], permissions });
-    await loadPermissions(id, [m([{ code: `${p}.a.do`, label: 'A' }, { code: `${p}.b.do`, label: 'B' }])], 'CC-P1: probe');
-    await loadPermissions(id, [m([{ code: `${p}.a.do`, label: 'A' }, { code: `${p}.b.do`, label: 'B' }])], 'CC-P1: probe');
+    await loadPermissions(id, [manifest('hello'), m([{ code: `${p}.a.do`, label: 'A' }, { code: `${p}.b.do`, label: 'B' }])], 'CC-P1: probe');
+    await loadPermissions(id, [manifest('hello'), m([{ code: `${p}.a.do`, label: 'A' }, { code: `${p}.b.do`, label: 'B' }])], 'CC-P1: probe');
     expect(await events()).toBe(before + 2);
     const holder = await makeEmployee(`probe${run}`, [`${p}.b.do`]);
-    await loadPermissions(id, [m([{ code: `${p}.a.do`, label: 'A renamed' }])], 'CC-P2: b dropped');
+    await loadPermissions(id, [manifest('hello'), m([{ code: `${p}.a.do`, label: 'A renamed' }])], 'CC-P2: b dropped');
     expect(await id`select code, label from current_permission where product = ${p} order by code`).toEqual([{ code: `${p}.a.do`, label: 'A renamed' }]);
     expect(await id`select code, label, active, by_name, reason from permission_event where product = ${p} order by id`).toEqual([
       { code: `${p}.a.do`, label: 'A', active: true, by_name: 'apply', reason: 'CC-P1: probe' },
@@ -147,6 +147,10 @@ describe('PL-01 the permission catalogue comes from the licensed manifests', () 
     expect(await id`select code from current_permission_grant where employee_id = ${holder}`).toEqual([]);
     expect(await id`select granted, reason from permission_grant where employee_id = ${holder} order by id`)
       .toEqual([{ granted: true, reason: 'test' }, { granted: false, reason: `permission removed from ${p} (CC-P2: b dropped)` }]);
+    // A product no longer licensed has all its codes withdrawn (core is never withdrawn).
+    await loadPermissions(id, [manifest('hello')], 'CC-P3: licence off');
+    expect(await id`select code from current_permission where product = ${p}`).toEqual([]);
+    expect((await id`select count(*)::int as n from current_permission where product = 'core'`)[0]!.n).toBe(3);
     await id.end();
   });
 

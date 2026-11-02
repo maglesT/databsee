@@ -125,6 +125,15 @@ describe('PL-02 link switches are recorded and never overwritten', () => {
 });
 
 describe('PL-06 least privilege for the app logins (D-17)', () => {
+  it('PL-06 tables made before least privilege lost the app update and delete rights; only the needed ones were granted back', async () => {
+    const id = admin('identity');
+    await id.connect();
+    const { rows } = await id.query(`select has_table_privilege('core_app', 'employee_version', 'update') as hist,
+      has_table_privilege('core_app', 'credential_event', 'delete') as events, has_table_privilege('core_app', 'credential', 'update') as cred`);
+    expect(rows).toEqual([{ hist: false, events: false, cred: true }]);
+    await id.end();
+  });
+
   it('PL-06 a new table gives the app login only select and insert unless a migration grants more', async () => {
     await hello.query(`set role hello_owner; drop table if exists lp_probe; create table lp_probe (id int); reset role;`);
     const can = async (db: pg.Client, user: string, table: string) => (await db.query(

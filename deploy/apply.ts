@@ -110,10 +110,14 @@ async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime
  * PL-01/PL-02: loads the licensed products' permissions into the catalogue (identity.permission_event). Only
  * differences are written: a new code or a new label is an active event; a code gone from a licensed manifest is an
  * inactive event, and whoever holds it gets a revoke event, so a code that comes back later grants nothing by itself.
+ * An unlicensed product (other than core) has all its codes withdrawn the same way.
  */
 export async function loadPermissions(identity: postgres.Sql, products: Manifest[], why: string) {
   await identity.begin(async (tx) => {
-    for (const m of products) {
+    const licensed = new Set(products.map((m) => m.product));
+    const unlicensed = (await tx<{ product: string }[]>`select distinct product from current_permission where product <> 'core'`)
+      .map((r) => r.product).filter((p) => !licensed.has(p));
+    for (const m of [...products, ...unlicensed.map((product) => ({ product, permissions: [] as Manifest['permissions'] }))]) {
       const have = new Map((await tx<{ code: string; label: string }[]>`select code, label from current_permission where product = ${m.product}`)
         .map((r) => [r.code, r.label]));
       for (const p of m.permissions)
@@ -121,10 +125,11 @@ export async function loadPermissions(identity: postgres.Sql, products: Manifest
           await tx`insert into permission_event (product, code, label, active, by_name, reason) values (${m.product}, ${p.code}, ${p.label}, true, 'apply', ${why})`;
       for (const [code, label] of have) {
         if (m.permissions.some((p) => p.code === code)) continue;
-        await tx`insert into permission_event (product, code, label, active, by_name, reason) values (${m.product}, ${code}, ${label}, false, 'apply', ${why})`;
+        // Revoke first: once the code is inactive, current_permission_grant no longer shows who holds it.
         await tx`insert into permission_grant (employee_id, product, code, granted, by_name, reason)
           select employee_id, product, code, false, 'apply', ${`permission removed from ${m.product} (${why})`}
           from current_permission_grant where code = ${code}`;
+        await tx`insert into permission_event (product, code, label, active, by_name, reason) values (${m.product}, ${code}, ${label}, false, 'apply', ${why})`;
       }
     }
   });

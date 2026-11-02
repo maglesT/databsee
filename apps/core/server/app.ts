@@ -43,6 +43,8 @@ async function setPermissions(tx: TransactionSql, me: Me, employeeId: string, pr
   await tx`select pg_advisory_xact_lock(hashtext(${employeeId}))`;   // one change of a person's permissions at a time
   const offered = new Set((await tx<{ code: string }[]>`select code from current_permission where product = ${product}`).map((r) => r.code));
   const want = new Set(codes);
+  if (employeeId === me.id && product === 'core' && !want.has(PEOPLE) && me.permissions.includes(PEOPLE))
+    throw new HttpError(400, `You cannot remove your own ${PEOPLE}; ask another administrator.`);
   for (const c of want) if (!offered.has(c)) throw new HttpError(400, `${product} has no permission "${c}".`);
   const have = new Set((await tx<{ code: string }[]>`select code from current_permission_grant
     where employee_id = ${employeeId} and product = ${product}`).map((r) => r.code));
@@ -344,8 +346,8 @@ export function buildApp(deps: Deps) {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const b = z.object({ product: z.string(), fromId: z.string().uuid(), reason }).parse(req.body);
     return sql.begin(async (tx) => {
-      const [from] = await tx<{ login: string }[]>`select login from employee where id = ${b.fromId}`;
-      if (!from) throw new HttpError(404, 'No such employee to copy from.');
+      const [from] = await tx<{ login: string }[]>`select login from employee_current where id = ${b.fromId} and active`;
+      if (!from) throw new HttpError(404, 'No such active employee to copy from.');
       const codes = (await tx<{ code: string }[]>`select code from current_permission_grant where employee_id = ${b.fromId} and product = ${b.product}`).map((r) => r.code);
       return setPermissions(tx, me, id, b.product, codes, `${b.reason} (copied from ${from.login})`);
     });

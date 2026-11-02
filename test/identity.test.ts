@@ -76,6 +76,18 @@ describe('PL-02 / PL-01 the permission register', () => {
     expect((await admin.call('POST', `/api/employees/${to}/permissions/copy`, { product: 'core', fromId: from, reason: '' })).statusCode).toBe(400);
   });
 
+  it('PL-01 an administrator cannot remove their own people permission, and copies only from an active person', async () => {
+    const admin = await signIn(t.app, adminLogin);
+    const me = (await admin.call('GET', '/api/me')).json().id;
+    expect((await admin.call('PUT', `/api/employees/${me}/permissions`, { product: 'core', codes: [], reason: 'oops' })).statusCode).toBe(400);
+    const gone = await makeEmployee(`gone${run}`, ['core.masterdata.view']);
+    const su = superuser();
+    await su`insert into employee_version (employee_id, version, full_name, active, changed_by_name, reason) values (${gone}, 2, 'Gone', false, 'test', 'left')`;
+    await su.end();
+    const to = await makeEmployee(`cpy2${run}`);
+    expect((await admin.call('POST', `/api/employees/${to}/permissions/copy`, { product: 'core', fromId: gone, reason: 'x' })).statusCode).toBe(404);
+  });
+
   it('PL-02 granting and revoking leave two events with who, when and why; current rights follow', async () => {
     const id = await makeEmployee(`granted${run}`);
     const admin = await signIn(t.app, adminLogin);
