@@ -13,9 +13,10 @@ export const superuser = () => postgres({ database: 'identity', onnotice: () => 
 export async function coreApp() {
   await enableLogin('core_app');
   const sql = postgres({ database: 'identity', username: 'core_app', password: 'test-only', onnotice: () => {} });
+  const md = postgres({ database: 'master_data', username: 'core_app', password: 'test-only', onnotice: () => {} });
   const mailbox: Mail[] = [];
-  const deps: Deps = { sql, sendMail: async (m) => { mailbox.push(m); }, securityContact: 'security@site.test', secureCookies: false };
-  return { app: buildApp(deps), sql, mailbox, deps };
+  const deps: Deps = { sql, sendMail: async (m) => { mailbox.push(m); }, securityContact: 'security@site.test', secureCookies: false, md };
+  return { app: buildApp(deps), sql, md, mailbox, deps };
 }
 
 /** An employee with a known, non-temporary password and the given core roles. */

@@ -1,6 +1,8 @@
 // Core screens (slice A2b): sign in, change password, people, one person (details, roles, history), alerts.
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { api, ApiError } from './api.js';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { api } from './api.js';
+import { form, Link, useAction, when } from './ui.js';
+import { MasterData } from './MasterData.js';
 
 interface Me { id: string; login: string; fullName: string; roles: string[]; mustChange: boolean }
 interface Person { id: string; login: string; fullName: string; email: string | null; active: boolean; lockedAt: string | null }
@@ -8,47 +10,31 @@ interface Role { product: string; role: string; description: string }
 interface Grant { employeeId: string; product: string; role: string; grantedBy: string; grantedAt: string }
 interface Alert { id: string; message: string; at: string; emailedAt: string | null; emailError: string | null }
 
-/** An in-app link (keyboard-usable, real link role). */
-function Link({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return <a href="#" onClick={(e) => { e.preventDefault(); onClick(); }}>{children}</a>;
-}
-
-const when = (t: string) => new Date(t).toLocaleString();
-const form = (e: FormEvent<HTMLFormElement>) => Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
-
-/** Runs an action and shows its error under the form. */
-function useAction() {
-  const [error, setError] = useState('');
-  const run = useCallback(async (f: () => Promise<void>) => {
-    setError('');
-    try { await f(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-  }, []);
-  return { error, run, Error: () => (error ? <p className="error" role="alert">{error}</p> : null) };
-}
-
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
-  const [page, setPage] = useState<{ name: 'people' } | { name: 'person'; id: string }>({ name: 'people' });
+  const [page, setPage] = useState<Page>({ name: 'home' });
   const load = useCallback(() => api<Me>('GET', '/api/me').then(setMe, () => setMe(null)), []);
   useEffect(() => { void load(); }, [load]);
 
   if (me === undefined) return null;
   if (me === null) return <SignIn onDone={load} />;
-  if (me.mustChange) return <Shell me={me} onSignOut={() => setMe(null)}><ChangePassword me={me} onDone={load} /></Shell>;
+  if (me.mustChange) return <Shell me={me} onSignOut={() => setMe(null)} go={setPage}><ChangePassword me={me} onDone={load} /></Shell>;
+  const people = me.roles.includes('identity_admin');
+  const md = me.roles.includes('viewer') || me.roles.includes('master_data_editor');
+  const name = page.name === 'home' ? (people ? 'people' : md ? 'master-data' : 'none') : page.name;
   return (
-    <Shell me={me} onSignOut={() => setMe(null)} onHome={() => setPage({ name: 'people' })}>
-      {!me.roles.includes('identity_admin') ? (
-        <div className="card">Signed in. You have no administration rights here.</div>
-      ) : page.name === 'people' ? (
-        <People open={(id) => setPage({ name: 'person', id })} />
-      ) : (
-        <PersonPage id={page.id} me={me} back={() => setPage({ name: 'people' })} />
-      )}
+    <Shell me={me} onSignOut={() => setMe(null)} go={setPage}>
+      {name === 'none' && <div className="card">Signed in. You have no rights in the core screens.</div>}
+      {name === 'people' && people && <People open={(id) => setPage({ name: 'person', id })} />}
+      {page.name === 'person' && people && <PersonPage id={page.id} me={me} back={() => setPage({ name: 'people' })} />}
+      {name === 'master-data' && md && <MasterData canEdit={me.roles.includes('master_data_editor')} />}
     </Shell>
   );
 }
 
-function Shell({ me, children, onSignOut, onHome }: { me: Me; children: ReactNode; onSignOut: () => void; onHome?: () => void }) {
+type Page = { name: 'home' } | { name: 'people' } | { name: 'person'; id: string } | { name: 'master-data' };
+
+function Shell({ me, children, onSignOut, go }: { me: Me; children: ReactNode; onSignOut: () => void; go: (p: Page) => void }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const loadAlerts = useCallback(() => { if (!me.mustChange) api<Alert[]>('GET', '/api/alerts').then(setAlerts, () => {}); }, [me]);
   useEffect(() => { loadAlerts(); const t = setInterval(loadAlerts, 30000); return () => clearInterval(t); }, [loadAlerts]);
@@ -56,7 +42,8 @@ function Shell({ me, children, onSignOut, onHome }: { me: Me; children: ReactNod
     <>
       <header>
         <strong>Medhanta core</strong>
-        {onHome && <Link onClick={onHome}>People</Link>}
+        {!me.mustChange && me.roles.includes('identity_admin') && <Link onClick={() => go({ name: 'people' })}>People</Link>}
+        {!me.mustChange && (me.roles.includes('viewer') || me.roles.includes('master_data_editor')) && <Link onClick={() => go({ name: 'master-data' })}>Master data</Link>}
         <span className="muted">{me.fullName}</span>
         <button className="plain" onClick={() => api('POST', '/api/logout').finally(onSignOut)}>Sign out</button>
       </header>

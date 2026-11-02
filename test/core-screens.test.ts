@@ -23,7 +23,7 @@ beforeAll(async () => {
   page.on('dialog', (d) => void d.accept('screen test reason'));
 }, 120000);
 
-afterAll(async () => { await browser?.close(); await web?.close(); await t?.sql.end(); });
+afterAll(async () => { await browser?.close(); await web?.close(); await t?.sql.end(); await t?.md.end(); });
 
 async function signIn(login: string, password = PASSWORD) {
   await page.goto(base);
@@ -58,7 +58,7 @@ describe('core screens', () => {
     await page.getByLabel('New password', { exact: true }).fill('a lovely long secret');
     await page.getByLabel('New password again').fill('a lovely long secret');
     await page.getByRole('button', { name: 'Change password' }).click();
-    await page.getByText('You have no administration rights here.').waitFor();
+    await page.getByRole('heading', { name: 'Master data' }).waitFor();          // a viewer lands on master data
     await page.getByRole('button', { name: 'Sign out' }).click();
   });
 
@@ -71,5 +71,43 @@ describe('core screens', () => {
     expect(await banner.textContent()).toContain('security contact emailed');
     await banner.getByRole('button', { name: 'Acknowledge' }).click();
     await banner.waitFor({ state: 'detached' });
+  });
+
+  it('PL-06 PL-08 an editor adds a room and equipment, links them, renames with a reason, and the history shows it', async () => {
+    await makeEmployee(`webmd${run}`, ['master_data_editor']);
+    await page.getByRole('button', { name: 'Sign out' }).click().catch(() => {});
+    await signIn(`webmd${run}`);
+    await page.getByRole('heading', { name: 'Master data' }).waitFor();
+    await page.getByRole('link', { name: 'Rooms' }).click();
+    await page.getByLabel('Code (never reused)').fill(`WR${run}`);
+    await page.getByLabel('Name', { exact: true }).fill('Web room');
+    await page.getByLabel('Grade').fill('D');
+    await page.getByLabel('Reason').fill('initial load');
+    await page.getByRole('button', { name: 'Add' }).click();
+    await page.getByRole('link', { name: `WR${run}` }).waitFor();
+
+    await page.getByRole('link', { name: 'Equipment' }).click();
+    await page.getByLabel('Code (never reused)').fill(`WE${run}`);
+    await page.getByLabel('Name', { exact: true }).fill('Web mixer');
+    await page.getByLabel('Make').fill('Acme');
+    await page.getByLabel('Reason').fill('initial load');
+    await page.getByRole('button', { name: 'Add' }).click();
+    await page.getByRole('link', { name: `WE${run}` }).click();
+
+    const linkForm = page.locator('form', { has: page.getByRole('button', { name: 'Link' }) });
+    await linkForm.getByLabel('room').selectOption({ label: `WR${run}: Web room` });
+    await linkForm.getByLabel('Reason').fill('installed');
+    await linkForm.getByRole('button', { name: 'Link' }).click();
+    await page.getByRole('listitem').filter({ hasText: `WR${run}` }).waitFor();
+
+    await page.getByLabel('Name', { exact: true }).fill('Web high-shear mixer');
+    await page.getByLabel('Reason for change').fill('name per URS');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('heading', { name: /version 2/ }).waitFor();
+    const history = (await page.locator('.card', { hasText: 'History' }).textContent())!;
+    expect(history).toContain('Version 1: Web mixer');
+    expect(history).toContain('Version 2: Web high-shear mixer');
+    expect(history).toContain(`Linked WE${run} located in WR${run}`);
+    expect(history).toContain('name per URS');
   });
 });

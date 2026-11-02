@@ -11,6 +11,7 @@ import { POLICY } from './config.js';
 import type { SendMail } from './mail.js';
 import { hashPassword, passwordProblem, temporaryPassword, verifyPassword } from './passwords.js';
 import { buildProvider, type OidcSettings } from './oidc.js';
+import { registerMasterData } from './master-data.js';
 
 export interface Deps {
   sql: Sql;
@@ -19,6 +20,7 @@ export interface Deps {
   secureCookies: boolean;
   webRoot?: string;             // built screens (vite build); omitted in API-only tests
   oidc?: OidcSettings;          // single sign-on for the products (slice A3)
+  md?: Sql;                     // master_data database as core_app (slice A4)
 }
 
 interface Me { id: string; login: string; fullName: string; roles: string[]; mustChange: boolean }
@@ -28,7 +30,7 @@ const SESSION_COOKIE = 'sid';
 const sessionKey = (sid: string) => createHash('sha256').update(sid).digest('base64url');
 const reason = z.string().trim().min(1, 'A reason is required.');
 
-class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
+export class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 
 /** PL-01: the employee's core roles, only if active, unlocked and holding a password. */
 async function loadMe(sql: Sql | TransactionSql, employeeId: string): Promise<Me | null> {
@@ -125,7 +127,7 @@ ${o.error ? `<p class="e" role="alert">${esc(o.error)}</p>` : ''}
 <button>${o.change ? 'Change password and sign in' : 'Sign in'}</button></form></body></html>`;
 }
 
-function csv(rows: Record<string, unknown>[]): string {
+export function csv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return '';
   const cols = Object.keys(rows[0]!);
   const cell = (v: unknown) => {
@@ -306,6 +308,11 @@ export function buildApp(deps: Deps) {
         values (${b.employeeId}, ${b.product}, ${b.role}, ${b.granted}, ${me.id}, ${me.fullName}, ${b.reason})`;
     });
     return { ok: true };
+  });
+
+  if (deps.md) registerMasterData(app, deps.md, (req, roles) => {
+    if (!roles.some((r) => req.me!.roles.includes(r))) throw new HttpError(403, 'You do not have the right for this.');
+    return req.me!;
   });
 
   // ---- Alerts (identity_admin; shown on every core screen until acknowledged) ----
