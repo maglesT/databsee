@@ -2,7 +2,7 @@
 # Applies a customer config on its server. The same script for online sites (GitHub Actions copies the bundle over
 # SSH and runs it) and offline sites (the bundle is carried in).
 # Usage: /opt/medhanta/current/deploy/apply.sh <customer>-<version>-<commit>.tar   (signature next to it, .tar.sig)
-#        deploy/apply.sh customers/<name>.yaml                                       (from an unpacked release)
+#        MEDHANTA_UNSIGNED=1 deploy/apply.sh customers/<name>.yaml                   (development only)
 # Bundle: the signature is checked first (deploy/verify-bundle.sh), then the release is unpacked to
 # /opt/medhanta/releases/, its images loaded, its config applied, and /opt/medhanta/current points to it.
 # Config: decrypt the secrets (age, D-12), then deploy/apply.ts (databases, migrations with data checks, roles, logins,
@@ -25,11 +25,14 @@ if [[ "${1:?usage: apply.sh <bundle.tar> | customers/<name>.yaml}" == *.tar ]]; 
   rm -rf "$dest" && mkdir -p "$dest" && tar -xf "$bundle" -C "$dest"
   docker load -i "$dest/images.tar.gz"
   config=$(ls "$dest"/customers/*.yaml | head -1)
-  "$dest/deploy/apply.sh" "$config"
+  MEDHANTA_FROM_BUNDLE=1 "$dest/deploy/apply.sh" "$config"
   ln -sfn "$dest" "$home/current"
   exit 0
 fi
 
+# A config is applied only from a verified bundle; MEDHANTA_UNSIGNED=1 is for development (sudo drops both variables,
+# so the deploy user cannot skip the signature).
+[ -n "${MEDHANTA_FROM_BUNDLE:-}${MEDHANTA_UNSIGNED:-}" ] || { echo "apply: give a signed bundle, not a config file" >&2; exit 1; }
 config=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
 cd "$here"
 secrets=$MEDHANTA_STATE/secrets.yaml

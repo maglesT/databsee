@@ -44,6 +44,8 @@ describe('PL-10 only signed releases are applied', () => {
     const env = { ...process.env, MEDHANTA_HOME: home, MEDHANTA_STATE: path.join(dir, 'state'), MEDHANTA_SIGNERS: signers };
     expect(() => execFileSync('deploy/apply.sh', [changed], { env, stdio: 'pipe' })).toThrow(/not signed by the release key/);
     expect(existsSync(path.join(home, 'releases'))).toBe(false);
+    // A config file instead of a bundle is refused too (the deploy user may only run apply.sh through sudo).
+    expect(() => execFileSync('deploy/apply.sh', ['customers/example.yaml'], { env, stdio: 'pipe' })).toThrow(/signed bundle/);
   });
 
   it('PL-10 every customer config in the repo is valid', () => {
