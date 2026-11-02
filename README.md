@@ -39,8 +39,9 @@ PostgreSQL archives every WAL file (at least every 5 minutes) to `/var/lib/medha
 ```
 Off-server store: an S3-compatible bucket (e.g. Backblaze B2) created with Object Lock and a default retention in
 COMPLIANCE mode (at least the customer's record retention period), set in the customer config (`backup:`). Object
-Lock keeps every version, so even an overwrite cannot alter a stored backup. The server's key is limited to `deploy/backup-policy.json` (add and read, never delete), and
-`rclone copy --immutable` never changes a copied file, so the server cannot erase or alter a backup.
+Lock keeps every version, so even an overwrite cannot alter a stored backup. The server's key is limited to
+`deploy/backup-policy.json` (add and read, never delete), and `rclone copy --immutable` never changes a copied file.
+Every apply runs `deploy/backup.sh check`, which fails the apply if the store lets the server delete a probe file.
 Restore to a point in time: `deploy/restore.sh <base backup> "<time>" <empty data folder>` (as root on the server, so
 the folder belongs to the database container's user), then start PostgreSQL on it and take a new base backup at once.
 `test/pl11-restore.sh` does exactly this in CI for all 10 databases. The site restores a real backup periodically

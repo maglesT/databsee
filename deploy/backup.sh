@@ -2,6 +2,7 @@
 # PL-11 backups, run by cron on the customer server (lines in README "Backups"):
 #   deploy/backup.sh base   nightly: one consistent base backup of the whole server (all databases)
 #   deploy/backup.sh copy   every 5 minutes: copy new WAL files and base backups off the server
+#   deploy/backup.sh check  at every apply: the off-server store must refuse a delete by this server
 # PostgreSQL archives every WAL file into $ARCHIVE/wal itself (archive_command in deploy/compose.yml), so with the
 # latest base backup and the WAL after it the server can be restored to any point in time (deploy/restore.sh).
 # Off-server: "rclone copy --immutable" adds files and never deletes or changes one; the bucket key in the
@@ -28,5 +29,12 @@ case "${1:-}" in
     find "$ARCHIVE/wal" -type f -mtime +7 -delete
     find "$ARCHIVE/base" -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
     echo "backup: archive copied to $BACKUP_REMOTE" ;;
-  *) echo "usage: deploy/backup.sh base|copy" >&2; exit 2 ;;
+  check)
+    probe="${BACKUP_REMOTE:?BACKUP_REMOTE is not set}/.probe/$(date -u +%Y%m%dT%H%M%SZ)"
+    echo "delete probe" | rclone rcat "$probe"
+    if rclone deletefile "$probe" 2>/dev/null; then
+      echo "backup: the off-server store let this server delete a file; fix its key and Object Lock" >&2; exit 1
+    fi
+    echo "backup: off-server store refuses deletes" ;;
+  *) echo "usage: deploy/backup.sh base|copy|check" >&2; exit 2 ;;
 esac

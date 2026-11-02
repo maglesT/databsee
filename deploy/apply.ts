@@ -180,6 +180,8 @@ export const docker: Runtime = {
       { stdio: 'inherit', env: { ...process.env, VERSION: config.version } });
     for (const p of allProducts().filter((p) => !config.licences.includes(p))) compose('--profile', p, 'rm', '--stop', '--force', p);
     compose(...config.licences.flatMap((p) => ['--profile', p]), 'up', '-d', '--wait', 'db', 'core', 'caddy', ...config.licences);
+    // PL-11: the real off-server store must refuse a delete by this server, or the apply fails.
+    execFileSync(path.join(ROOT, 'deploy/backup.sh'), ['check'], { stdio: 'inherit' });
   },
 };
 
