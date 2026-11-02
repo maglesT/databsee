@@ -1,6 +1,9 @@
 // Applies a database's migrations: plain SQL files db/<database>/NNNN_name.sql, in order, each in its own
 // transaction as the database's owner role, recorded in platform.migration with the file's SHA-256.
 // A recorded file whose content changed is an error (migrations are never edited, only added).
+// PL-13: a migration that moves or reshapes data ships NNNN_name.check.sql with two queries split by a line
+// "-- after": the first runs before the migration, the second after it, in the same transaction. Both must return
+// the same rows (e.g. row counts and checksums); if not, the migration is rolled back and the run stops.
 // Usage: tsx db/migrate.ts <database> [<database> ...]   (connection: PG* env, superuser - the installer)
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -30,9 +33,16 @@ export async function migrate(database: string, dir = path.join(here, database))
         if (was !== sha) throw new Error(`${database}/${file} changed after it was applied`);
         continue;
       }
+      const checkFile = path.join(dir, file.replace(/\.sql$/, '.check.sql'));
+      const check = existsSync(checkFile) ? splitCheck(readFileSync(checkFile, 'utf8'), `${database}/${file}`) : null;
       await sql.begin(async (tx) => {
         await tx.unsafe(`set local role ${owner}`);
+        const before = check && JSON.stringify(await tx.unsafe(check.before));
         await tx.unsafe(text);
+        if (check) {
+          const after = JSON.stringify(await tx.unsafe(check.after));
+          if (after !== before) throw new Error(`${database}/${file}: data check failed (PL-13), rolled back. before ${before}, after ${after}`);
+        }
         await tx`insert into platform.migration (name, sha256) values (${file}, ${sha})`;
       });
       applied.push(file);
@@ -41,6 +51,12 @@ export async function migrate(database: string, dir = path.join(here, database))
   } finally {
     await sql.end();
   }
+}
+
+function splitCheck(text: string, name: string) {
+  const parts = text.split(/^-- after\s*$/m);
+  if (parts.length !== 2) throw new Error(`${name}: the check file needs exactly one line "-- after"`);
+  return { before: parts[0]!, after: parts[1]! };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

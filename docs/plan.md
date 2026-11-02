@@ -56,14 +56,14 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
  │   products read report.*_v1 views of others via grants       │
  └─────────────────────────────────────────────────────────────┘
         ▲ apply.sh (same script online and offline)
- GitHub Actions ◄── customers/ folder in this repo (one YAML per customer, SOPS secrets)
+ GitHub Actions ◄── customers/ folder in this repo (one YAML per customer, age secrets, D-12)
         ▲ commits
  control panel (your server only; control_panel database)
 ```
 - **One `core` app** instead of three: sign-on, people & permissions screen, master-data screen. Fewer containers, one login page, same stack (Node/TypeScript + Fastify + React + postgres). It connects to `identity` and `master_data` only.
 - **Single sign-on: a minimal OIDC provider inside `core`, built on `oidc-provider`** (panva; OpenID-certified library). Why not Keycloak: Keycloak keeps its own user tables and its own admin console, so employees would live in two places, and it needs a Java service with ~1 GB RAM on every customer server. With `oidc-provider` employees, passwords and the register live in one `identity` database, edited in one screen, and the password/lockout code is reused from the products. Each product is an OIDC client; its token carries only that product's roles. Tokens live 5 min and every renewal re-checks the register, so a deactivation reaches every product within 5 min, and immediately at the next e-signature (re-authentication).
 - **Reading another database.** PostgreSQL cannot query across databases, so a product that reads a link opens a second small connection pool to the provider's database with its own login. No postgres_fdw, no gateway.
-- **No data lake, no gateway, no Kubernetes/Terraform/Vault.** Docker Compose, plain SQL, SOPS + age for secrets.
+- **No data lake, no gateway, no Kubernetes/Terraform/Vault.** Docker Compose, plain SQL, age-encrypted secrets (D-12).
 
 ## 5. Data model (sketch)
 **master_data**
@@ -102,11 +102,11 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 - Views follow the Logbook rule: columns may be added to `_v1`, never removed or renamed; a breaking change is `_v2`. A CI contract test per view enforces it.
 
 ## 7. GitOps flow
-1. **Config file** `customers/<customer>.yaml` in the `customers/` folder of this private repo (D-04; can move to its own repo later if access must be split): platform version, host (online) or `offline: true`, licences, links (`consumer → provider: [views]`), outside logins. Secrets in `customers/<customer>.secrets.yaml`, SOPS-encrypted to your age key and the customer server's age key.
+1. **Config file** `customers/<customer>.yaml` in the `customers/` folder of this private repo (D-04; can move to its own repo later if access must be split): platform version, host (online) or `offline: true`, licences, links (`consumer → provider: [views]`), outside logins. Secrets in `customers/<customer>.secrets.yaml.age`, encrypted with age to your key and the customer server's key (D-12).
 2. **Control panel** (your server only, only you log in): customer list, licence switches, the product/link diagram with arrows you cut or restore. Each switch asks for a reason and the customer's change reference, writes `switch_log`, and commits the YAML via the GitHub API.
 3. **GitHub Actions** on each commit: validate the file against the schema → for online customers SSH to the server and run `apply.sh`; for offline customers build a **bundle** (images via `docker save`, config, migrations, encrypted secrets) signed with `ssh-keygen -Y sign` (no extra tool); the site runs `apply.sh bundle.tar`, which verifies the signature first.
 4. **`apply.sh`** (same for both): back up → pull/load images → run migrations (each in a transaction; additive only) → start licensed / stop unlicensed containers → set links and outside logins → health checks → on failure, re-apply the previous config and images → report result (and commit status).
-5. **Backups**: PostgreSQL's built-in WAL archiving plus a nightly `pg_basebackup` (one consistent copy of all 10 databases) to off-server storage the server can add to but not delete; point-in-time restore script tested in CI. Config repo and SOPS keys backed up too.
+5. **Backups**: PostgreSQL's built-in WAL archiving plus a nightly `pg_basebackup` (one consistent copy of all 10 databases) to off-server storage the server can add to but not delete; point-in-time restore script tested in CI. Config repo and age keys backed up too.
 
 ## 8. Slices (each: branch, tests named by rule ID, CI green, one review, squash-merge, email)
 | # | Slice | Proves |
@@ -118,7 +118,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 | A3 | `core`: OIDC sign-on, per-product role claims, re-authentication, deactivate-everywhere | PL-01, PL-05 |
 | A4 | `core`: master-data screen, items/versions/links, `report.*_v1` views | PL-06, PL-08 |
 | A5 | `hello` product: SSO login, reads master data, signs a note keeping values at signing, publishes `note_v1`, "connection off" | PL-07, PL-08 |
-| A6 | Config schema + `apply.sh` (licences, links, outside logins, migrations + data checks, health, rollback) + SOPS + WAL backup/restore | PL-10, PL-11, PL-13 |
+| A6 | Config schema + `apply.sh` (licences, links, outside logins, migrations + data checks, health, rollback) + age secrets + WAL backup/restore | PL-10, PL-11, PL-13 |
 | A7 | GitHub Actions: online apply + signed offline bundles + verify | PL-10 |
 | A8 | Control panel: customers, licences, switches, switch log, diagram, commits config | PL-09, PL-10 |
 | A9 | Access review report + add-a-product recipe doc + config template entry; Simplicity review of Phase A | PL-12 |

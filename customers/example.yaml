@@ -1,0 +1,16 @@
+# Example customer config (template). One file per customer: customers/<name>.yaml (decision D-04).
+# It is the customer's system description (PL-09) and the only way to change their system (PL-10):
+# every commit needs the customer's change reference and a reason (D-08, CP-02).
+# Secrets: customers/<name>.secrets.yaml.age, encrypted with age to the owner's and the server's keys (D-12).
+customer: example
+version: 0.6.0                    # platform release
+domain: medhanta.example.com      # core at https://<domain>, product p at https://<p>.<domain>
+host: deploy@medhanta.example.com # SSH target (online sites); offline sites set "offline: true" instead
+security_contact: it-security@example.com
+change_ref: CC-2026-001           # the customer's change reference for this change
+reason: First installation
+licences: [hello]                 # licensed products; all others are off (login off, containers stopped)
+links:                            # product -> provider database -> published views it reads
+  hello:
+    master_data: [equipment_v1]
+outside_logins: {}                # outside system -> provider database -> views, e.g. sap: {materials: [material_v1]}

@@ -138,7 +138,7 @@ Generated from `compliance/register.yaml` by `scripts/check-register.py --render
 
 **Breaks if dropped.** SchM 20.9, A11 7.2, 211.68(b).
 
-**Implementation (least strict).** PostgreSQL WAL archiving (built-in archive_command) plus a nightly pg_basebackup, both copied to off-server storage the database server can add to but not delete (append-only), so any point in time can be restored. The config repo and the SOPS keys are backed up the same way. Restore script tested in CI; periodic restore of real backups is CP-04.
+**Implementation (least strict).** PostgreSQL WAL archiving (built-in archive_command) plus a nightly pg_basebackup, both copied to off-server storage the database server can add to but not delete (append-only), so any point in time can be restored. The config repo and the age keys are backed up the same way. Restore script tested in CI; periodic restore of real backups is CP-04.
 
 **Test.** CI restores to a point in time and finds the rows written up to it in all databases; the server cannot delete an archived file.
 
