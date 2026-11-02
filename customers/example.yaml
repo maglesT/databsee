@@ -12,6 +12,8 @@ backup:                           # off-server copy (PL-11): folder on the rclon
   path: medhanta-backups/example
 change_ref: CC-2026-001           # the customer's change reference for this change
 reason: First installation
+# A new product (docs/05-add-a-product.md): add its name to licences, its links under links (views from its manifest
+# "reads"), and its login password and OIDC client secret to the secrets (template: example.secrets.template.yaml).
 licences: [hello]                 # licensed products; all others are off (login off, containers stopped)
 links:                            # product -> provider database -> published views it reads
   hello:

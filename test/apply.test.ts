@@ -73,6 +73,11 @@ describe('PL-10 changes only through the config file, with change reference, tes
     expect((await id`select role from product_role where product = 'hello' order by role`).map((r) => r.role)).toContain('operator');
     await id.end();
     expect(started.at(-1)).toEqual(['hello']);
+    // PL-12: what is on is recorded for the access review report.
+    const id2 = su('identity');
+    expect(await id2`select provider, consumer, view_name, change_ref from link_state where consumer = 'hello_app'`)
+      .toEqual([{ provider: 'master_data', consumer: 'hello_app', view_name: 'equipment_v1', change_ref: 'CC-A1' }]);
+    await id2.end();
   });
 
   it('PL-10 applying the same config again switches nothing', async () => {

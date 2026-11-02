@@ -16,6 +16,8 @@ jobs:
         run: python3 scripts/check-register.py --render docs/03-compliance-register.md
       - name: Rendered register is up to date
         run: git diff --exit-code docs/03-compliance-register.md
+      - name: Every rule has a test named by its ID
+        run: python3 scripts/check-traceability.py
   database:
     runs-on: ubuntu-latest
     services:

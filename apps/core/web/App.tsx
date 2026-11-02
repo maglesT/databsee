@@ -121,7 +121,8 @@ function People({ open }: { open: (id: string) => void }) {
         </table>
         <p className="muted">
           Audit trail exports: <a href="/api/export/employee-history.csv">people history</a> ·{' '}
-          <a href="/api/export/grant-history.csv">permission history</a> · <a href="/api/export/credential-events.csv">sign-on events</a>
+          <a href="/api/export/grant-history.csv">permission history</a> · <a href="/api/export/credential-events.csv">sign-on events</a> ·{' '}
+          <a href="/api/access-review" target="_blank" rel="noreferrer">access review report</a>
         </p>
       </div>
       <form className="card" onSubmit={(e) => {

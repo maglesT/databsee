@@ -1,0 +1,57 @@
+# Add a product to the platform (recipe)
+
+The `hello` product (`apps/hello`, `db/hello`, `test/hello.test.ts`) is the worked example of every step. Phase B
+products (Logbook, Material Management, then Batchwright) follow this recipe: rewire only, no new features (D-11).
+Each step names the rule it serves. A product is done when its tests, named by rule ID, pass in CI.
+
+## 1. Manifest: `apps/<product>/manifest.json`
+```json
+{ "product": "logbook", "database": "logbook",
+  "roles": [{ "role": "operator", "description": "Writes entries" }],
+  "publishes": ["entry_v1"],
+  "reads": { "master_data": ["equipment_v1", "room_v1"] } }
+```
+`product` and `database` are the same name. `apply` loads `roles` into the permission register (PL-01). The control
+panel uses `reads` to offer the product's links (PL-09).
+
+## 2. Its own database: `db/<product>/NNNN_name.sql`
+- The product writes only its own tables. `init.sh` creates the database, the `<product>_owner` role and the
+  `<product>_app` login (PL-08).
+- Signed and audited tables are insert-only: a `refuse_change()` trigger, and `revoke update, delete, truncate` from
+  the app (PL-06).
+- A migration that moves or reshapes data ships `NNNN_name.check.sql`: a query before `-- after` and one after it,
+  returning the same rows, such as counts and checksums (PL-13).
+- Published views: `report.<name>_v1` with `security_barrier`, carrying `read_at` and `data_as_of`. Columns may be
+  added, never removed or renamed; a breaking change is `_v2`, with a test comparing it to `_v1` (PL-08, PL-13).
+
+## 3. Sign-on through core (PL-01, PL-05)
+- OIDC code flow with PKCE against `https://<domain>/oidc`. The product's roles come from the token's `roles` claim
+  and nothing else. No local user table, no local passwords.
+- At an e-signature, redirect with `prompt=login`. The re-authenticated `sub` must be the signer.
+
+## 4. Reading master data or another product (PL-07, PL-08, A11 5) — mandatory
+- Read only through the provider's `report.*_v1` views, with the product's own login and a second connection pool.
+- **Write-time check (mandatory):** before storing a reference to a master-data item or employee, read it through the
+  view and refuse the write if it is missing or `active = false`. In hello: `apps/hello/app.ts` ("No such active
+  equipment"). Binding: A11 5, "built-in checks for the correct and secure entry and processing of data". Each
+  product has a test named `PL-08 ... refuses an inactive or unknown item`.
+- Store the item id plus the display values and version as at signing, and the signer's name (PL-07). Never keep a
+  local copy of master data (D-02).
+- On a refused read (SQLSTATE 42501, or 28000 when the login is off), show "Connection to <provider> is off. Ask your
+  administrator." and stop that feature. Never serve stale data.
+
+## 5. Running it
+- Settings come from the environment that `apply` writes: `<DB>_DATABASE_URL` for its own database and each linked
+  provider, `OIDC_ISSUER`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI` (`https://<product>.<domain>/cb`), `PORT=3000`.
+- `deploy/compose.yml`: one service like `hello`, with `profiles: [<product>]` so it runs only when licensed.
+
+## 6. Configuration and secrets
+- Customer config: add the product to `licences` and its links under `links`. The template is `customers/example.yaml`.
+- Secrets: a `<product>_app` password and an OIDC client secret. The template is `customers/example.secrets.template.yaml`.
+
+## 7. Tests (CI fails without them: `scripts/check-traceability.py`)
+At least:
+- PL-01: sign-on through core; a person without a role is refused.
+- PL-07: values kept as at signing.
+- PL-08: no raw-table read; "connection off" after a cut; inactive or unknown item refused at write.
+- PL-13: for any data-moving migration.

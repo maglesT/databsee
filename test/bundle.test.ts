@@ -53,4 +53,9 @@ describe('PL-10 only signed releases are applied', () => {
     expect(files).toContain('example.yaml');
     for (const f of files) expect(() => checkConfig(readYaml(path.join(ROOT, 'customers', f))), f).not.toThrow();
   });
+
+  it('PL-10 the secrets template fits the example config', () => {
+    const dir = path.join(ROOT, 'customers');
+    expect(() => checkConfig(readYaml(path.join(dir, 'example.yaml')), readYaml(path.join(dir, 'example.secrets.template.yaml')))).not.toThrow();
+  });
 });

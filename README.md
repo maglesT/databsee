@@ -79,3 +79,11 @@ Setup: `docker compose -f deploy/control-panel.yml up -d db`, then `db/server/in
 `tsx db/migrate.ts control_panel` against it, then start `panel`. `control-panel.env` holds `CONTROL_PANEL_DATABASE_URL`,
 `GITHUB_REPO=maglesT/databsee`, `GITHUB_TOKEN` (fine-grained, contents read/write and actions read on this repo only) and
 `CONTROL_PANEL_USERS='owner:<hash>'` (single quotes: the hash contains $; hash from `tsx apps/control-panel/index.ts hash-password`). Serve it over HTTPS only.
+
+## Access review and adding products (slice A9)
+- **Access review report** (PL-12): core, People screen, "access review report" (identity administrators). It is one
+  printable page listing every active role (granted by, when, last sign-on to that product) and every link and outside
+  login that is on, as recorded by the last apply. The periodic review itself is the site's procedure (CP-03).
+- **Adding a product**: `docs/05-add-a-product.md`.
+- **Traceability**: `scripts/check-traceability.py` (CI) fails if a register rule has no test named by its ID.
+- **Simplicity review of Phase A**: `docs/06-simplicity-review.md`.
