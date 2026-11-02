@@ -8,19 +8,18 @@
 // are switched only where they differ from the server, each switch logged in platform.link_log with the config's
 // change reference and reason (PL-02, PL-10). Migrations are additive, so a rollback leaves them in place.
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
 import { migrate } from '../db/migrate.js';
-import { checkConfig, manifest, outsideLogin, productLogin, readYaml, ROOT, STATE, type Config, type Secrets } from './config.js';
+import { allProducts, checkConfig, manifest, outsideLogin, productLogin, readYaml, ROOT, STATE, type Config, type Secrets } from './config.js';
 
 /** Starts the containers and fails unless they turn healthy. The Docker one is below; tests use a stand-in. */
 export interface Runtime {
   start(config: Config, secrets: Secrets): Promise<void>;
 }
 
-const allProducts = () => readdirSync(path.join(ROOT, 'apps')).filter((d) => existsSync(path.join(ROOT, 'apps', d, 'manifest.json')));
 const admin = (database: string) => postgres({ database, max: 1, onnotice: () => {} });
 
 export async function applyConfig(next: Config, secrets: Secrets, runtime: Runtime, previous?: Config): Promise<void> {
