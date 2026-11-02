@@ -26,8 +26,7 @@ const configSchema = z.object({
   change_ref: z.string().trim().min(1),                 // the customer's change reference (D-08, CP-02)
   reason: z.string().trim().min(1),
   backup: z.object({                                    // off-server copy of the backups (PL-11)
-    endpoint: z.string().url(),                         // S3-compatible storage, e.g. https://s3.eu-central-003.backblazeb2.com
-    bucket: z.string().regex(/^[a-z0-9.-]+$/),          // Object Lock on; this server's key may add, not delete
+    path: z.string().regex(/^[A-Za-z0-9_./-]+$/),       // folder on the rclone remote, e.g. medhanta-backups/acme
   }),
   licences: z.array(name).default([]),
   links: reads.default({}),                             // product -> provider database -> views
@@ -43,7 +42,7 @@ const secretsSchema = z.object({
     clients: z.record(name, z.string().min(16)),        // product -> OIDC client secret
   }),
   smtp_url: z.string().optional(),
-  backup: z.object({ access_key_id: z.string().min(1), secret_access_key: z.string().min(1) }),
+  backup: z.record(z.string().regex(/^[a-z_]+$/), z.string()), // rclone remote settings, e.g. type: drive, scope, token
 }).strict();
 export type Secrets = z.infer<typeof secretsSchema>;
 

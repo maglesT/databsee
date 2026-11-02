@@ -8,9 +8,8 @@ domain: medhanta.example.com      # core at https://<domain>, product p at https
 host: deploy@medhanta.example.com # SSH target (online sites); offline sites set "offline: true" instead
 host_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyReplaceWithTheServerHostKey000000
 security_contact: it-security@example.com
-backup:                           # off-server copy (PL-11): S3-compatible bucket with Object Lock, see README "Backups"
-  endpoint: https://s3.eu-central-003.backblazeb2.com
-  bucket: medhanta-example-backups
+backup:                           # off-server copy (PL-11): folder on the rclone remote in the secrets (default Google Drive)
+  path: medhanta-backups/example
 change_ref: CC-2026-001           # the customer's change reference for this change
 reason: First installation
 licences: [hello]                 # licensed products; all others are off (login off, containers stopped)
