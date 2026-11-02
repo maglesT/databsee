@@ -11,3 +11,4 @@
 | D-07 | 2026-11-02 | master_data "links" = relationships between master items (equipment in room, material from supplier). Product-to-product links = config file + database grants. | Owner (same) |
 | D-08 | 2026-11-02 | Every switch in the control panel asks for the customer's change reference (one free-text field), for the site's change control (SchM 20.8). | Owner (same) |
 | D-09 | 2026-11-02 | Plan draft 2 approved; build starts with slice A1. | Owner (same) |
+| D-10 | 2026-11-02 | Standing OK: squash-merge each Phase A slice once CI is green and its review pass is done; email after each merge. | Owner ("keep merging") |

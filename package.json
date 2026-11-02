@@ -7,22 +7,32 @@
     "register": "python3 scripts/check-register.py --render docs/03-compliance-register.md",
     "typecheck": "tsc -p .",
     "migrate": "tsx db/migrate.ts",
-    "core": "tsx apps/core/server/index.ts"
+    "core": "tsx apps/core/server/index.ts",
+    "build": "vite build",
+    "dev:web": "vite"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/nodemailer": "^6.4.24",
     "@types/pg": "^8.11.10",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
     "pg": "^8.13.1",
+    "playwright": "^1.63.0",
     "tsx": "^4.23.15",
     "typescript": "^5.7.2",
+    "vite": "^6.4.5",
     "vitest": "^2.1.8"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
+    "@fastify/static": "^8.3.0",
     "fastify": "^5.12.8",
     "nodemailer": "^6.10.1",
     "postgres": "^3.4.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "zod": "^3.25.76"
   }
 }
