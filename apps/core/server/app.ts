@@ -2,6 +2,7 @@
 // permission register. Slice A3 adds the OIDC provider for the products on the same password check.
 import { createHash, randomBytes } from 'node:crypto';
 import cookie from '@fastify/cookie';
+import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import type { Sql, TransactionSql } from 'postgres';
 import { z } from 'zod';
@@ -14,6 +15,7 @@ export interface Deps {
   sendMail: SendMail | null;
   securityContact: string | null;
   secureCookies: boolean;
+  webRoot?: string;             // built screens (vite build); omitted in API-only tests
 }
 
 interface Me { id: string; login: string; fullName: string; roles: string[]; mustChange: boolean }
@@ -104,6 +106,7 @@ export function buildApp(deps: Deps) {
   const { sql } = deps;
   const app = Fastify({ logger: false });
   app.register(cookie);
+  if (deps.webRoot) app.register(fastifyStatic, { root: deps.webRoot });
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });

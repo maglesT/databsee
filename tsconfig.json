@@ -7,7 +7,19 @@
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "jsx": "react-jsx",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ]
   },
-  "include": ["apps", "db", "test", "vitest.config.ts"]
+  "include": [
+    "apps",
+    "db",
+    "test",
+    "vitest.config.ts",
+    "vite.config.ts"
+  ]
 }
