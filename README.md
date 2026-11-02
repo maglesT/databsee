@@ -38,7 +38,7 @@ PostgreSQL archives every WAL file (at least every 5 minutes) to `/var/lib/medha
 */5 * * * *  root  /opt/medhanta/current/deploy/backup.sh copy    # copy the archive off the server
 ```
 Off-server store: any rclone remote, Google Drive by default. The customer secrets hold its settings (`backup:`,
-e.g. `type: drive`, `scope: drive.file`, `token: ...` from `rclone authorize "drive"`) and the config its folder
+e.g. `type: drive`, `scope: drive.file`, `token: '{"access_token":...}'` from `rclone authorize "drive"`, quoted) and the config its folder
 (`backup.path`). `rclone copy --immutable` only adds files and never deletes or changes a copied one, so backups are
 secure from alteration and inadvertent erasure (211.68(b)); D-14.
 Restore to a point in time: `deploy/restore.sh <base backup> "<time>" <empty data folder>` (as root on the server, so

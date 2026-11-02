@@ -46,7 +46,7 @@ Local test database in this container (gone with it): `su postgres -c "/usr/lib/
   - Health check, and roll back to the previous config on failure.
   - The OIDC clients, JWKS and cookie keys come from the secrets.
 
-  Backups (PL-11): WAL archiving through `archive_command` plus a nightly `pg_basebackup`, copied to append-only off-server storage, with a point-in-time restore test in CI. Data-moving migrations ship row-count and checksum checks (PL-13). Compose: `deploy/compose.yml` (only `db` so far) gains core, the products and Caddy.
+  Backups (PL-11): WAL archiving through `archive_command` plus a nightly `pg_basebackup`, copied by a copy-only job to an off-server rclone remote (D-14), with a point-in-time restore test in CI. Data-moving migrations ship row-count and checksum checks (PL-13). Compose: `deploy/compose.yml` (only `db` so far) gains core, the products and Caddy.
 - **A7.** GitHub Actions. Online sites: SSH and run `apply.sh`. Offline sites: a bundle (`docker save` plus config plus migrations), signed with `ssh-keygen -Y sign` and verified by `apply.sh` before anything else runs.
 - **A8.** Control panel, on the owner's server only, with a `control_panel` database:
   - customers, licences and link switches, each needing a reason and the customer change reference (D-08);

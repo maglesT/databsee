@@ -36,7 +36,7 @@ Full text: `docs/03-compliance-register.md` (generated from `compliance/register
 | PL-08 | Read-only, versioned, checked data exchange; no cross-writes | A11 5, SchM 20.4 |
 | PL-09 | Per-customer system description: config + diagram + fixed architecture/security section | A11 4.3 |
 | PL-10 | Every change (config, releases, host/OS/PostgreSQL) authorised, tested, recorded | SchM 20.8, A11 10 |
-| PL-11 | Continuous backup (WAL archive + nightly base backup) to append-only off-server storage; restore proven | SchM 20.9, A11 7.2, 211.68(b) |
+| PL-11 | Continuous backup (WAL archive + nightly base backup) to a copy-only off-server rclone remote (D-14); restore proven | SchM 20.9, A11 7.2, 211.68(b) |
 | PL-12 | Access review report | A11 11, A11 2 |
 | PL-13 | Data-moving migrations and _v2 views checked (counts + checksums) | A11 4.8 |
 

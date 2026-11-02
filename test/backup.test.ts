@@ -19,18 +19,20 @@ describe('PL-11 backup with no permanent loss', () => {
 
   it('PL-11 the off-server copy only adds files: it never deletes or changes a copied file', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'pl11-copy-'));
-    const archive = path.join(dir, 'archive'), remote = path.join(dir, 'offsite');  // a local folder stands in for the remote
-    mkdirSync(path.join(archive, 'wal'), { recursive: true });
-    const wal = (root: string) => path.join(root, 'wal', '000000010000000000000001');
-    writeFileSync(wal(archive), 'original');
-    const env = { ARCHIVE: archive, BACKUP_REMOTE: remote, MEDHANTA_STATE: dir };
-    run('deploy/backup.sh', ['copy'], env);
-    expect(readFileSync(wal(remote), 'utf8')).toBe('original');
-    writeFileSync(wal(archive), 'changed on the server');
-    expect(() => run('deploy/backup.sh', ['copy'], env)).toThrow();
-    expect(readFileSync(wal(remote), 'utf8')).toBe('original');
-    rmSync(wal(archive));
-    run('deploy/backup.sh', ['copy'], env);
-    expect(readFileSync(wal(remote), 'utf8')).toBe('original');
+    try {
+      const archive = path.join(dir, 'archive'), remote = path.join(dir, 'offsite');  // a local folder stands in for the remote
+      mkdirSync(path.join(archive, 'wal'), { recursive: true });
+      const wal = (root: string) => path.join(root, 'wal', '000000010000000000000001');
+      writeFileSync(wal(archive), 'original');
+      const env = { ARCHIVE: archive, BACKUP_REMOTE: remote, MEDHANTA_STATE: dir };
+      run('deploy/backup.sh', ['copy'], env);
+      expect(readFileSync(wal(remote), 'utf8')).toBe('original');
+      writeFileSync(wal(archive), 'changed on the server');
+      expect(() => run('deploy/backup.sh', ['copy'], env)).toThrow();
+      expect(readFileSync(wal(remote), 'utf8')).toBe('original');
+      rmSync(wal(archive));
+      run('deploy/backup.sh', ['copy'], env);
+      expect(readFileSync(wal(remote), 'utf8')).toBe('original');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

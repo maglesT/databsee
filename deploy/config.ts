@@ -42,7 +42,8 @@ const secretsSchema = z.object({
     clients: z.record(name, z.string().min(16)),        // product -> OIDC client secret
   }),
   smtp_url: z.string().optional(),
-  backup: z.record(z.string().regex(/^[a-z_]+$/), z.string()), // rclone remote settings, e.g. type: drive, scope, token
+  backup: z.record(z.string().regex(/^[a-z_]+$/), z.string())   // rclone remote settings, e.g. type: drive, scope, token
+    .refine((b) => !!b.type, 'backup needs the rclone remote type (e.g. drive)'),
 }).strict();
 export type Secrets = z.infer<typeof secretsSchema>;
 

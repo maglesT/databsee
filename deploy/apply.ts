@@ -175,6 +175,7 @@ export const docker: Runtime = {
       { stdio: 'inherit', env: { ...process.env, VERSION: config.version } });
     for (const p of allProducts().filter((p) => !config.licences.includes(p))) compose('--profile', p, 'rm', '--stop', '--force', p);
     compose(...config.licences.flatMap((p) => ['--profile', p]), 'up', '-d', '--wait', 'db', 'core', 'caddy', ...config.licences);
+    execFileSync(path.join(ROOT, 'deploy/backup.sh'), ['check'], { stdio: 'inherit', env: { ...process.env, MEDHANTA_STATE: STATE } });
   },
 };
 

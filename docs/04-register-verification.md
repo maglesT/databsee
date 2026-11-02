@@ -12,7 +12,7 @@
 | PL-08 | read_at not required by any clause. | Kept as the existing products' convention, stated as not a compliance rule. |
 | PL-09 | A11 4.3 also asks for physical/logical arrangements and security measures. | Fixed architecture + security section in the install guide. |
 | PL-10 | SchM 20.8 covers hardware, software, any critical component, not only config. Auto-rollback is not a clause. 11.10(k)(2) is documentation only. | Rule covers releases and infrastructure (change log file); rollback stated as design choice; 11.10(k) removed. |
-| PL-11 | **Nightly backup can lose up to a day (SchM 20.9 "no permanent loss"); 211.68(b) "secure from alteration, inadvertent erasures, or loss".** | WAL archiving + nightly base backup to append-only off-server storage (point-in-time restore); config repo and SOPS keys backed up too. |
+| PL-11 | **Nightly backup can lose up to a day (SchM 20.9 "no permanent loss"); 211.68(b) "secure from alteration, inadvertent erasures, or loss".** | WAL archiving + nightly base backup to an off-server store (point-in-time restore); config repo and keys backed up too. Store later settled as a copy-only rclone remote (D-14). |
 | PL-12 | 11.300(b) is about ID/password issuance, not role review. | Now A11 11 and A11 2. |
 | new | A11 4.8 migration checks missing. | **PL-13**: data-moving migrations ship row-count + checksum checks; _v2 views compared with _v1. |
 | CP-01 | A11 1 documented risk assessment, SchM 20.2 IQ/OQ, A11 4.5 supplier QMS missing. | Added (owner supplies templates and evidence). |
