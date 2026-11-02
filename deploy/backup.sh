@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # Settings written by apply.ts; a value already set by the caller wins.
-state=${MEDHANTA_STATE:-deploy/secrets}
+state=${MEDHANTA_STATE:-/var/lib/medhanta/state}
 if [ -f "$state/backup.env" ]; then
   while IFS='=' read -r k v; do v=${v#\'}; [ -n "${!k:-}" ] || export "$k=${v%\'}"; done < "$state/backup.env"
 fi

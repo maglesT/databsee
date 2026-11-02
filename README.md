@@ -34,8 +34,8 @@ start the containers (`deploy/compose.yml`), check health, and re-apply the prev
 ## Backups (PL-11, slice A6b)
 PostgreSQL archives every WAL file (at least every 5 minutes) to `/var/lib/medhanta/archive/wal`. Cron on the server:
 ```
-15 1 * * *   root  /opt/medhanta/deploy/backup.sh base    # nightly base backup of all databases
-*/5 * * * *  root  /opt/medhanta/deploy/backup.sh copy    # copy the archive off the server
+15 1 * * *   root  /opt/medhanta/current/deploy/backup.sh base    # nightly base backup of all databases
+*/5 * * * *  root  /opt/medhanta/current/deploy/backup.sh copy    # copy the archive off the server
 ```
 Off-server store: an S3-compatible bucket (e.g. Backblaze B2) created with Object Lock and a default retention in
 COMPLIANCE mode (at least the customer's record retention period), set in the customer config (`backup:`). Object
@@ -63,7 +63,8 @@ the folder belongs to the database container's user), then start PostgreSQL on i
 1. Ubuntu LTS with Docker (Compose plugin), Node 22, age, rclone and openssh; only ports 22, 80 and 443 open.
 2. `age-keygen -o /etc/medhanta/age.key` (mode 600); add its public key as a recipient of the customer's secrets file.
 3. `/etc/medhanta/allowed_signers`: `medhanta-release namespaces="medhanta-bundle" <release public key>`.
-4. Online sites: user `deploy` with the Actions public key, allowed `sudo /opt/medhanta/current/deploy/apply.sh *` only;
+4. GitHub: Environment `production` limited to the `main` branch, holding the secrets `BUNDLE_SIGNING_KEY` and
+   `DEPLOY_SSH_KEY`. Online sites: user `deploy` with the Actions public key, allowed `sudo /opt/medhanta/current/deploy/apply.sh *` only;
    put the server's `ssh-ed25519` host key in the config (`host_key`).
 5. Cron lines from "Backups" above.
 6. First install: check the first bundle by hand (`deploy/verify-bundle.sh` from the repo), unpack it to

@@ -19,13 +19,19 @@ if [ -z "${MEDHANTA_LOCKED:-}" ]; then   # one apply at a time on a server
 fi
 
 if [[ "${1:?usage: apply.sh <bundle.tar> | customers/<name>.yaml}" == *.tar ]]; then
-  bundle=$1
-  "$here/deploy/verify-bundle.sh" "$bundle"
-  dest=$home/releases/$(basename "$bundle" .tar)
-  rm -rf "$dest" && mkdir -p "$dest" && tar -xf "$bundle" -C "$dest"
-  docker load -i "$dest/images.tar.gz"
-  config=$(ls "$dest"/customers/*.yaml | head -1)
-  MEDHANTA_FROM_BUNDLE=1 "$dest/deploy/apply.sh" "$config"
+  # Work on a root-only copy, so the file cannot be swapped between the check and the unpacking.
+  tmp=$(mktemp -d "$MEDHANTA_STATE/bundle.XXXXXX") && trap 'rm -rf "$tmp"' EXIT
+  name=$(basename "$1" .tar) customer=${name%%-*}
+  cp "$1" "$tmp/$name.tar" && cp "$1.sig" "$tmp/$name.tar.sig"
+  "$here/deploy/verify-bundle.sh" "$tmp/$name.tar"
+  if [ -f "$MEDHANTA_STATE/applied.yaml" ] && ! grep -qx "customer: $customer" "$MEDHANTA_STATE/applied.yaml"; then
+    echo "apply: bundle is for customer $customer, this server runs another customer" >&2; exit 1
+  fi
+  dest=$home/releases/$name
+  mkdir -p "$tmp/release" && tar -xf "$tmp/$name.tar" -C "$tmp/release"
+  docker load -i "$tmp/release/images.tar.gz"
+  rm -rf "$dest.old" && { [ ! -e "$dest" ] || mv "$dest" "$dest.old"; } && mv "$tmp/release" "$dest" && rm -rf "$dest.old"
+  MEDHANTA_FROM_BUNDLE=1 "$dest/deploy/apply.sh" "$dest/customers/$customer.yaml"
   ln -sfn "$dest" "$home/current"
   exit 0
 fi

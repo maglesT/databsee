@@ -9,11 +9,12 @@ customer=$(basename "$config" .yaml) version=$(yq -r .version "$config")
 name=$customer-$version-$(git rev-parse --short HEAD)
 work=$(mktemp -d) && trap 'rm -rf "$work"' EXIT
 git archive "v$version" | tar -x -C "$work"
-mkdir -p "$work/customers" && cp "$config" "${config%.yaml}.secrets.yaml.age" "$work/customers/"
+rm -rf "$work/customers" && mkdir "$work/customers" && cp "$config" "${config%.yaml}.secrets.yaml.age" "$work/customers/"
 (cd "$work" && npm ci --no-audit --no-fund >/dev/null)
 docker build -q -t "medhanta/platform:$version" "$work" >/dev/null
-docker pull -q postgres:17 >/dev/null && docker pull -q caddy:2 >/dev/null
-docker save "medhanta/platform:$version" postgres:17 caddy:2 | gzip > "$work/images.tar.gz"
+others=$(grep -o 'image: [a-z]*:[0-9.]*$' "$work/deploy/compose.yml" | cut -d' ' -f2)   # pinned in compose.yml
+for i in $others; do docker pull -q "$i" >/dev/null; done
+docker save "medhanta/platform:$version" $others | gzip > "$work/images.tar.gz"
 mkdir -p "$out" && tar -C "$work" -cf "$out/$name.tar" .
 ssh-keygen -Y sign -q -f "$key" -n medhanta-bundle "$out/$name.tar"
 echo "$out/$name.tar"

@@ -2,8 +2,9 @@ name: apply
 # PL-10: every commit that changes a customer's config (or its secrets) is applied to that customer, and this run is the
 # record of the result. Online sites: the signed bundle is copied over SSH and applied. Offline sites: the signed bundle
 # is kept as a download for 90 days. One apply per customer at a time.
-# Repository secrets: BUNDLE_SIGNING_KEY (ed25519 private key; its public key is in each server's
-# /etc/medhanta/allowed_signers) and DEPLOY_SSH_KEY (key of the "deploy" user on online servers).
+# Secrets live in the GitHub Environment "production", limited to the main branch: BUNDLE_SIGNING_KEY (ed25519
+# private key; its public key is in each server's /etc/medhanta/allowed_signers) and DEPLOY_SSH_KEY (key of the
+# "deploy" user on online servers). Only reviewed code on main can sign or apply.
 on:
   push:
     branches: [main]
@@ -15,19 +16,22 @@ on:
         required: true
 jobs:
   plan:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       customers: ${{ steps.list.outputs.customers }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - id: list
         env:
           INPUT: ${{ inputs.customer }}
+          BEFORE: ${{ github.event.before }}
         run: |
           if [ -n "$INPUT" ]; then names=$INPUT; else
-            names=$(git diff --name-only HEAD~1 HEAD -- customers \
+            git cat-file -e "$BEFORE" 2>/dev/null || BEFORE=HEAD~1   # every commit of the push, not only the last
+            names=$(git diff --name-only --diff-filter=AM "$BEFORE" HEAD -- customers \
               | sed -n 's#^customers/\([a-z0-9_]*\)\(\.secrets\.yaml\.age\|\.yaml\)$#\1#p' | grep -vx example | sort -u || true)
           fi
           echo "customers=$(printf '%s\n' $names | jq -R . | jq -sc 'map(select(test("^[a-z][a-z0-9_]*$")))')" >> "$GITHUB_OUTPUT"
@@ -35,6 +39,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.customers != '[]'
     runs-on: ubuntu-latest
+    environment: production
     strategy:
       fail-fast: false
       matrix:
@@ -62,7 +67,8 @@ jobs:
           BUNDLE_SIGNING_KEY: ${{ secrets.BUNDLE_SIGNING_KEY }}
         run: |
           key=$RUNNER_TEMP/signing_key && printf '%s\n' "$BUNDLE_SIGNING_KEY" > "$key" && chmod 600 "$key"
-          echo "BUNDLE=$(deploy/bundle.sh "$CONFIG" "$RUNNER_TEMP/out" "$key")" >> "$GITHUB_ENV"
+          bundle=$(deploy/bundle.sh "$CONFIG" "$RUNNER_TEMP/out" "$key")
+          echo "BUNDLE=$bundle" >> "$GITHUB_ENV"
       - name: Offline site - keep the signed bundle for download
         if: steps.config.outputs.offline == 'true'
         uses: actions/upload-artifact@v4
