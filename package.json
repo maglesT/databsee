@@ -1,0 +1,16 @@
+{
+  "name": "medhanta-platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "register": "python3 scripts/check-register.py --render docs/03-compliance-register.md"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "pg": "^8.13.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

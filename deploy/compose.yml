@@ -1,0 +1,21 @@
+# One customer server. Slice A1: the database server only; core, products and Caddy are added in later slices.
+# The superuser password comes from the customer's SOPS secrets (decrypted by apply.sh, slice A6) into
+# deploy/secrets/pg_superuser, which is never committed.
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
+    secrets: [pg_superuser]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../db/server:/platform/db/server:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+secrets:
+  pg_superuser:
+    file: ./secrets/pg_superuser
+volumes:
+  pgdata:
