@@ -2,13 +2,15 @@
 // permission register. Slice A3 adds the OIDC provider for the products on the same password check.
 import { createHash, randomBytes } from 'node:crypto';
 import cookie from '@fastify/cookie';
+import formbody from '@fastify/formbody';
 import fastifyStatic from '@fastify/static';
-import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import type { Sql, TransactionSql } from 'postgres';
 import { z } from 'zod';
 import { POLICY } from './config.js';
 import type { SendMail } from './mail.js';
 import { hashPassword, passwordProblem, temporaryPassword, verifyPassword } from './passwords.js';
+import { buildProvider, type OidcSettings } from './oidc.js';
 
 export interface Deps {
   sql: Sql;
@@ -16,6 +18,7 @@ export interface Deps {
   securityContact: string | null;
   secureCookies: boolean;
   webRoot?: string;             // built screens (vite build); omitted in API-only tests
+  oidc?: OidcSettings;          // single sign-on for the products (slice A3)
 }
 
 interface Me { id: string; login: string; fullName: string; roles: string[]; mustChange: boolean }
@@ -92,6 +95,36 @@ async function emailAlert(deps: Deps, a: { message: string; alertId: string }) {
   }
 }
 
+async function setOwnPassword(sql: Sql, me: { id: string; login: string; fullName: string }, next: string) {
+  const hash = await hashPassword(next);
+  await sql.begin(async (tx) => {
+    await tx`update credential set password_hash = ${hash}, must_change = false, changed_at = now() where employee_id = ${me.id}`;
+    await tx`insert into credential_event (employee_id, login, kind, by_id, by_name) values (${me.id}, ${me.login}, 'changed', ${me.id}, ${me.fullName})`;
+  });
+}
+
+const esc = (v: string) => v.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/** The sign-in page a product sends people to (server-rendered: works without JavaScript). */
+function signInPage(product: string, uid: string, o: { error?: string; login?: string; change?: boolean; reauth?: boolean }) {
+  const field = (label: string, name: string, type: string, value = '') =>
+    `<label>${label}<input name="${name}" type="${type}" value="${esc(value)}" required></label>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in - Medhanta</title><style>
+body{margin:0;font-family:system-ui,sans-serif;background:#f7f8fa;color:#1d2330}form{max-width:360px;margin:60px auto;background:#fff;border:1px solid #e3e6ec;border-radius:8px;padding:20px}
+label{display:block;margin:10px 0;font-size:14px}input{display:block;width:100%;box-sizing:border-box;padding:7px;margin-top:4px;border:1px solid #e3e6ec;border-radius:6px;font:inherit}
+button{margin-top:8px;padding:7px 14px;border-radius:6px;border:0;background:#2457c5;color:#fff;font:inherit}.e{color:#b42318}.m{color:#667085;font-size:14px}</style></head><body>
+<form method="post" action="/interaction/${esc(uid)}/login">
+<h2>Sign in to ${esc(product)}</h2>
+${o.reauth ? '<p class="m">Enter your password again to confirm it is you.</p>' : ''}
+${o.change ? '<p class="m">Your password is temporary or has expired. Choose a new one (at least 10 characters).</p>' : ''}
+${field('Login ID', 'login', 'text', o.login)}
+${field(o.change ? 'Current password' : 'Password', 'password', 'password')}
+${o.change ? field('New password', 'next', 'password') + field('New password again', 'repeat', 'password') : ''}
+${o.error ? `<p class="e" role="alert">${esc(o.error)}</p>` : ''}
+<button>${o.change ? 'Change password and sign in' : 'Sign in'}</button></form></body></html>`;
+}
+
 function csv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return '';
   const cols = Object.keys(rows[0]!);
@@ -107,6 +140,7 @@ export function buildApp(deps: Deps) {
   const app = Fastify({ logger: false });
   app.register(cookie);
   if (deps.webRoot) app.register(fastifyStatic, { root: deps.webRoot });
+  if (deps.oidc) mountSignOn(app, deps, deps.oidc);
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
@@ -165,11 +199,7 @@ export function buildApp(deps: Deps) {
     if (problem) throw new HttpError(400, problem);
     if (b.current === b.next) throw new HttpError(400, 'The new password must differ from the current one.');
     if (!(await checkPassword(deps, me.login, b.current))) throw new HttpError(401, 'Current password is wrong.');
-    const hash = await hashPassword(b.next);
-    await sql.begin(async (tx) => {
-      await tx`update credential set password_hash = ${hash}, must_change = false, changed_at = now() where employee_id = ${me.id}`;
-      await tx`insert into credential_event (employee_id, login, kind, by_id, by_name) values (${me.id}, ${me.login}, 'changed', ${me.id}, ${me.fullName})`;
-    });
+    await setOwnPassword(sql, me, b.next);
     return { ok: true };
   });
 
@@ -308,6 +338,67 @@ export function buildApp(deps: Deps) {
   });
 
   return app;
+}
+
+/** Mounts the OIDC provider at /oidc and its sign-in page at /interaction (slice A3). */
+function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings) {
+  const { sql } = deps;
+  const provider = buildProvider(sql, settings);
+  const callback = provider.callback();
+  const mountPath = new URL(settings.issuer).pathname.replace(/\/$/, '');
+
+  // The provider reads its own request bodies: no Fastify body parsing on its routes.
+  app.register(async (inst) => {
+    inst.removeAllContentTypeParsers();
+    inst.addContentTypeParser('*', (_req, _payload, done) => done(null));
+    const handler = (req: FastifyRequest, reply: FastifyReply) => {
+      reply.hijack();
+      const raw = req.raw as typeof req.raw & { originalUrl?: string };
+      raw.originalUrl = raw.url;
+      raw.url = raw.url!.slice(mountPath.length) || '/';
+      void callback(raw, reply.raw);
+    };
+    inst.all(mountPath, handler);
+    inst.all(`${mountPath}/*`, handler);
+  });
+
+  app.register(async (inst) => {
+    inst.register(formbody);
+    inst.get('/interaction/:uid', async (req, reply) => {
+      const d = await provider.interactionDetails(req.raw, reply.raw);
+      const reauth = d.prompt.name === 'login' && Boolean(d.session?.accountId);
+      return reply.type('text/html').send(signInPage(String(d.params.client_id), d.uid, { reauth }));
+    });
+
+    inst.post('/interaction/:uid/login', async (req, reply) => {
+      const d = await provider.interactionDetails(req.raw, reply.raw);
+      const product = String(d.params.client_id);
+      const b = (req.body ?? {}) as Record<string, string>;
+      const login = (b.login ?? '').trim().toLowerCase();
+      const show = (o: Parameters<typeof signInPage>[2]) => reply.type('text/html').send(signInPage(product, d.uid, { login, ...o }));
+
+      const id = await checkPassword(deps, login, b.password ?? '', product);
+      if (!id) return show({ error: 'Wrong login or password, or the account is locked or inactive.' });
+
+      // PL-04: a temporary or expired password is changed here before the product gets anything.
+      const [c] = await sql<{ full_name: string; must_change: boolean }[]>`
+        select e.full_name, (c.must_change or c.changed_at < now() - make_interval(days => ${POLICY.passwordMaxAgeDays})) as must_change
+        from employee_current e join credential c on c.employee_id = e.id where e.id = ${id}`;
+      if (c!.must_change) {
+        if (!b.next) return show({ change: true });
+        const problem = b.next !== b.repeat ? 'The two new passwords differ.' : b.next === b.password ? 'The new password must differ.' : passwordProblem(b.next, login);
+        if (problem) return show({ change: true, error: problem });
+        await setOwnPassword(sql, { id, login, fullName: c!.full_name }, b.next);
+      }
+
+      // PL-01: only people with a role in this product get in.
+      const [role] = await sql`select 1 from current_grant where employee_id = ${id} and product = ${product} limit 1`;
+      if (!role) return show({ error: `You have no access to ${product}. Ask your administrator.` });
+
+      reply.hijack();
+      await provider.interactionFinished(req.raw, reply.raw, { login: { accountId: id } }, { mergeWithLastSubmission: false });
+    });
+  });
 }
 
 /** Creates the first identity administrator on an empty identity database (installation only). */

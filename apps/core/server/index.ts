@@ -23,6 +23,9 @@ if (process.argv[2] === 'create-first-admin') {
     securityContact: config.securityContact,
     secureCookies: config.secureCookies,
     webRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../dist/core-web'),
+    oidc: config.oidc,
   });
+  // Expired sign-on state (codes, sessions, tokens) is technical, not a record: remove it hourly.
+  setInterval(() => void sql`delete from oidc_payload where expires_at < now() - interval '1 hour'`.catch(() => {}), 3600_000).unref();
   await app.listen({ host: '0.0.0.0', port: Number(process.env.PORT ?? 3000) });
 }
