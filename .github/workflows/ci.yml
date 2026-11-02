@@ -38,5 +38,24 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
+      - name: Off-server store for the PL-11 test (MinIO; the server key gets deploy/backup-policy.json)
+        run: |
+          sudo apt-get install -y rclone
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=ci-root -e MINIO_ROOT_PASSWORD=ci-root-password \
+            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+          sed 's/BUCKET/backups/g' deploy/backup-policy.json > "$RUNNER_TEMP/policy.json"
+          for i in $(seq 30); do curl -sf http://127.0.0.1:9000/minio/health/live && break; sleep 1; done
+          docker run --rm --network host -v "$RUNNER_TEMP/policy.json:/policy.json" --entrypoint sh \
+            minio/mc:RELEASE.2025-04-16T18-13-26Z -c 'mc alias set ci http://127.0.0.1:9000 ci-root ci-root-password &&
+              mc mb ci/backups && mc admin policy create ci backup-writer /policy.json &&
+              mc admin user add ci server-key server-secret-key-123 && mc admin policy attach ci backup-writer --user server-key'
       - name: Tests (named by rule ID)
         run: npm test
+        env:
+          BACKUP_TEST_REMOTE: offsite:backups/ci
+          RCLONE_CONFIG_OFFSITE_TYPE: s3
+          RCLONE_CONFIG_OFFSITE_PROVIDER: Minio
+          RCLONE_CONFIG_OFFSITE_ENDPOINT: http://127.0.0.1:9000
+          RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: server-key
+          RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: server-secret-key-123
+          RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET: 'true'

@@ -13,12 +13,18 @@ services:
   db:
     image: postgres:17
     restart: unless-stopped
+    # PL-11: every WAL file is archived to /archive/wal (at least every 5 minutes); deploy/backup.sh adds the
+    # nightly base backup and copies the archive off the server.
+    entrypoint: ["bash", "-c", "mkdir -p /archive/wal /archive/base && chown postgres /archive/wal /archive/base && exec docker-entrypoint.sh \"$$@\"", "--"]
+    command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_timeout=300",
+              "-c", "archive_command=test ! -f /archive/wal/%f && cp %p /archive/wal/%f"]
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
     secrets: [pg_superuser]
     ports: ["127.0.0.1:5432:5432"]   # for apply.ts on the host only
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - /var/lib/medhanta/archive:/archive
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s

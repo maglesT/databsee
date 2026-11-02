@@ -30,3 +30,15 @@ Secrets (database passwords, OIDC keys) are in `customers/<name>.secrets.yaml.ag
 (a data-moving migration ships `NNNN_name.check.sql`, two queries split by `-- after` that must return the same rows,
 PL-13), load product roles, switch logins and links (only the differences, each logged with the change reference),
 start the containers (`deploy/compose.yml`), check health, and re-apply the previous config if anything fails (PL-10).
+
+## Backups (PL-11, slice A6b)
+PostgreSQL archives every WAL file (at least every 5 minutes) to `/var/lib/medhanta/archive/wal`. Cron on the server:
+```
+15 1 * * *   root  /opt/medhanta/deploy/backup.sh base    # nightly base backup of all databases
+*/5 * * * *  root  /opt/medhanta/deploy/backup.sh copy    # copy the archive off the server
+```
+Off-server store: an S3-compatible bucket (e.g. Backblaze B2) created with Object Lock, set in the customer config
+(`backup:`). The server's key is limited to `deploy/backup-policy.json` (add and read, never delete), and
+`rclone copy --immutable` never changes a copied file, so the server cannot erase or alter a backup.
+Restore to a point in time: `deploy/restore.sh <base backup> "<time>" <empty data folder>`, then start PostgreSQL on it
+(`test/pl11-restore.sh` does exactly this in CI for all 10 databases). The site restores a real backup periodically (CP-04).
