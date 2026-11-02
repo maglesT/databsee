@@ -11,7 +11,7 @@ beforeAll(async () => {
   adminLogin = `admin${run}`;
   await makeEmployee(adminLogin, ['identity_admin']);
 });
-afterAll(async () => { await t.sql.end(); });
+afterAll(async () => { await t.sql.end(); await t.md.end(); });
 
 describe('PL-01 only authorised people, with authority checks', () => {
   it('PL-01 an employee without identity_admin cannot list, create or grant', async () => {

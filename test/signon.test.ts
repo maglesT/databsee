@@ -18,7 +18,7 @@ beforeAll(async () => {
   await su`insert into product_role values ('hello', 'operator', 'Uses hello'), ('hello', 'reviewer', 'Reviews hello') on conflict do nothing`;
   await su.end();
 });
-afterAll(async () => { await t.sql.end(); });
+afterAll(async () => { await t.sql.end(); await t.md.end(); });
 
 async function grant(id: string, product: string, role: string) {
   const su = superuser();

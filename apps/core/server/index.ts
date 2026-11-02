@@ -9,6 +9,7 @@ import { smtpSender } from './mail.js';
 
 const config = configFromEnv();
 const sql = postgres(config.identityUrl, { onnotice: () => {} });
+const md = postgres(config.masterDataUrl, { onnotice: () => {} });
 
 if (process.argv[2] === 'create-first-admin') {
   const [login, fullName, how] = process.argv.slice(3);
@@ -24,6 +25,7 @@ if (process.argv[2] === 'create-first-admin') {
     secureCookies: config.secureCookies,
     webRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../dist/core-web'),
     oidc: config.oidc,
+    md,
   });
   // Expired sign-on state (codes, sessions, tokens) is technical, not a record: remove it hourly.
   setInterval(() => void sql`delete from oidc_payload where expires_at < now() - interval '1 hour'`.catch(() => {}), 3600_000).unref();
