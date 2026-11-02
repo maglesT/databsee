@@ -138,9 +138,9 @@ Generated from `compliance/register.yaml` by `scripts/check-register.py --render
 
 **Breaks if dropped.** SchM 20.9, A11 7.2, 211.68(b).
 
-**Implementation (least strict).** PostgreSQL WAL archiving (built-in archive_command) plus a nightly pg_basebackup, both copied to off-server storage the database server can add to but not delete (append-only), so any point in time can be restored. The config repo and the age keys are backed up the same way. Restore script tested in CI; periodic restore of real backups is CP-04.
+**Implementation (least strict).** PostgreSQL WAL archiving (built-in archive_command) plus a nightly pg_basebackup, both copied off the server every 5 minutes by a copy-only job (rclone copy --immutable, never deletes or changes a copied file) to the remote in the customer config (default Google Drive), so any point in time can be restored. The config repo and the age keys are backed up by the owner. Restore script tested in CI; periodic restore of real backups is CP-04.
 
-**Test.** CI restores to a point in time and finds the rows written up to it in all databases; every apply fails unless the customer's off-server store refuses a delete by the server.
+**Test.** CI restores to a point in time and finds the rows written up to it in all databases; the off-server copy never deletes or changes a copied file.
 
 ### PL-12 — Access review report
 
