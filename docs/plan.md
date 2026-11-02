@@ -93,7 +93,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 | `<product>_app` | LOGIN | DML on its own tables (no UPDATE/DELETE on audit/version tables); CONNECT on its own database only. |
 | `core_app` | LOGIN | Same, on `identity` and `master_data`. |
 | `ext_<name>` | LOGIN | Outside system; SELECT on chosen views only. |
-| `platform_admin` | LOGIN, used only by `apply.sh` | Grants/revokes, migrations. |
+| installer | the server's `postgres` superuser, used only by `init.sh` / `apply.sh` | Creates databases and roles, runs migrations, switches links (no separate admin role: simpler). |
 
 - `REVOKE CONNECT ... FROM PUBLIC` on all 10 databases; `REVOKE TEMPORARY FROM PUBLIC` (Logbook pattern).
 - A **link** = `CONNECT` on the provider database + `USAGE` on its `report` schema + `SELECT` on the listed `_v1` views, granted to the consumer's login. One SQL function per database, `platform.set_link(consumer, views[], on, change_ref)`, does the grant or revoke **and** writes `platform.link_log` in the same transaction. PostgreSQL checks rights at every query, so a revoke bites on the next query.

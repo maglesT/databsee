@@ -8,3 +8,9 @@ See docs/plan.md.
 - `python3 scripts/check-register.py --render docs/03-compliance-register.md` verifies every clause cited in
   `compliance/register.yaml` against the official texts in `compliance/sources/` (copied from Material Management)
   and regenerates the register document.
+- `npm test` runs the tests against a PostgreSQL server given by the PG* variables (superuser). Test names start
+  with the rule ID they prove (e.g. "PL-08 ...").
+
+## Database server
+`db/server/init.sh [product ...]` creates `master_data`, `identity` and one database per product, with their roles,
+the `report` schema for published views and `platform.set_link` + `platform.link_log`. See docs/plan.md §6.
