@@ -16,7 +16,7 @@ dbs="master_data identity logbook materials deviations protocols qms operations 
 
 "$bin/initdb" -D "$work/live" -U postgres -A trust >/dev/null
 mkdir -p "$ARCHIVE/wal" "$ARCHIVE/base"
-printf "wal_level = replica\narchive_mode = on\narchive_command = 'test ! -f %s/wal/%%f && cp %%p %s/wal/%%f'\n" "$ARCHIVE" "$ARCHIVE" >> "$work/live/postgresql.conf"
+printf "wal_level = replica\narchive_mode = on\narchive_command = 'test ! -f %s/wal/%%f && cp %%p %s/wal/%%f.tmp && mv %s/wal/%%f.tmp %s/wal/%%f'\n" "$ARCHIVE" "$ARCHIVE" "$ARCHIVE" "$ARCHIVE" >> "$work/live/postgresql.conf"
 start live
 "$root/db/server/init.sh" ${dbs#master_data identity } >/dev/null
 for d in $dbs; do sql "$d" "create table pl11 (v text); insert into pl11 values ('1 before backup')"; done

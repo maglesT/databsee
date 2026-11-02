@@ -17,7 +17,7 @@ services:
     # nightly base backup and copies the archive off the server.
     entrypoint: ["bash", "-c", "mkdir -p /archive/wal /archive/base && chown postgres /archive/wal /archive/base && exec docker-entrypoint.sh \"$$@\"", "--"]
     command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_timeout=300",
-              "-c", "archive_command=test ! -f /archive/wal/%f && cp %p /archive/wal/%f"]
+              "-c", "archive_command=test ! -f /archive/wal/%f && cp %p /archive/wal/%f.tmp && mv /archive/wal/%f.tmp /archive/wal/%f"]
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
     secrets: [pg_superuser]

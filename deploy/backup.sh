@@ -8,17 +8,25 @@
 # customer secrets may add but not delete (deploy/backup-policy.json), so the server cannot erase a backup.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-[ -f deploy/secrets/backup.env ] && { set -a; . deploy/secrets/backup.env; set +a; }   # written by apply.ts
+# Settings written by apply.ts; a value already set by the caller wins.
+if [ -f deploy/secrets/backup.env ]; then
+  while IFS='=' read -r k v; do v=${v#\'}; [ -n "${!k:-}" ] || export "$k=${v%\'}"; done < deploy/secrets/backup.env
+fi
 ARCHIVE=${ARCHIVE:-/var/lib/medhanta/archive}       # archive folder on the host
 DB_ARCHIVE=${DB_ARCHIVE:-/archive}                  # the same folder as the database container sees it
 IN_DB=${IN_DB-docker compose -f deploy/compose.yml exec -T db}  # runs a command next to the database
 case "${1:-}" in
   base)
-    stamp=$(date -u +%Y%m%dT%H%M%SZ)
-    $IN_DB pg_basebackup -U postgres -D "$DB_ARCHIVE/base/$stamp" -F tar -z -X none --checkpoint=fast
+    stamp=$(date -u +%Y%m%dT%H%M%SZ)       # written under a dot name, renamed when complete (never copied half-done)
+    $IN_DB sh -c "pg_basebackup -U postgres -D '$DB_ARCHIVE/base/.$stamp' -F tar -z -X none --checkpoint=fast &&
+      mv '$DB_ARCHIVE/base/.$stamp' '$DB_ARCHIVE/base/$stamp'"
     echo "backup: base backup $stamp" ;;
   copy)
-    rclone copy --immutable "$ARCHIVE" "${BACKUP_REMOTE:?BACKUP_REMOTE is not set}"
+    exec 9>"$ARCHIVE/.copy.lock"; flock -n 9 || { echo "backup: a copy is still running"; exit 0; }
+    rclone copy --immutable --exclude '.*' --exclude '.*/**' --exclude '*.tmp' "$ARCHIVE" "${BACKUP_REMOTE:?BACKUP_REMOTE is not set}"
+    # Everything is off the server now; keep one week locally so the disk never fills (a full disk stops archiving).
+    find "$ARCHIVE/wal" -type f -mtime +7 -delete
+    find "$ARCHIVE/base" -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
     echo "backup: archive copied to $BACKUP_REMOTE" ;;
   *) echo "usage: deploy/backup.sh base|copy" >&2; exit 2 ;;
 esac
