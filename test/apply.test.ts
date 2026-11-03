@@ -25,12 +25,14 @@ const check = (raw: object) => checkConfig(raw, rawSecrets);
 const A = check(base).config;
 const secrets = check(base).secrets!;
 const started: string[][] = [];
+const migratedOwn: string[] = [];
 /** Stand-in for Docker: records what it starts; containers of the config with change reference `failFor` stay unhealthy. */
 const runtime = (failFor?: string): Runtime => ({
   start: async (c) => {
     started.push(c.licences);
     if (c.change_ref === failFor) throw new Error('health check failed: container core is not healthy');
   },
+  migrateOwn: async (p) => { migratedOwn.push(p); },
 });
 
 const su = (database: string) => postgres({ database, max: 1, onnotice: () => {} });
@@ -441,5 +443,56 @@ describe('Operations, a product kept in its own repo (Operations D-19)', () => {
   it('PL-10 its image is pinned to a full commit', () => {
     expect(imageTags().OPS_COMMIT).toBe(manifest('ops').source!.commit);
     expect(imageTags().OPS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
+
+describe('Batchwright (ebmr), a product kept in its own repo that migrates itself (Batchwright Phase B plan, decisions 1-3)', () => {
+  const bw = { ...base, licences: ['hello', 'ebmr'],
+    links: { hello: { master_data: ['equipment_v1'] }, ebmr: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'] } } };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, ebmr_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, ebmr: 'test-only-client-secret' } },
+    env: { ebmr: { EBMR_AUTHN_PASSWORD: 'test-only-authn-password', EBMR_ANALYTICS_PASSWORD: 'test-only-analytics-password' } },
+  };
+
+  it('PL-01 Batchwright offers its 140 permission codes, all its own, grouped by their first part', () => {
+    const codes = manifest('ebmr').permissions.map((p) => p.code);
+    expect(codes).toHaveLength(140);
+    expect(codes.every((c) => c.startsWith('ebmr.'))).toBe(true);
+    expect(codes).toEqual([...codes].sort());   // related codes sit together on the tick list
+  });
+
+  it('PL-08 Batchwright gets its own database, the master data of its link, sign-on and its own logins; it publishes the views Deviations reads', () => {
+    const { config, secrets: s } = checkConfig(bw, raw);
+    const env = productEnv(config, s!, 'ebmr');
+    expect(Object.keys(env).sort()).toEqual(['EBMR_ANALYTICS_PASSWORD', 'EBMR_AUTHN_PASSWORD', 'EBMR_DATABASE_URL', 'MASTER_DATA_DATABASE_URL',
+      'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
+    expect(env.EBMR_DATABASE_URL).toMatch(/^postgres:\/\/ebmr_app:.*@db:5432\/ebmr$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://ebmr.ci.example/cb');
+    expect(bw.links.ebmr).toEqual(manifest('ebmr').reads);
+    expect(manifest('ebmr').publishes).toEqual(['batch_fact_v1', 'step_use_v1', 'cpp_value_v1', 'exception_v1', 'alarm_v1', 'batch_reference_v1',
+      'equipment_use_v1', 'ipc_result_v1', 'process_actual_v1', 'exception_detail_v1']);
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain(`ebmr.ci.example {\n  reverse_proxy 127.0.0.1:${externalPort('ebmr')}\n}`);
+  });
+
+  it('PL-10 apply runs the migrator of a product whose manifest says "migrate": "own", and db/migrate.ts for the others', async () => {
+    migratedOwn.length = 0;
+    const { config, secrets: s } = checkConfig({ ...bw, change_ref: 'CC-BW1', reason: 'licence Batchwright' }, raw);
+    await applyConfig(config, s!, runtime());
+    expect(migratedOwn).toEqual(['ebmr']);
+    const c = su('ebmr');
+    try {
+      // Its database exists (init.sh), and the platform's own migration table stays empty: the product migrates itself.
+      expect(await c`select to_regclass('platform.migration') is null as none`).toEqual([{ none: true }]);
+    } finally { await c.end(); }
+    await applyConfig(A, secrets, runtime());   // licence off again
+  });
+
+  it('PL-10 "migrate" is only "own", and only for a product built from its own repo', () => {
+    const m = { ...manifest('ebmr') };
+    expect(() => checkManifest({ ...m, migrate: 'self' as 'own' }, 'ebmr')).toThrow(/may only be "own"/);
+    expect(() => checkManifest({ ...m, source: undefined }, 'ebmr')).toThrow(/may only be "own"/);
+    expect(imageTags().EBMR_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });

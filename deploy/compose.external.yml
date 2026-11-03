@@ -12,3 +12,4 @@ services:
   deviations: { ports: ["127.0.0.1:8106:3000"] }
   recruitment: { ports: ["127.0.0.1:8107:3000"] }
   ops: { ports: ["127.0.0.1:8108:3000"] }
+  ebmr: { ports: ["127.0.0.1:8109:3000"] }

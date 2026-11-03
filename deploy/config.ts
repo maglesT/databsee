@@ -54,6 +54,9 @@ export interface Manifest {
   permissions: { code: string; label: string }[];   // what the product offers in the permission register (D-16)
   reads?: Record<string, string[]>;   // provider database -> views this product can read when linked
   source?: { repo: string; commit: string };   // a product kept in its own repo: built into medhanta/<product>:<commit> (D-29)
+  // "own": the product migrates its database itself, as a superuser, with its image's "migrate" command (Batchwright:
+  // extra roles and DDL-audit event triggers that <product>_owner cannot create). apply.ts runs it instead of db/migrate.ts.
+  migrate?: 'own';
 }
 
 /** A permission code: <product>.<thing>.<action>, lower case and dotted (same check as db/identity/0004). */
@@ -71,6 +74,7 @@ export function manifest(product: string): Manifest {
 export function checkManifest(m: Manifest, product: string, where = product): Manifest {
   if (m.product !== product || m.database !== product) throw new Error(`${where}: product and database must be "${product}"`);
   if (m.source && !/^[0-9a-f]{40}$/.test(m.source.commit)) throw new Error(`${where}: source.commit must be a full commit id`);
+  if (m.migrate !== undefined && (m.migrate !== 'own' || !m.source)) throw new Error(`${where}: "migrate" may only be "own", for a product with a source`);
   if (!Array.isArray(m.permissions) || m.permissions.length === 0) throw new Error(`${where}: needs a list of permissions`);
   const seen = new Set<string>();
   for (const p of m.permissions) {
