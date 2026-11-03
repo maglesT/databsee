@@ -19,6 +19,7 @@ links:                            # product -> provider database -> published vi
   # logbook: { master_data: [equipment_v1, instrument_v1, room_v1, product_v1] }   # Pharma Logbook (D-29)
   # mms: { master_data: [material_v1, supplier_v1, product_v1, room_v1] }   # Material Management
   # qms: { master_data: [product_v1, supplier_v1], deviations: [capa_v1] }   # QMS (deviations once Deviations is licensed)
+  # recruitment: { identity: [employee_v1] }   # Recruitment (staff directory for the write-time check)
   hello:
     master_data: [equipment_v1]
 outside_logins: {}                # outside system -> provider database -> views, e.g. sap: {materials: [material_v1]}

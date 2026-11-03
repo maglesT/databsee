@@ -1,0 +1,21 @@
+{
+  "product": "recruitment",
+  "database": "recruitment",
+  "permissions": [
+    {"code": "recruitment.requisition.raise", "label": "Raise and edit requisitions for own department"},
+    {"code": "recruitment.requisition.approve", "label": "Approve requisitions, raise for any department, publish and close openings"},
+    {"code": "recruitment.department.read", "label": "Read own department's requisitions, candidates, tests and quiz results"},
+    {"code": "recruitment.offer.approve", "label": "Approve offers (own department; any department with offer.manage)"},
+    {"code": "recruitment.candidate.manage", "label": "All candidates: add, move stages, correct, close"},
+    {"code": "recruitment.test.manage", "label": "Question papers, test links, marking, live quizzes"},
+    {"code": "recruitment.interview.manage", "label": "Schedule interviews and panels"},
+    {"code": "recruitment.interview.feedback", "label": "Sit on interview panels and give feedback"},
+    {"code": "recruitment.offer.manage", "label": "Create offers, GMP verification, hire, hand-over record"},
+    {"code": "recruitment.request.manage", "label": "Data-protection requests, grievances, erasure list, contacts export"},
+    {"code": "recruitment.settings.manage", "label": "Settings, privacy notice, departments, staff departments"},
+    {"code": "recruitment.accesslog.read", "label": "Access log and its review"}
+  ],
+  "publishes": [],
+  "reads": { "identity": ["employee_v1"] },
+  "source": { "repo": "https://github.com/maglesT/recruitemensyst", "commit": "0fd8cf88796eb851024192c869847f18e823c84e" }
+}

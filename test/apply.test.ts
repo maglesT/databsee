@@ -289,3 +289,35 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
     expect(imageTags().QMS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });
+
+describe('Recruitment, a product kept in its own repo (Recruitment D-74)', () => {
+  const rec = {
+    ...base, licences: ['hello', 'recruitment'],
+    links: { hello: { master_data: ['equipment_v1'] }, recruitment: { identity: ['employee_v1'] } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, recruitment_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, recruitment: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Recruitment offers its 12 permission codes, all its own', () => {
+    const codes = manifest('recruitment').permissions.map((p) => p.code);
+    expect(codes).toHaveLength(12);
+    expect(codes.every((c) => c.startsWith('recruitment.'))).toBe(true);
+  });
+
+  it('PL-08 Recruitment gets its own database, the staff directory of its identity link and sign-on; no master data', () => {
+    const { config, secrets: s } = checkConfig(rec, raw);
+    const env = productEnv(config, s!, 'recruitment');
+    expect(Object.keys(env).sort()).toEqual(['IDENTITY_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'RECRUITMENT_DATABASE_URL']);
+    expect(env.RECRUITMENT_DATABASE_URL).toMatch(/^postgres:\/\/recruitment_app:.*@db:5432\/recruitment$/);
+    expect(env.IDENTITY_DATABASE_URL).toMatch(/^postgres:\/\/recruitment_app:.*@db:5432\/identity$/);
+    expect(manifest('recruitment').reads).toEqual({ identity: ['employee_v1'] });
+  });
+
+  it('PL-10 its image is pinned to a full commit', () => {
+    expect(imageTags().RECRUITMENT_COMMIT).toBe(manifest('recruitment').source!.commit);
+    expect(imageTags().RECRUITMENT_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
