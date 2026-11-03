@@ -20,5 +20,5 @@
     "logbook": ["equipment_v1", "entry_v1"],
     "ebmr": ["batch_fact_v1", "step_use_v1", "cpp_value_v1", "process_actual_v1", "ipc_result_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/operations", "commit": "2f3e5a08fb46fba56465ea27ad720681406ce580" }
+  "source": { "repo": "https://github.com/maglesT/operations", "commit": "4cfc137b53393f4aa2aabc6b15823d845c07fb20" }
 }
