@@ -289,3 +289,35 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
     expect(imageTags().QMS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });
+
+describe('Qualification Protocols, a product kept in its own repo (prot D-21)', () => {
+  const qual = {
+    ...base, licences: ['hello', 'qual'],
+    links: { hello: { master_data: ['equipment_v1'] }, qual: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1'] } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, qual_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, qual: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Protocols offers its 13 permission codes, all its own', () => {
+    const m = manifest('qual');
+    expect(m.permissions).toHaveLength(13);
+    expect(m.permissions.every((p) => p.code.startsWith('qual.'))).toBe(true);
+  });
+
+  it('PL-08 Protocols gets its own database, the master data of its link and sign-on, and reads only what its manifest lists', () => {
+    const { config, secrets: s } = checkConfig(qual, raw);
+    const env = productEnv(config, s!, 'qual');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'QUAL_DATABASE_URL']);
+    expect(env.QUAL_DATABASE_URL).toMatch(/^postgres:\/\/qual_app:.*@db:5432\/qual$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://qual.ci.example/cb');
+    expect(qual.links.qual.master_data).toEqual(manifest('qual').reads!.master_data);
+  });
+
+  it('PL-10 its image is pinned to a full commit', () => {
+    expect(imageTags().QUAL_COMMIT).toBe(manifest('qual').source!.commit);
+    expect(imageTags().QUAL_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
