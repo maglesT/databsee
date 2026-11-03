@@ -440,6 +440,16 @@ describe('Operations, a product kept in its own repo (Operations D-19)', () => {
       .toThrow(/link ops -> logbook: provider is not licensed/);
   });
 
+  it('PL-08 with Batchwright (ebmr) licensed, Operations reads its five views through EBMR_DATABASE_URL', () => {
+    const views = ['batch_fact_v1', 'step_use_v1', 'cpp_value_v1', 'process_actual_v1', 'ipc_result_v1'];
+    expect(manifest('ops').reads!.ebmr).toEqual(views);
+    expect(views.every((v) => manifest('ebmr').publishes.includes(v))).toBe(true);
+    const withEbmr = { ...ops, licences: [...ops.licences, 'ebmr'], links: { ...ops.links, ops: { ...ops.links.ops, ebmr: views } } };
+    const rawEbmr = { ...raw, logins: { ...raw.logins, ebmr_app: PW }, oidc: { ...raw.oidc, clients: { ...raw.oidc.clients, ebmr: 'test-only-client-secret' } } };
+    const { config, secrets: s } = checkConfig(withEbmr, rawEbmr);
+    expect(productEnv(config, s!, 'ops').EBMR_DATABASE_URL).toMatch(/^postgres:\/\/ops_app:.*@db:5432\/ebmr$/);
+  });
+
   it('PL-10 its image is pinned to a full commit', () => {
     expect(imageTags().OPS_COMMIT).toBe(manifest('ops').source!.commit);
     expect(imageTags().OPS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
