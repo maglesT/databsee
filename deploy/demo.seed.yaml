@@ -20,7 +20,7 @@ people:
       mms.source.approve, mms.lot.disposition, mms.fg.release, mms.audit.read, mms.audit.review,
       deviations.deviation.classify, deviations.deviation.approve, deviations.deviation.close, deviations.capa.verify, deviations.qa.oversee, deviations.audit.read,
       qms.qa.sign, qms.audit.read,
-      qual.protocol.approve, qual.report.approve, qual.audit.read]
+      qual.protocol.approve, qual.report.approve, qual.audit.read, ops.audit.read]
   qa.officer1:
     name: Rahul Nair
     dept: QA
@@ -28,7 +28,7 @@ people:
       logbook.entry.verify, logbook.review.read, logbook.audit.read,
       mms.count.approve, mms.disposal.approve, mms.return.decide, mms.lot.correct, mms.audit.read, mms.audit.review, mms.settings.manage,
       deviations.deviation.report, deviations.deviation.classify, deviations.qa.oversee, deviations.capa.raise, deviations.audit.read, deviations.settings.manage,
-      qms.record.work, qms.qa.sign, qms.audit.read]
+      qms.record.work, qms.qa.sign, qms.audit.read, ops.data.read, ops.audit.read]
   qa.officer2:
     name: Sneha Kulkarni
     dept: QA (validation)
@@ -45,25 +45,25 @@ people:
     codes: [logbook.review.read, logbook.review.sign, logbook.breakdown.release, logbook.settings.draft, logbook.entry.correct_others, logbook.entry.verify,
       deviations.deviation.report, deviations.investigation.write, deviations.capa.complete,
       mms.issue.confirm, mms.fg.handover, qms.record.work,
-      recruitment.requisition.raise, recruitment.department.read, recruitment.offer.approve, recruitment.interview.feedback]
+      recruitment.requisition.raise, recruitment.department.read, recruitment.offer.approve, recruitment.interview.feedback, ops.data.read, ops.parameter.approve, ops.golden.exclude]
   prod.sup1:
     name: Anil Patil
     dept: Production (granulation, compression)
     codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.entry.verify, logbook.entry.correct_others,
-      logbook.voice_note.record, deviations.deviation.report, deviations.capa.complete, mms.issue.confirm]
+      logbook.voice_note.record, deviations.deviation.report, deviations.capa.complete, mms.issue.confirm, ops.data.read, ops.entry.write, ops.entry.correct_any]
   prod.sup2:
     name: Meena Joshi
     dept: Production (coating, packing)
     codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.entry.verify, logbook.entry.correct_others,
-      logbook.voice_note.record, deviations.deviation.report, deviations.capa.complete, mms.issue.confirm, mms.fg.handover]
+      logbook.voice_note.record, deviations.deviation.report, deviations.capa.complete, mms.issue.confirm, mms.fg.handover, ops.data.read, ops.entry.write]
   prod.op1:
     name: Ramesh Yadav
     dept: Production (operator)
-    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.voice_note.record, deviations.deviation.report]
+    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.voice_note.record, deviations.deviation.report, ops.entry.write]
   prod.op2:
     name: Sunita Devi
     dept: Production (packing operator)
-    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.voice_note.record, deviations.deviation.report]
+    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.voice_note.record, deviations.deviation.report, ops.entry.write]
   prod.op3:
     name: Mohan Lal
     dept: Production (operator)
@@ -99,7 +99,7 @@ people:
     dept: Engineering
     codes: [core.masterdata.edit, core.masterdata.view,
       logbook.entry.record_maintenance, logbook.entry.record_calibration, logbook.site.manage, logbook.advice.ask, logbook.review.read,
-      qual.item.edit, qual.run.execute, deviations.deviation.report, deviations.investigation.write, deviations.capa.complete]
+      qual.item.edit, qual.run.execute, deviations.deviation.report, deviations.investigation.write, deviations.capa.complete, ops.data.read, ops.masterdata.edit, ops.link.refresh, ops.import.run, ops.model.train, ops.site.edit]
   eng.tech:
     name: Imran Shaikh
     dept: Engineering
