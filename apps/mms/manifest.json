@@ -27,5 +27,5 @@
   ],
   "publishes": [],
   "reads": { "master_data": ["material_v1", "supplier_v1", "product_v1", "room_v1"] },
-  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "c11469a0ba49d6a0ae72ea319d0842ae46c40a4f" }
+  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "22166b7b9f67a02176484e0e1e6f2f724f767d30" }
 }
