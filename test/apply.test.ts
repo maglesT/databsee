@@ -224,3 +224,35 @@ describe('PL-08 the Logbook, a product kept in its own repo (D-29)', () => {
     expect(() => checkConfig(base, raw)).not.toThrow();   // e.g. the previous config, checked again on rollback
   });
 });
+
+describe('Material Management, a product kept in its own repo (MMS D-55)', () => {
+  const mms = {
+    ...base, licences: ['hello', 'mms'],
+    links: { hello: { master_data: ['equipment_v1'] }, mms: { master_data: ['material_v1', 'supplier_v1', 'product_v1', 'room_v1'] } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, mms_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, mms: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 MMS offers its 22 permission codes, all its own', () => {
+    const m = manifest('mms');
+    expect(m.permissions).toHaveLength(22);
+    expect(m.permissions.every((p) => p.code.startsWith('mms.'))).toBe(true);
+  });
+
+  it('PL-08 MMS gets its own database, the master data of its link and sign-on, and reads only what its manifest lists', () => {
+    const { config, secrets: s } = checkConfig(mms, raw);
+    const env = productEnv(config, s!, 'mms');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'MMS_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
+    expect(env.MMS_DATABASE_URL).toMatch(/^postgres:\/\/mms_app:.*@db:5432\/mms$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://mms.ci.example/cb');
+    expect(mms.links.mms.master_data).toEqual(manifest('mms').reads!.master_data);
+  });
+
+  it('PL-10 its image is pinned to a full commit', () => {
+    expect(imageTags().MMS_COMMIT).toBe(manifest('mms').source!.commit);
+    expect(imageTags().MMS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});

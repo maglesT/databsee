@@ -53,6 +53,18 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  mms:                               # Material Management, built from its own repo at the commit in apps/mms/manifest.json (D-55 in that repo)
+    image: medhanta/mms:${MMS_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [mms]
+    command: ["node", "dist/server/index.js"]   # apply.ts runs its migrations as mms_owner
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/mms.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped
