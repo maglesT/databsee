@@ -337,16 +337,18 @@ describe('Qualification Protocols, a product kept in its own repo (prot D-21)', 
 
 describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', () => {
   const dev = {
-    ...base, licences: ['hello', 'logbook', 'deviations'],
+    ...base, licences: ['hello', 'logbook', 'ebmr', 'deviations'],
     links: {
       hello: { master_data: ['equipment_v1'] },
-      deviations: { identity: ['employee_v1'], logbook: ['equipment_v1', 'entry_v1', 'calibration_v1', 'logbook_sop_v1'] },
+      deviations: { identity: ['employee_v1'], logbook: ['equipment_v1', 'entry_v1', 'calibration_v1', 'logbook_sop_v1'],
+        ebmr: ['batch_fact_v1', 'step_use_v1', 'cpp_value_v1', 'exception_v1', 'alarm_v1', 'batch_reference_v1', 'equipment_use_v1', 'ipc_result_v1', 'process_actual_v1', 'exception_detail_v1'] },   // Batchwright (Deviations D-48)
     },
   };
   const raw = {
     ...rawSecrets,
-    logins: { ...rawSecrets.logins, logbook_app: PW, deviations_app: PW },
-    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, logbook: 'test-only-client-secret', deviations: 'test-only-client-secret' } },
+    logins: { ...rawSecrets.logins, logbook_app: PW, ebmr_app: PW, deviations_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, logbook: 'test-only-client-secret', ebmr: 'test-only-client-secret', deviations: 'test-only-client-secret' } },
+    env: { ebmr: { EBMR_AUTHN_PASSWORD: 'test-only-authn-password', EBMR_ANALYTICS_PASSWORD: 'test-only-analytics-password' } },
   };
 
   it('PL-01 Deviations offers its 11 permission codes, all its own', () => {
@@ -358,10 +360,11 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
   it('PL-08 Deviations gets its own database, the identity and Logbook databases of its links and sign-on, and reads only what its manifest lists', () => {
     const { config, secrets: s } = checkConfig(dev, raw);
     const env = productEnv(config, s!, 'deviations');
-    expect(Object.keys(env).sort()).toEqual(['DEVIATIONS_DATABASE_URL', 'IDENTITY_DATABASE_URL', 'LOGBOOK_DATABASE_URL',
+    expect(Object.keys(env).sort()).toEqual(['DEVIATIONS_DATABASE_URL', 'EBMR_DATABASE_URL', 'IDENTITY_DATABASE_URL', 'LOGBOOK_DATABASE_URL',
       'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
     expect(env.DEVIATIONS_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/deviations$/);
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
+    expect(env.EBMR_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/ebmr/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
     expect(dev.links.deviations).toEqual(manifest('deviations').reads);
     expect(manifest('deviations').publishes).toEqual(['capa_v1']);   // read by the QMS through a link (Deviations D-40)

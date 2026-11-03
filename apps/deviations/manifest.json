@@ -17,7 +17,9 @@
   "publishes": ["capa_v1"],
   "reads": {
     "identity": ["employee_v1"],
-    "logbook": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1"]
+    "logbook": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1"],
+    "ebmr": ["batch_fact_v1", "step_use_v1", "cpp_value_v1", "exception_v1", "alarm_v1", "batch_reference_v1",
+             "equipment_use_v1", "ipc_result_v1", "process_actual_v1", "exception_detail_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "5d66cc543bc332c83ee22142a0dc9e79f38806b5" }
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "b9fa044e2e44000e98678d1738703317189eb644" }
 }
