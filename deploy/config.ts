@@ -57,6 +57,9 @@ export interface Manifest {
   // "own": the product migrates its database itself, as a superuser, with its image's "migrate" command (Batchwright:
   // extra roles and DDL-audit event triggers that <product>_owner cannot create). apply.ts runs it instead of db/migrate.ts.
   migrate?: 'own';
+  // Further database logins a self-migrating product creates (Batchwright: ebmr_authn, ebmr_analytics, ...). Its own
+  // migrator sets them; apply switches them off with the product's licence, as it does <product>_app.
+  logins?: string[];
 }
 
 /** A permission code: <product>.<thing>.<action>, lower case and dotted (same check as db/identity/0004). */
@@ -75,6 +78,10 @@ export function checkManifest(m: Manifest, product: string, where = product): Ma
   if (m.product !== product || m.database !== product) throw new Error(`${where}: product and database must be "${product}"`);
   if (m.source && !/^[0-9a-f]{40}$/.test(m.source.commit)) throw new Error(`${where}: source.commit must be a full commit id`);
   if (m.migrate !== undefined && (m.migrate !== 'own' || !m.source)) throw new Error(`${where}: "migrate" may only be "own", for a product with a source`);
+  for (const l of m.logins ?? [])
+    if (!new RegExp(`^${product}_[a-z0-9_]+$`).test(l) || l === `${product}_app` || l === `${product}_owner`)
+      throw new Error(`${where}: extra login "${l}" must be ${product}_<name>, not ${product}_app or ${product}_owner`);
+  if (m.logins && m.migrate !== 'own') throw new Error(`${where}: extra logins belong to a product that migrates itself`);
   if (!Array.isArray(m.permissions) || m.permissions.length === 0) throw new Error(`${where}: needs a list of permissions`);
   const seen = new Set<string>();
   for (const p of m.permissions) {

@@ -73,6 +73,14 @@ async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime
       } else if (pw === undefined) await ddl(su`select format('alter role %I login', ${rolname}::text) as ddl`); // rollback: keep its password
       else await ddl(su`select format('alter role %I login password %L', ${rolname}::text, ${pw}::text) as ddl`);
     }
+    // A self-migrating product's further logins (manifest "logins"): off and disconnected with its licence; while it is
+    // licensed its own migrator sets them.
+    for (const p of allProducts().filter((p) => !config.licences.includes(p))) {
+      for (const l of manifest(p).logins ?? []) {
+        await ddl(su`select format('alter role %I nologin', ${l}::text) as ddl where exists (select from pg_roles where rolname = ${l})`);
+        await su`select pg_terminate_backend(pid) from pg_stat_activity where usename = ${l}`;
+      }
+    }
 
     // Links: wanted[db][login] = views; switch only the differences.
     const links = wantedLinks(config);
@@ -230,7 +238,8 @@ export const docker: Runtime = {
     execFileSync('docker', ['compose', ...composeFiles(config), '--profile', p, 'run', '--rm', '-e', 'MIGRATE_DATABASE_URL', p, 'migrate'], {
       stdio: 'inherit',
       env: { ...process.env, VERSION: config.version, ...imageTags(),
-        MIGRATE_DATABASE_URL: `postgres://postgres:${encodeURIComponent(secrets.logins.postgres ?? '')}@db:5432/${db}` },
+        // Verified TLS to the database server (its certificate, deploy/compose.yml, is mounted at /tls-ca).
+        MIGRATE_DATABASE_URL: `postgres://postgres:${encodeURIComponent(secrets.logins.postgres ?? '')}@db:5432/${db}?sslmode=verify-full&sslrootcert=/tls-ca/server.crt` },
     });
   },
   async start(config, secrets) {

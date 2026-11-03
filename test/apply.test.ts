@@ -476,7 +476,7 @@ describe('Batchwright (ebmr), a product kept in its own repo that migrates itsel
     expect(caddyfile({ ...config, proxy: 'external' })).toContain(`ebmr.ci.example {\n  reverse_proxy 127.0.0.1:${externalPort('ebmr')}\n}`);
   });
 
-  it('PL-10 apply runs the migrator of a product whose manifest says "migrate": "own", and db/migrate.ts for the others', async () => {
+  it('PL-10 apply runs the migrator of a product whose manifest says "migrate": "own", and db/migrate.ts for the others; licence off switches its further logins off', async () => {
     migratedOwn.length = 0;
     const { config, secrets: s } = checkConfig({ ...bw, change_ref: 'CC-BW1', reason: 'licence Batchwright' }, raw);
     await applyConfig(config, s!, runtime());
@@ -486,13 +486,22 @@ describe('Batchwright (ebmr), a product kept in its own repo that migrates itsel
       // Its database exists (init.sh), and the platform's own migration table stays empty: the product migrates itself.
       expect(await c`select to_regclass('platform.migration') is null as none`).toEqual([{ none: true }]);
     } finally { await c.end(); }
-    await applyConfig(A, secrets, runtime());   // licence off again
+    // Licence off: its further logins are off too (here ebmr_authn, standing in for what its migrator would create).
+    const su0 = su('postgres');
+    try {
+      await su0.unsafe(`do $$ begin if not exists (select from pg_roles where rolname = 'ebmr_authn') then create role ebmr_authn; end if; end $$`);
+      await su0.unsafe(`alter role ebmr_authn login password 'test-only-authn-password'`);
+      await applyConfig(A, secrets, runtime());
+      expect(await su0`select rolcanlogin from pg_roles where rolname = 'ebmr_authn'`).toEqual([{ rolcanlogin: false }]);
+    } finally { await su0.end(); }
   });
 
   it('PL-10 "migrate" is only "own", and only for a product built from its own repo', () => {
     const m = { ...manifest('ebmr') };
     expect(() => checkManifest({ ...m, migrate: 'self' as 'own' }, 'ebmr')).toThrow(/may only be "own"/);
     expect(() => checkManifest({ ...m, source: undefined }, 'ebmr')).toThrow(/may only be "own"/);
+    expect(() => checkManifest({ ...m, logins: ['ebmr_app'] }, 'ebmr')).toThrow(/extra login/);
+    expect(() => checkManifest({ ...m, logins: ['core_app'] }, 'ebmr')).toThrow(/extra login/);
     expect(imageTags().EBMR_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });

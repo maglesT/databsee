@@ -20,8 +20,9 @@ services:
     # TLS for database connections (Batchwright refuses an unencrypted session, its DI-13): a self-signed certificate for
     # the name "db", made once; its certificate (not the key) is shared read-only with the products that verify it.
     entrypoint: ["bash", "-c", "mkdir -p /archive/wal /archive/base && chown postgres /archive/wal /archive/base &&
-      if [ ! -f /tls/server.key ]; then openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650
-        -subj /CN=db -addext subjectAltName=DNS:db -keyout /tls/server.key -out /tls/server.crt; fi &&
+      if [ ! -f /tls/server.key ] || [ ! -f /tls/server.crt ]; then openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1
+        -nodes -days 3650 -subj /CN=db -addext subjectAltName=DNS:db -keyout /tls/server.key.new -out /tls/server.crt.new &&
+        mv /tls/server.key.new /tls/server.key && mv /tls/server.crt.new /tls/server.crt; fi &&
       chown postgres /tls/server.key && chmod 600 /tls/server.key && cp /tls/server.crt /tls-ca/server.crt && chmod 644 /tls-ca/server.crt &&
       exec docker-entrypoint.sh \"$$@\"", "--"]
     command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_timeout=300",
