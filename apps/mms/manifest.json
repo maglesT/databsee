@@ -1,0 +1,31 @@
+{
+  "product": "mms",
+  "database": "mms",
+  "permissions": [
+    {"code": "mms.source.edit", "label": "Add approved sources, change the evaluation reference, suspend"},
+    {"code": "mms.source.approve", "label": "Approve sources (e-signature)"},
+    {"code": "mms.po.manage", "label": "Create, close and cancel purchase orders"},
+    {"code": "mms.receipt.record", "label": "Receive goods into quarantine"},
+    {"code": "mms.lot.sample", "label": "Sample lots"},
+    {"code": "mms.lot.test", "label": "Sign QC results"},
+    {"code": "mms.lot.disposition", "label": "Approve, reject or block lots (e-signature)"},
+    {"code": "mms.stock.manage", "label": "Move stock and record stock counts"},
+    {"code": "mms.disposal.record", "label": "Record disposals"},
+    {"code": "mms.disposal.approve", "label": "Approve (e-signature) or refuse disposals"},
+    {"code": "mms.count.approve", "label": "Approve or refuse stock adjustments"},
+    {"code": "mms.issue.dispense", "label": "Reserve, cancel, issue to a batch, put away returns"},
+    {"code": "mms.issue.confirm", "label": "Confirm issued containers, return from a batch"},
+    {"code": "mms.return.decide", "label": "Accept or reject returns"},
+    {"code": "mms.fg.handover", "label": "Hand over finished-goods batches"},
+    {"code": "mms.fg.receive", "label": "Receive or refuse finished-goods handovers"},
+    {"code": "mms.fg.release", "label": "Release finished-goods batches (e-signature)"},
+    {"code": "mms.fg.dispatch", "label": "Dispatch finished goods"},
+    {"code": "mms.lot.correct", "label": "Correct receipt or batch data"},
+    {"code": "mms.audit.read", "label": "Read the audit trail and its copies, run the integrity check"},
+    {"code": "mms.audit.review", "label": "Record audit-trail reviews"},
+    {"code": "mms.settings.manage", "label": "Edit the site, MMS settings, MMS item settings and customers"}
+  ],
+  "publishes": [],
+  "reads": { "master_data": ["material_v1", "supplier_v1", "product_v1", "room_v1"] },
+  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "c11469a0ba49d6a0ae72ea319d0842ae46c40a4f" }
+}
