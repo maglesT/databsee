@@ -19,6 +19,8 @@ import { allProducts, checkConfig, manifest, outsideLogin, productLogin, readYam
 /** Starts the containers and fails unless they turn healthy. The Docker one is below; tests use a stand-in. */
 export interface Runtime {
   start(config: Config, secrets: Secrets): Promise<void>;
+  /** A product whose manifest says "migrate": "own": its image's one-shot "migrate" command, as the superuser. */
+  migrateOwn(product: string, config: Config, secrets: Secrets): Promise<void>;
 }
 
 const admin = (database: string) => postgres({ database, max: 1, onnotice: () => {} });
@@ -27,7 +29,11 @@ export async function applyConfig(next: Config, secrets: Secrets, runtime: Runti
   try {
     const products = next.licences.map(manifest);
     execFileSync(path.join(ROOT, 'db/server/init.sh'), products.map((m) => m.database), { stdio: 'inherit' });
-    for (const db of ['master_data', 'identity', ...products.map((m) => m.database)]) await migrate(db);
+    for (const db of ['master_data', 'identity']) await migrate(db);
+    for (const m of products) {
+      if (m.migrate === 'own') await runtime.migrateOwn(m.product, next, secrets);
+      else await migrate(m.database);
+    }
     await switchAndStart(next, secrets, runtime, next.reason);
     const problems = await dbProblems(next, secrets);
     if (problems.length) throw new Error(`health check failed: ${problems.join('; ')}`);
@@ -66,6 +72,14 @@ async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime
         await su`select pg_terminate_backend(pid) from pg_stat_activity where usename = ${rolname}`;
       } else if (pw === undefined) await ddl(su`select format('alter role %I login', ${rolname}::text) as ddl`); // rollback: keep its password
       else await ddl(su`select format('alter role %I login password %L', ${rolname}::text, ${pw}::text) as ddl`);
+    }
+    // A self-migrating product's further logins (manifest "logins"): off and disconnected with its licence; while it is
+    // licensed its own migrator sets them.
+    for (const p of allProducts().filter((p) => !config.licences.includes(p))) {
+      for (const l of manifest(p).logins ?? []) {
+        await ddl(su`select format('alter role %I nologin', ${l}::text) as ddl where exists (select from pg_roles where rolname = ${l})`);
+        await su`select pg_terminate_backend(pid) from pg_stat_activity where usename = ${l}`;
+      }
     }
 
     // Links: wanted[db][login] = views; switch only the differences.
@@ -204,17 +218,32 @@ export function caddyfile(config: Config): string {
 
 /** Docker Compose runtime: writes each service's settings, starts core, Caddy and the licensed products, removes
  *  the unlicensed ones, and waits until the started services report healthy. */
+const write = (file: string, text: string) => {
+  mkdirSync(STATE, { recursive: true, mode: 0o700 });
+  writeFileSync(path.join(STATE, file), text, { mode: 0o600 });
+};
+// Single quotes: Compose takes the value literally (no $ substitution).
+const env = (vars: Record<string, string>) => Object.entries(vars).map(([k, v]) => {
+  if (v.includes("'") || v.includes('\n')) throw new Error(`setting ${k} must not contain a quote or a line break`);
+  return `${k}='${v}'`;
+}).join('\n') + '\n';
+const composeFiles = (config: Config) => ['deploy/compose.yml', ...(config.proxy === 'external' ? ['deploy/compose.external.yml'] : [])]
+  .flatMap((f) => ['-f', path.join(ROOT, f)]);
+
 export const docker: Runtime = {
+  async migrateOwn(p, config, secrets) {
+    // The service's env file must exist for compose; the superuser URL is passed through the environment only.
+    write(`${p}.env`, env(productEnv(config, secrets, p)));
+    const db = manifest(p).database;
+    execFileSync('docker', ['compose', ...composeFiles(config), '--profile', p, 'run', '--rm', '-e', 'MIGRATE_DATABASE_URL', p, 'migrate'], {
+      stdio: 'inherit',
+      env: { ...process.env, VERSION: config.version, ...imageTags(),
+        // Verified TLS to the database server (its certificate, deploy/compose.yml, is mounted at /tls-ca).
+        MIGRATE_DATABASE_URL: `postgres://postgres:${encodeURIComponent(secrets.logins.postgres ?? '')}@db:5432/${db}?sslmode=verify-full&sslrootcert=/tls-ca/server.crt` },
+    });
+  },
   async start(config, secrets) {
-    const dir = STATE;
-    mkdirSync(dir, { recursive: true, mode: 0o700 });
-    const write = (file: string, text: string) => writeFileSync(path.join(dir, file), text, { mode: 0o600 });
     const url = (login: string, db: string) => `postgres://${login}:${encodeURIComponent(secrets.logins[login] ?? '')}@db:5432/${db}`;
-    // Single quotes: Compose takes the value literally (no $ substitution).
-    const env = (vars: Record<string, string>) => Object.entries(vars).map(([k, v]) => {
-      if (v.includes("'") || v.includes('\n')) throw new Error(`setting ${k} must not contain a quote or a line break`);
-      return `${k}='${v}'`;
-    }).join('\n') + '\n';
     write('core.env', env({
       IDENTITY_DATABASE_URL: url('core_app', 'identity'),
       MASTER_DATA_DATABASE_URL: url('core_app', 'master_data'),
@@ -234,8 +263,7 @@ export const docker: Runtime = {
     const external = config.proxy === 'external';
     write(external ? 'Caddyfile.host' : 'Caddyfile', caddyfile(config));
 
-    const files = ['deploy/compose.yml', ...(external ? ['deploy/compose.external.yml'] : [])].flatMap((f) => ['-f', path.join(ROOT, f)]);
-    const compose = (...args: string[]) => execFileSync('docker', ['compose', ...files, ...args],
+    const compose = (...args: string[]) => execFileSync('docker', ['compose', ...composeFiles(config), ...args],
       { stdio: 'inherit', env: { ...process.env, VERSION: config.version, ...imageTags() } });
     for (const p of allProducts().filter((p) => !config.licences.includes(p))) compose('--profile', p, 'rm', '--stop', '--force', p);
     if (external) compose('rm', '--stop', '--force', 'caddy');   // the host's proxy owns 80/443

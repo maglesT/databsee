@@ -17,9 +17,17 @@ services:
     restart: unless-stopped
     # PL-11: every WAL file is archived to /archive/wal (at least every 5 minutes); deploy/backup.sh adds the
     # nightly base backup and copies the archive off the server.
-    entrypoint: ["bash", "-c", "mkdir -p /archive/wal /archive/base && chown postgres /archive/wal /archive/base && exec docker-entrypoint.sh \"$$@\"", "--"]
+    # TLS for database connections (Batchwright refuses an unencrypted session, its DI-13): a self-signed certificate for
+    # the name "db", made once; its certificate (not the key) is shared read-only with the products that verify it.
+    entrypoint: ["bash", "-c", "mkdir -p /archive/wal /archive/base && chown postgres /archive/wal /archive/base &&
+      if [ ! -f /tls/server.key ] || [ ! -f /tls/server.crt ]; then openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1
+        -nodes -days 3650 -subj /CN=db -addext subjectAltName=DNS:db -keyout /tls/server.key.new -out /tls/server.crt.new &&
+        mv /tls/server.key.new /tls/server.key && mv /tls/server.crt.new /tls/server.crt; fi &&
+      chown postgres /tls/server.key && chmod 600 /tls/server.key && cp /tls/server.crt /tls-ca/server.crt && chmod 644 /tls-ca/server.crt &&
+      exec docker-entrypoint.sh \"$$@\"", "--"]
     command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_timeout=300",
-              "-c", "archive_command=test ! -f /archive/wal/%f && cp %p /archive/wal/%f.tmp && mv /archive/wal/%f.tmp /archive/wal/%f"]
+              "-c", "archive_command=test ! -f /archive/wal/%f && cp %p /archive/wal/%f.tmp && mv /archive/wal/%f.tmp /archive/wal/%f",
+              "-c", "ssl=on", "-c", "ssl_cert_file=/tls/server.crt", "-c", "ssl_key_file=/tls/server.key", "-c", "ssl_min_protocol_version=TLSv1.2"]
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
     secrets: [pg_superuser]
@@ -27,6 +35,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - /var/lib/medhanta/archive:/archive
+      - pgtls:/tls
+      - pgca:/tls-ca
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s
@@ -132,6 +142,29 @@ services:
     restart: unless-stopped
     profiles: [ops]
     networks: [ops-ml]
+  ebmr:                              # Batchwright (Tablets eBMR), built from its own repo at the commit in apps/ebmr/manifest.json
+    image: medhanta/ebmr:${EBMR_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [ebmr]
+    # Default command: the server. apply.ts first runs "migrate" (manifest "migrate": "own") as the superuser.
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/ebmr.env
+    environment:
+      PORT: "3000"
+      EBMR_INSTALLATION: GMP
+      EBMR_ENV: production
+      # Batchwright refuses a database session without verified TLS (its DI-13): it checks the db's certificate.
+      EBMR_DB_CA_FILE: /tls-ca/server.crt
+      EBMR_KEYS_DIR: /var/lib/ebmr/keys
+      EBMR_SECRETS_FILE: /var/lib/ebmr/keys/secrets.json
+      EBMR_SEAL_KEY_FILE: /var/lib/ebmr/keys/seal-key.json
+      EBMR_SERVICE_KEYS_FILE: /var/lib/ebmr/keys/service-keys.json
+      EBMR_NUMBER_LEDGER_FILE: /var/lib/ebmr/numbers.ledger.jsonl
+      EBMR_EXCHANGE_DIR: /var/lib/ebmr/exchange
+    volumes:
+      - pgca:/tls-ca:ro
+      - ebmr:/var/lib/ebmr
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped
@@ -149,4 +182,7 @@ networks:
   ops-ml: { internal: true }
 volumes:
   pgdata:
+  pgtls:
+  pgca:
+  ebmr:
   caddy:

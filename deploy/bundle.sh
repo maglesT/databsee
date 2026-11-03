@@ -29,7 +29,9 @@ for p in $(yq -r '.licences[]' "$config"); do
     docker build -q -t "medhanta/$p-ml:$commit" "$src/ml" >/dev/null
     products="$products medhanta/$p-ml:$commit"
   fi
-  rm -rf "$work/db/$p" && cp -r "$src/db/migrations" "$work/db/$p" && rm -rf "$src"
+  # A product that migrates itself (manifest "migrate": "own", Batchwright) brings its migrations in its image.
+  if [ "$(jq -r '.migrate // empty' "$m")" != own ]; then rm -rf "$work/db/$p" && cp -r "$src/db/migrations" "$work/db/$p"; fi
+  rm -rf "$src"
   products="$products medhanta/$p:$commit"
 done
 rm -rf "$work/src"
