@@ -1,0 +1,22 @@
+{
+  "product": "qual",
+  "database": "qual",
+  "permissions": [
+    {"code": "qual.item.edit", "label": "Add and edit items"},
+    {"code": "qual.item.status", "label": "Mark an item \"requalification needed\""},
+    {"code": "qual.protocol.write", "label": "Create, copy and edit protocols, sign Prepared"},
+    {"code": "qual.protocol.approve", "label": "Approve protocols (e-signature)"},
+    {"code": "qual.run.execute", "label": "Enter results, add or withdraw evidence, raise protocol changes, sign Performed"},
+    {"code": "qual.discrepancy.write", "label": "Edit discrepancies"},
+    {"code": "qual.discrepancy.close", "label": "Close discrepancies (e-signature)"},
+    {"code": "qual.results.review", "label": "Sign Results reviewed (second person)"},
+    {"code": "qual.report.write", "label": "Write reports, sign Report prepared"},
+    {"code": "qual.report.approve", "label": "Approve reports (e-signature), sets the item status"},
+    {"code": "qual.audit.read", "label": "Read the audit trail"},
+    {"code": "qual.alerts.manage", "label": "See and acknowledge alerts (integrity mismatches)"},
+    {"code": "qual.settings.manage", "label": "Edit the site settings"}
+  ],
+  "publishes": [],
+  "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1"] },
+  "source": { "repo": "https://github.com/maglesT/prot", "commit": "cba7cff7c502ac7af488420dbcd977859bb7c74b" }
+}
