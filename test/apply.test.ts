@@ -5,8 +5,8 @@ import path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
-import { applyConfig, imageTags, loadPermissions, productEnv, type Runtime } from '../deploy/apply.js';
-import { checkConfig, checkManifest, manifest, type Manifest } from '../deploy/config.js';
+import { applyConfig, caddyfile, externalPort, imageTags, loadPermissions, productEnv, type Runtime } from '../deploy/apply.js';
+import { allProducts, checkConfig, checkManifest, manifest, type Manifest } from '../deploy/config.js';
 import { enableLogin, sqlstate } from './db.js';
 import { makeEmployee, run } from './core.js';
 
@@ -59,6 +59,17 @@ describe('PL-10 changes only through the config file, with change reference, tes
     expect(() => check({ ...base, outside_logins: { sap: { materials: ['material_v1'] } } })).toThrow(/provider is not licensed/);
     expect(() => check({ ...base, outside_logins: { bi: { hello: ['note_v1'] } } })).toThrow(/no password for login ext_bi/);
     expect(() => check({ ...base, licences: ['hello', 'unknown'] })).toThrow(/unknown product/);
+  });
+
+  it('PL-10 the proxy serves core and each licensed product: the platform caddy, or the host proxy on 127.0.0.1 ports', () => {
+    expect(A.proxy).toBe('caddy');
+    expect(caddyfile(A)).toBe('ci.example {\n  reverse_proxy core:3000\n}\nhello.ci.example {\n  reverse_proxy hello:3000\n}\n');
+    const ext = check({ ...base, proxy: 'external' }).config;
+    expect(caddyfile(ext)).toBe('ci.example {\n  reverse_proxy 127.0.0.1:8100\n}\nhello.ci.example {\n  reverse_proxy 127.0.0.1:8101\n}\n');
+    expect(() => check({ ...base, proxy: 'nginx' })).toThrow();
+    // Every product has its own fixed host port (a product without one could not be licensed with proxy: external).
+    const ports = ['core', ...allProducts()].map(externalPort);
+    expect(new Set(ports).size).toBe(ports.length);
   });
 
   it('PL-10 licence on: login with its secret password, permissions loaded, links on and logged with the change reference', async () => {

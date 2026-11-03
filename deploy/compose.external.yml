@@ -1,0 +1,14 @@
+# Added by apply when the customer config says "proxy: external": a proxy already on the host (e.g. its own Caddy)
+# owns ports 80 and 443, so the platform's caddy is not started. Core and each product are published on 127.0.0.1
+# only, at the fixed ports below; apply writes the host proxy's site blocks to $MEDHANTA_STATE/Caddyfile.host.
+# A new product gets the next free port here (never reuse or renumber one: the host proxy points at it).
+services:
+  core: { ports: ["127.0.0.1:8100:3000"] }
+  hello: { ports: ["127.0.0.1:8101:3000"] }
+  logbook: { ports: ["127.0.0.1:8102:3000"] }
+  mms: { ports: ["127.0.0.1:8103:3000"] }
+  qms: { ports: ["127.0.0.1:8104:3000"] }
+  qual: { ports: ["127.0.0.1:8105:3000"] }
+  deviations: { ports: ["127.0.0.1:8106:3000"] }
+  recruitment: { ports: ["127.0.0.1:8107:3000"] }
+  ops: { ports: ["127.0.0.1:8108:3000"] }
