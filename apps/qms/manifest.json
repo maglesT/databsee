@@ -9,5 +9,5 @@
   ],
   "publishes": [],
   "reads": { "master_data": ["product_v1", "supplier_v1"], "deviations": ["capa_v1"] },
-  "source": { "repo": "https://github.com/maglesT/qmssyst", "commit": "2377db1159a06fb9aa3596f64bf68ef3dcd7d1e9" }
+  "source": { "repo": "https://github.com/maglesT/qmssyst", "commit": "20b05f6d00a7f2d0f38e96cc887ddb54920f15bc" }
 }
