@@ -18,5 +18,5 @@
   ],
   "publishes": [],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1"] },
-  "source": { "repo": "https://github.com/maglesT/prot", "commit": "6992c6b9a257ff42b13c2e449e01cbf36545410f" }
+  "source": { "repo": "https://github.com/maglesT/prot", "commit": "b8655346b3dd3aaac90e6c9f4037890ab72c3a84" }
 }
