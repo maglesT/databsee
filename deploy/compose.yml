@@ -101,6 +101,18 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  recruitment:                       # Recruitment, built from its own repo at the commit in apps/recruitment/manifest.json (D-74 in that repo)
+    image: medhanta/recruitment:${RECRUITMENT_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [recruitment]
+    command: ["node", "dist/server/index.js"]   # apply.ts runs its migrations as recruitment_owner
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/recruitment.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped
