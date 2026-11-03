@@ -321,3 +321,49 @@ describe('Qualification Protocols, a product kept in its own repo (prot D-21)', 
     expect(imageTags().QUAL_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });
+
+describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', () => {
+  const dev = {
+    ...base, licences: ['hello', 'logbook', 'deviations'],
+    links: {
+      hello: { master_data: ['equipment_v1'] },
+      deviations: { identity: ['employee_v1'], logbook: ['equipment_v1', 'entry_v1', 'calibration_v1', 'logbook_sop_v1'] },
+    },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, logbook_app: PW, deviations_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, logbook: 'test-only-client-secret', deviations: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Deviations offers its 11 permission codes, all its own', () => {
+    const m = manifest('deviations');
+    expect(m.permissions).toHaveLength(11);
+    expect(m.permissions.every((p) => p.code.startsWith('deviations.'))).toBe(true);
+  });
+
+  it('PL-08 Deviations gets its own database, the identity and Logbook databases of its links and sign-on, and reads only what its manifest lists', () => {
+    const { config, secrets: s } = checkConfig(dev, raw);
+    const env = productEnv(config, s!, 'deviations');
+    expect(Object.keys(env).sort()).toEqual(['DEVIATIONS_DATABASE_URL', 'IDENTITY_DATABASE_URL', 'LOGBOOK_DATABASE_URL',
+      'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
+    expect(env.DEVIATIONS_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/deviations$/);
+    expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
+    expect(dev.links.deviations).toEqual(manifest('deviations').reads);
+    expect(manifest('deviations').publishes).toEqual(['capa_v1']);   // read by the QMS through a link (Deviations D-40)
+  });
+
+  it('PL-08 the QMS reads capa_v1 through a link once Deviations is licensed', () => {
+    const both = { ...dev, licences: [...dev.licences, 'qms'],
+      links: { ...dev.links, qms: { master_data: ['product_v1', 'supplier_v1'], deviations: ['capa_v1'] } } };
+    const secrets = { ...raw, logins: { ...raw.logins, qms_app: PW }, oidc: { ...raw.oidc, clients: { ...raw.oidc.clients, qms: 'test-only-client-secret' } } };
+    const { config, secrets: s } = checkConfig(both, secrets);
+    expect(productEnv(config, s!, 'qms').DEVIATIONS_DATABASE_URL).toMatch(/^postgres:\/\/qms_app:.*@db:5432\/deviations$/);
+  });
+
+  it('PL-10 its image is pinned to a full commit', () => {
+    expect(imageTags().DEVIATIONS_COMMIT).toBe(manifest('deviations').source!.commit);
+    expect(imageTags().DEVIATIONS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
