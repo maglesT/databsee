@@ -256,3 +256,36 @@ describe('Material Management, a product kept in its own repo (MMS D-55)', () =>
     expect(imageTags().MMS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });
+
+describe('QMS, a product kept in its own repo (QMS D-11)', () => {
+  const qms = {
+    ...base, licences: ['hello', 'qms'],
+    links: { hello: { master_data: ['equipment_v1'] }, qms: { master_data: ['product_v1', 'supplier_v1'] } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, qms_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, qms: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 QMS offers its 4 permission codes, all its own', () => {
+    const m = manifest('qms');
+    expect(m.permissions.map((p) => p.code)).toEqual(['qms.record.work', 'qms.qa.sign', 'qms.ap.sign', 'qms.audit.read']);
+  });
+
+  it('PL-08 QMS gets its own database, the master data of its link and sign-on; Deviations only once that link is on', () => {
+    const { config, secrets: s } = checkConfig(qms, raw);
+    const env = productEnv(config, s!, 'qms');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'QMS_DATABASE_URL']);
+    expect(env.QMS_DATABASE_URL).toMatch(/^postgres:\/\/qms_app:.*@db:5432\/qms$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://qms.ci.example/cb');
+    expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1'], deviations: ['capa_v1'] });
+    // Deviations is not licensed here, so the link cannot be switched on.
+    expect(() => checkConfig({ ...qms, links: { ...qms.links, qms: { ...qms.links.qms, deviations: ['capa_v1'] } } }, raw)).toThrow(/provider is not licensed/);
+  });
+
+  it('PL-10 its image is pinned to a full commit', () => {
+    expect(imageTags().QMS_COMMIT).toBe(manifest('qms').source!.commit);
+    expect(imageTags().QMS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});

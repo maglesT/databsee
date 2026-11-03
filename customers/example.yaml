@@ -18,6 +18,7 @@ licences: [hello]                 # licensed products; all others are off (login
 links:                            # product -> provider database -> published views it reads
   # logbook: { master_data: [equipment_v1, instrument_v1, room_v1, product_v1] }   # Pharma Logbook (D-29)
   # mms: { master_data: [material_v1, supplier_v1, product_v1, room_v1] }   # Material Management
+  # qms: { master_data: [product_v1, supplier_v1], deviations: [capa_v1] }   # QMS (deviations once Deviations is licensed)
   hello:
     master_data: [equipment_v1]
 outside_logins: {}                # outside system -> provider database -> views, e.g. sap: {materials: [material_v1]}
