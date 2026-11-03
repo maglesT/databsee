@@ -16,6 +16,7 @@ reason: First installation
 # "reads"), and its login password and OIDC client secret to the secrets (template: example.secrets.template.yaml).
 licences: [hello]                 # licensed products; all others are off (login off, containers stopped)
 links:                            # product -> provider database -> published views it reads
+  # logbook: { master_data: [equipment_v1, instrument_v1, room_v1, product_v1] }   # Pharma Logbook (D-29)
   hello:
     master_data: [equipment_v1]
 outside_logins: {}                # outside system -> provider database -> views, e.g. sap: {materials: [material_v1]}

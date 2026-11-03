@@ -5,7 +5,7 @@ import path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
-import { applyConfig, loadPermissions, type Runtime } from '../deploy/apply.js';
+import { applyConfig, imageTags, loadPermissions, productEnv, type Runtime } from '../deploy/apply.js';
 import { checkConfig, checkManifest, manifest, type Manifest } from '../deploy/config.js';
 import { enableLogin, sqlstate } from './db.js';
 import { makeEmployee, run } from './core.js';
@@ -193,5 +193,34 @@ describe('PL-13 data-moving migrations are checked', () => {
     const h = su('hello');
     expect(await h`select count(*)::int as n from pl13_new`).toEqual([{ n: 3 }]);
     await h.end();
+  });
+});
+
+describe('PL-08 the Logbook, a product kept in its own repo (D-29)', () => {
+  const logbook = {
+    ...base, licences: ['hello', 'logbook'],
+    links: { hello: { master_data: ['equipment_v1'] }, logbook: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1', 'product_v1'] } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, logbook_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, logbook: 'test-only-client-secret' } },
+    env: { logbook: { GEMINI_API_KEY: 'test-only-key' } },
+  };
+
+  it('PL-08 the Logbook gets its own database, the master data of its link, sign-on and its own extra settings', () => {
+    const { config, secrets: s } = checkConfig(logbook, raw);
+    const env = productEnv(config, s!, 'logbook');
+    expect(Object.keys(env).sort()).toEqual(['GEMINI_API_KEY', 'LOGBOOK_DATABASE_URL', 'MASTER_DATA_DATABASE_URL',
+      'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
+    expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/logbook_app:.*@db:5432\/logbook$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://logbook.ci.example/cb');
+    expect(productEnv(config, s!, 'hello')).not.toHaveProperty('GEMINI_API_KEY');
+  });
+
+  it('PL-10 its image is pinned to a full commit; its extra settings do not stop a config that does not license it', () => {
+    expect(imageTags().LOGBOOK_COMMIT).toBe(manifest('logbook').source!.commit);
+    expect(imageTags().LOGBOOK_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(() => checkConfig(base, raw)).not.toThrow();   // e.g. the previous config, checked again on rollback
   });
 });

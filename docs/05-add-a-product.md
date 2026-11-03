@@ -51,6 +51,10 @@ inactive and is revoked from everyone holding it. The control panel uses `reads`
 - Settings come from the environment that `apply` writes: `<DB>_DATABASE_URL` for its own database and each linked
   provider, `OIDC_ISSUER`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI` (`https://<product>.<domain>/cb`), `PORT=3000`.
 - `deploy/compose.yml`: one service like `hello`, with `profiles: [<product>]` so it runs only when licensed.
+- A product kept in its own repo (the Logbook) adds `"source": {"repo", "commit"}` (full commit id) to its manifest.
+  `deploy/bundle.sh` builds `medhanta/<product>:<commit>` from its `ops/Dockerfile` and copies its `db/migrations` to
+  `db/<product>`, so `apply` runs them as `<product>_owner`. The repo is read with the Actions secret `PRODUCT_SOURCE_TOKEN`.
+  Its own extra settings, such as API keys, go in the secrets under `env.<product>`.
 
 ## 6. Configuration and secrets
 - Customer config: add the product to `licences` and its links under `links`. The template is `customers/example.yaml`.
