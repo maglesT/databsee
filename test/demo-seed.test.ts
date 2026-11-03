@@ -16,14 +16,18 @@ let identity: postgres.Sql;
 let md: postgres.Sql;
 const seed = readSeed();
 
+/** A fresh, migrated database, made like init.sh does. */
+async function fresh(db: string, dir: string) {
+  psql('postgres', ['-c', `drop database if exists ${db} with (force)`]);
+  const vars = ['-v', `db=${db}`, '-v', `owner=${db}_owner`, '-v', 'app=core_app'];
+  psql('postgres', [...vars, '-f', 'db/server/cluster.sql']);
+  psql(db, [...vars, '-f', 'db/server/database.sql']);
+  await migrate(db, dir);
+}
+
 beforeAll(async () => {
-  for (const [db, dir] of [[ID, 'db/identity'], [MD, 'db/master_data']] as const) {
-    psql('postgres', ['-c', `drop database if exists ${db} with (force)`]);
-    const vars = ['-v', `db=${db}`, '-v', `owner=${db}_owner`, '-v', 'app=core_app'];
-    psql('postgres', [...vars, '-f', 'db/server/cluster.sql']);
-    psql(db, [...vars, '-f', 'db/server/database.sql']);
-    await migrate(db, dir);
-  }
+  await fresh(ID, 'db/identity');
+  await fresh(MD, 'db/master_data');
   identity = postgres({ database: ID, max: 1, onnotice: () => {} });
   md = postgres({ database: MD, max: 1, onnotice: () => {} });
   await loadPermissions(identity, allProducts().map(manifest), 'test: every product licensed');   // what apply does
@@ -83,8 +87,31 @@ describe('demo company seed (DEMO-ONLY)', () => {
     expect(await events()).toEqual(before);
   });
 
-  it('PL-09 the demo seed refuses an identity database that holds people it did not make (a real installation)', async () => {
-    await identity`insert into employee (login, identity_verified_by, identity_verified_how) values ('real.person', 'installer', 'passport')`;
-    await expect(seedDemo('demo', identity, md)).rejects.toThrow(/not a demo installation/);
+  it('PL-02 PL-06 a rerun never undoes what was changed in the screens since (person, grant, item, link)', async () => {
+    const op3 = (await identity`select id from employee where login = 'prod.op3'`)[0]!.id;
+    const admin = (await identity`select id from employee where login = 'it.admin'`)[0]!.id;
+    await identity`insert into employee_version (employee_id, version, full_name, active, changed_by, changed_by_name, reason)
+      select employee_id, version + 1, full_name, true, ${admin}, 'Arjun Mehta', 'rejoined' from employee_version
+      where employee_id = ${op3} order by version desc limit 1`;
+    await identity`insert into permission_grant (employee_id, product, code, granted, by_name, reason)
+      values (${op3}, 'logbook', 'logbook.entry.record_use', false, 'Arjun Mehta', 'not needed')`;
+    await identity`insert into employee (login, identity_verified_by, identity_verified_how) values ('new.person', 'Arjun Mehta', 'Aadhaar seen')`;
+    const id = (code: string) => md`select id from item where code = ${code}`.then((r) => r[0]!.id as string);
+    const [press, rm105, rm106] = [await id('EQ-CMP-01'), await id('RM-105'), await id('RM-106')];
+    await md`insert into link_event (from_item, to_item, type, active, changed_by, changed_by_name, reason) values
+      (${press}, ${rm105}, 'located_in', false, ${admin}, 'Arjun Mehta', 'moved'), (${press}, ${rm106}, 'located_in', true, ${admin}, 'Arjun Mehta', 'moved')`;
+    expect(await seedDemo('demo', identity, md)).toBe(0);
+    expect((await identity`select active from employee_current where id = ${op3}`)[0]!.active).toBe(true);
+    expect((await identity`select count(*)::int as n from current_permission_grant where employee_id = ${op3} and code = 'logbook.entry.record_use'`)[0]!.n).toBe(0);
+    expect((await md`select room_code from report.equipment_v1 where code = 'EQ-CMP-01'`).map((r) => r.room_code)).toEqual(['RM-106']);
+  });
+
+  it('PL-09 the demo seed refuses an identity database that holds people but none of its own (a real installation)', async () => {
+    await fresh('demo_t_identity_real', 'db/identity');
+    const real = postgres({ database: 'demo_t_identity_real', max: 1, onnotice: () => {} });
+    try {
+      await real`insert into employee (login, identity_verified_by, identity_verified_how) values ('first.admin', 'installer', 'passport')`;
+      await expect(seedDemo('demo', real, md)).rejects.toThrow(/not a demo installation/);
+    } finally { await real.end(); }
   });
 });

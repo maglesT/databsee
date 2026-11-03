@@ -2,7 +2,7 @@
 
 **Demo Pharma Pvt Ltd, Unit 1** is a fictional tablet plant in India. We use it to test the live platform before
 go-live. Every person, company, make and serial number in it is invented. The data lives in
-`customers/demo.seed.yaml` and is loaded by `deploy/seed-demo.ts`. Tests: `test/demo-seed.test.ts`.
+`deploy/demo.seed.yaml` and is loaded by `deploy/seed-demo.ts`. Tests: `test/demo-seed.test.ts`.
 
 This page lists the stable logins and item codes. Product move scripts can use them for their own demo records
 (logbook entries, lots, deviations and so on), which are not part of this seed.
@@ -13,20 +13,27 @@ This page lists the stable logins and item codes. Product move scripts can use t
    with its links (see `customers/example.yaml`), its secrets, and one apply.
    - This file is not committed yet. A committed customer config is applied by `.github/workflows/apply.yml`, so it
      is added once the demo server and its secrets exist.
-2. On the server, as the installer (PG* env, superuser): `tsx deploy/seed-demo.ts customers/demo.yaml`.
+2. On the server, as the installer (PG* env, superuser), instead of `create-first-admin`:
+   `tsx deploy/seed-demo.ts customers/demo.yaml`. `it.admin` is the identity administrator.
 
-**What the seed writes.** It writes only what the core screens write, into the same insert-only tables:
+**What the seed writes.** It writes into the same insert-only tables the core screens use:
 - employees with versions, credentials and a credential event
 - permission grants
 - items with versions
 - link events
 
 Every row has who = `demo seed` and why = `demo seed (DEMO-ONLY ...)`. Master-data rows record `it.admin` as the
-changing employee. A second run writes nothing.
+changing employee. Unlike a person added in the screens, demo people start with a non-temporary password (except
+`qc.analyst2`), so testers can sign on at once.
+
+Each event is written only if the seed never wrote it before. A second run writes nothing, and a later run never
+undoes what was changed in the screens (a person reactivated, a grant revoked, an item moved or reactivated). A run
+after the seed file gains a person, code or item adds just that.
 
 **Where it refuses to run.**
 - Any customer other than `demo`.
-- An identity database that holds anyone the seed did not create (a real installation).
+- An identity database that holds people but none of the seed's (a real installation, or a first admin made
+  before the seed).
 - A permission code that is not in the catalogue (apply was not run, or a manifest changed).
 
 **Demo password** (every person): `Demo-Tablets-2026`. It is stored only as a scrypt hash, like any password. It is
@@ -52,7 +59,8 @@ Libtab library tablets.
 ## People (22)
 
 Permission codes are the current codes from `apps/*/manifest.json`, plus `core.*`. A product registered later (e.g. Operations) adds its people's codes in
-`customers/demo.seed.yaml` and in this table, and the seed's next run grants them. Email is `<login>@demo-pharma.example`.
+`deploy/demo.seed.yaml` and in this table, and the seed's next run grants them. Email is `<login>@demo-pharma.example`. The department is
+descriptive only: the platform stores no department.
 
 | Login | Name | Department | Note | Permission codes |
 |---|---|---|---|---|

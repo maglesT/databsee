@@ -1,10 +1,14 @@
-// DEMO-ONLY: loads the fictional demo company (customers/demo.seed.yaml, docs/demo-company.md) into the identity and
+// DEMO-ONLY: loads the fictional demo company (deploy/demo.seed.yaml, docs/demo-company.md) into the identity and
 // master_data databases of a demo installation, for testing the live platform before go-live. Never for a customer.
-// It writes only what the core screens write, into the same insert-only tables: employee + version + credential
-// (PL-03, PL-06), permission grants with who/when/why (PL-01, PL-02), items with versions and link events (PL-06).
-// Every row says "demo seed". Idempotent: what is already there is left alone, so a second run writes nothing.
-// Refuses unless the customer config is "demo", and if identity holds anyone the demo seed did not create.
-// Usage (after apply, so the permission catalogue is loaded): tsx deploy/seed-demo.ts customers/demo.yaml
+// It writes into the same insert-only tables the core screens use: employee + version + credential (PL-03, PL-06),
+// permission grants with who/when/why (PL-01, PL-02), items with versions and link events (PL-06). Every row says
+// "demo seed" (who: changed_by null, as for the installer; master data needs an id, so it.admin's). Unlike the core,
+// demo passwords are not temporary (except qc.analyst2), so testers can sign on at once.
+// Idempotent: each event is written only if the seed never wrote it before, so a second run writes nothing and never
+// undoes what was changed in the screens since. Refuses unless the customer config is "demo", and unless identity is
+// empty or already holds the seed's people (a real installation has neither).
+// Usage (after apply, so the permission catalogue is loaded, and instead of create-first-admin: it.admin is the
+// identity administrator): tsx deploy/seed-demo.ts customers/demo.yaml
 // Connection: PG* env as the server's superuser (the installer), like apply.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -22,7 +26,7 @@ interface Person { name: string; dept: string; codes: string[]; temporary?: bool
 type Item = Record<string, unknown> & { name: string; in?: string; from?: string[]; uses?: string[]; retire?: string };
 interface Seed { company: string; password: string; people: Record<string, Person>; items: Record<Kind, Record<string, Item>> }
 
-export const readSeed = (file = path.join(ROOT, 'customers/demo.seed.yaml')): Seed => YAML.parse(readFileSync(file, 'utf8'));
+export const readSeed = (file = path.join(ROOT, 'deploy/demo.seed.yaml')): Seed => YAML.parse(readFileSync(file, 'utf8'));
 
 /** Loads the demo company. Returns the number of rows written (0 on a second run). */
 export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = readSeed()): Promise<number> {
@@ -31,8 +35,9 @@ export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = 
   const w = async (q: Promise<unknown>) => { await q; written++; };
 
   const ids = await identity.begin(async (tx) => {
-    const [real] = await tx<{ login: string }[]>`select login from employee where identity_verified_by <> ${BY} limit 1`;
-    if (real) throw new Error(`identity holds "${real.login}", not made by the demo seed: refusing (not a demo installation)`);
+    const [g] = await tx<{ any: boolean; demo: boolean }[]>`select exists (select from employee) as any,
+      exists (select from employee where identity_verified_by = ${BY}) as demo`;
+    if (g!.any && !g!.demo) throw new Error('identity holds people but none from the demo seed: refusing (not a demo installation)');
     const known = new Set((await tx<{ code: string }[]>`select code from current_permission`).map((r) => r.code));
     const unknown = Object.values(seed.people).flatMap((p) => p.codes).filter((c) => !known.has(c));
     if (unknown.length) throw new Error(`codes not in the permission catalogue (run apply first?): ${[...new Set(unknown)].join(', ')}`);
@@ -49,11 +54,12 @@ export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = 
         await tx`insert into credential (employee_id, password_hash, must_change) values (${e!.id}, ${hash}, ${p.temporary === true})`;
         await w(tx`insert into credential_event (employee_id, login, kind, by_name, reason) values (${e!.id}, ${login}, 'reset', ${BY}, ${REASON})`);
       }
-      if (p.deactivate && e!.active)
+      const [done] = await tx<{ n: number }[]>`select count(*)::int as n from employee_version where employee_id = ${e!.id} and version > 1 and changed_by_name = ${BY}`;
+      if (p.deactivate && e!.active && done!.n === 0)
         await w(tx`insert into employee_version (employee_id, version, full_name, email, active, changed_by_name, reason)
           select employee_id, version + 1, full_name, email, false, ${BY}, ${p.deactivate} from employee_version
           where employee_id = ${e!.id} and version = ${e!.version}`);
-      const held = new Set((await tx<{ code: string }[]>`select code from current_permission_grant where employee_id = ${e!.id}`).map((r) => r.code));
+      const held = new Set((await tx<{ code: string }[]>`select code from permission_grant where employee_id = ${e!.id} and by_name = ${BY}`).map((r) => r.code));
       for (const code of p.codes.filter((c) => !held.has(c)))
         await w(tx`insert into permission_grant (employee_id, product, code, granted, by_name, reason)
           values (${e!.id}, ${code.split('.')[0]!}, ${code}, true, ${BY}, ${REASON})`);
@@ -77,7 +83,8 @@ export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = 
           await w(tx`insert into item_version (item_id, version, name, fields, active, changed_by, changed_by_name, reason)
             values (${cur!.id}, 1, ${name}, ${tx.json(fields)}, true, ${by}, ${BY}, ${REASON})`);
         }
-        if (retire && cur!.active)
+        const [done] = await tx<{ n: number }[]>`select count(*)::int as n from item_version where item_id = ${cur!.id} and version > 1 and changed_by_name = ${BY}`;
+        if (retire && cur!.active && done!.n === 0)
           await w(tx`insert into item_version (item_id, version, name, fields, active, changed_by, changed_by_name, reason)
             select item_id, version + 1, name, fields, false, ${by}, ${BY}, ${retire} from item_version where item_id = ${cur!.id} and version = ${cur!.version}`);
         item.set(`${kind}:${code}`, cur!.id);
@@ -96,9 +103,11 @@ export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = 
         for (const s of it.from ?? []) links.push([from, find('supplier', s), 'supplied_by']);
         for (const m of it.uses ?? []) links.push([from, find('material', m), 'uses']);
       }
-    const have = new Set((await tx<{ k: string }[]>`select from_item || ' ' || to_item || ' ' || type as k from item_link_current`).map((r) => r.k));
+    // A link the seed wrote once is never written again (moved or ended in the screens since: left alone).
+    const have = new Set((await tx<{ k: string }[]>`select from_item || ' ' || to_item || ' ' || type as k from link_event where changed_by_name = ${BY}`).map((r) => r.k));
+    const placed = new Set([...have].filter((k) => k.endsWith(' located_in')).map((k) => k.split(' ')[0]));   // one room per item
     for (const [from, to, type] of links)
-      if (!have.has(`${from} ${to} ${type}`))
+      if (!have.has(`${from} ${to} ${type}`) && !(type === 'located_in' && placed.has(from)))
         await w(tx`insert into link_event (from_item, to_item, type, active, changed_by, changed_by_name, reason)
           values (${from}, ${to}, ${type}, true, ${by}, ${BY}, ${REASON})`);
   });
