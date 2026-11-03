@@ -1,0 +1,257 @@
+# DEMO-ONLY. Demo Pharma Pvt Ltd, Unit 1: a fictional tablet plant in India for testing the live platform before
+# go-live. All people, companies, makes and serial numbers are invented. Loaded by deploy/seed-demo.ts, which refuses
+# any customer but "demo". Described for the product sessions in docs/demo-company.md; codes here are stable.
+company: Demo Pharma Pvt Ltd, Unit 1 (fictional)
+# The one sign-on password of every demo person (stored only as a scrypt hash). Never used for a real customer.
+password: Demo-Tablets-2026
+
+# login: name, department, email, permission codes (current codes from apps/*/manifest.json and core.*).
+# temporary: true = must change the password at first sign-on. deactivate: <reason> = a second version, inactive.
+people:
+  it.admin:
+    name: Arjun Mehta
+    dept: IT
+    codes: [core.people.manage, core.masterdata.edit, core.masterdata.view]
+  qa.head:   # D-30: identity admin who also holds QA signing codes
+    name: Kavita Rao
+    dept: QA
+    codes: [core.people.manage, core.masterdata.view,
+      logbook.review.read, logbook.review.sign, logbook.settings.approve, logbook.audit.read,
+      mms.source.approve, mms.lot.disposition, mms.fg.release, mms.audit.read, mms.audit.review,
+      deviations.deviation.classify, deviations.deviation.approve, deviations.deviation.close, deviations.capa.verify, deviations.qa.oversee, deviations.audit.read,
+      qms.qa.sign, qms.audit.read,
+      qual.protocol.approve, qual.report.approve, qual.audit.read]
+  qa.officer1:
+    name: Rahul Nair
+    dept: QA
+    codes: [core.masterdata.view,
+      logbook.entry.verify, logbook.review.read, logbook.audit.read,
+      mms.count.approve, mms.disposal.approve, mms.return.decide, mms.lot.correct, mms.audit.read, mms.audit.review, mms.settings.manage,
+      deviations.deviation.report, deviations.deviation.classify, deviations.qa.oversee, deviations.capa.raise, deviations.audit.read, deviations.settings.manage,
+      qms.record.work, qms.qa.sign, qms.audit.read]
+  qa.officer2:
+    name: Sneha Kulkarni
+    dept: QA (validation)
+    codes: [qual.item.edit, qual.item.status, qual.protocol.write, qual.discrepancy.write, qual.discrepancy.close, qual.results.review,
+      qual.report.write, qual.audit.read, qual.alerts.manage, qual.settings.manage,
+      deviations.deviation.report, deviations.investigation.write, qms.record.work]
+  qa.ap:
+    name: Suresh Iyer
+    dept: QA (authorised person)
+    codes: [qms.ap.sign, qms.qa.sign, qms.audit.read, mms.fg.release, mms.lot.disposition, logbook.review.read]
+  prod.head:
+    name: Vikram Singh
+    dept: Production
+    codes: [logbook.review.read, logbook.review.sign, logbook.breakdown.release, logbook.settings.draft, logbook.entry.correct_others, logbook.entry.verify,
+      deviations.deviation.report, deviations.investigation.write, deviations.capa.complete,
+      mms.issue.confirm, mms.fg.handover, qms.record.work,
+      recruitment.requisition.raise, recruitment.department.read, recruitment.offer.approve, recruitment.interview.feedback]
+  prod.sup1:
+    name: Anil Patil
+    dept: Production (granulation, compression)
+    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.entry.verify, logbook.entry.correct_others,
+      logbook.voice_note.record, deviations.deviation.report, deviations.capa.complete, mms.issue.confirm]
+  prod.sup2:
+    name: Meena Joshi
+    dept: Production (coating, packing)
+    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.entry.verify, logbook.entry.correct_others,
+      logbook.voice_note.record, deviations.deviation.report, deviations.capa.complete, mms.issue.confirm, mms.fg.handover]
+  prod.op1:
+    name: Ramesh Yadav
+    dept: Production (operator)
+    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.voice_note.record, deviations.deviation.report]
+  prod.op2:
+    name: Sunita Devi
+    dept: Production (packing operator)
+    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, logbook.voice_note.record, deviations.deviation.report]
+  prod.op3:
+    name: Mohan Lal
+    dept: Production (operator)
+    codes: [logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_general, deviations.deviation.report]
+    deactivate: Left the company (demo seed - deactivated person)
+  qc.head:
+    name: Priya Menon
+    dept: QC
+    codes: [mms.lot.sample, mms.lot.test, logbook.entry.verify, logbook.entry.record_calibration, logbook.review.read,
+      deviations.deviation.report, deviations.investigation.write, deviations.capa.complete, qual.run.execute,
+      recruitment.requisition.raise, recruitment.department.read, recruitment.offer.approve, recruitment.interview.feedback]
+  qc.analyst1:
+    name: Deepak Sharma
+    dept: QC
+    codes: [mms.lot.sample, mms.lot.test, logbook.entry.record_use, logbook.entry.record_cleaning, logbook.entry.record_calibration,
+      deviations.deviation.report, qual.run.execute]
+  qc.analyst2:
+    name: Farah Khan
+    dept: QC (new joiner)
+    codes: [mms.lot.sample, logbook.entry.record_use, logbook.entry.record_cleaning, deviations.deviation.report]
+    temporary: true
+  stores.head:
+    name: Manoj Gupta
+    dept: Stores
+    codes: [mms.receipt.record, mms.stock.manage, mms.issue.dispense, mms.disposal.record, mms.fg.receive, mms.fg.dispatch,
+      logbook.entry.record_cleaning, logbook.entry.record_general, deviations.deviation.report]
+  stores.asst:
+    name: Ravi Kumar
+    dept: Stores
+    codes: [mms.receipt.record, mms.stock.manage, mms.issue.dispense, mms.fg.dispatch, logbook.entry.record_cleaning]
+  eng.head:
+    name: Sanjay Deshmukh
+    dept: Engineering
+    codes: [core.masterdata.edit, core.masterdata.view,
+      logbook.entry.record_maintenance, logbook.entry.record_calibration, logbook.site.manage, logbook.advice.ask, logbook.review.read,
+      qual.item.edit, qual.run.execute, deviations.deviation.report, deviations.investigation.write, deviations.capa.complete]
+  eng.tech:
+    name: Imran Shaikh
+    dept: Engineering
+    codes: [logbook.entry.record_maintenance, logbook.entry.record_calibration, logbook.entry.record_general, logbook.advice.ask,
+      logbook.voice_note.record, qual.run.execute]
+  purchase.mgr:
+    name: Neha Agarwal
+    dept: Purchase
+    codes: [mms.po.manage, mms.source.edit, core.masterdata.view, qms.record.work]
+  hr.mgr:
+    name: Pooja Bhatia
+    dept: HR
+    codes: [recruitment.requisition.approve, recruitment.candidate.manage, recruitment.test.manage, recruitment.interview.manage,
+      recruitment.offer.manage, recruitment.offer.approve, recruitment.request.manage, recruitment.settings.manage, recruitment.accesslog.read]
+  hr.exec:
+    name: Amit Verma
+    dept: HR
+    codes: [recruitment.candidate.manage, recruitment.test.manage, recruitment.interview.manage]
+  admin.office:   # no product access: can sign on to core only (and change their password)
+    name: Lakshmi Pillai
+    dept: Administration
+    codes: []
+
+# Master data, by kind: code -> name and the kind's own fields (checked as the core screen checks them).
+# in: room (located_in), from: suppliers (supplied_by), uses: materials (product uses). retire: <reason> = inactive.
+items:
+  room:
+    RM-101: {name: Dispensing booth, area: Dispensing, grade: D}
+    RM-102: {name: Sampling booth, area: Warehouse, grade: D}
+    RM-103: {name: Granulation room 1, area: Granulation, grade: D}
+    RM-104: {name: Granulation room 2 and blending, area: Granulation, grade: D}
+    RM-105: {name: Compression room 1, area: Compression, grade: D}
+    RM-106: {name: Compression room 2, area: Compression, grade: D}
+    RM-107: {name: Coating room, area: Coating, grade: D}
+    RM-108: {name: Primary packing (blister and strip), area: Packing, grade: D}
+    RM-109: {name: Secondary packing hall, area: Packing, grade: CNC}
+    RM-110: {name: QC instrument laboratory, area: QC, grade: CNC}
+    RM-111: {name: Raw and packing material warehouse, area: Warehouse, grade: CNC}
+    RM-112: {name: Utilities block, area: Utilities, grade: CNC}
+  equipment:
+    EQ-LAF-01: {name: Dispensing laminar air flow, type: Dispensing booth, make: Demo Cleanair, model: RLAF-4, serial: DCA-1001, in: RM-101}
+    EQ-SFT-01: {name: Vibro sifter 30 inch, type: Sifter, make: Demo Process Machines, model: VS-30, serial: DPM-2101, in: RM-103}
+    EQ-RMG-01: {name: Rapid mixer granulator 150 L, type: Granulator, make: Demo Process Machines, model: RMG-150, serial: DPM-2102, in: RM-103}
+    EQ-FBD-01: {name: Fluid bed dryer 60 kg, type: Dryer, make: Demo Process Machines, model: FBD-60, serial: DPM-2103, in: RM-103}
+    EQ-MLT-01: {name: Multimill, type: Mill, make: Demo Process Machines, model: MM-5, serial: DPM-2104, in: RM-103}
+    EQ-RMG-02: {name: Rapid mixer granulator 300 L, type: Granulator, make: Demo Process Machines, model: RMG-300, serial: DPM-2201, in: RM-104}
+    EQ-FBD-02: {name: Fluid bed dryer 120 kg, type: Dryer, make: Demo Process Machines, model: FBD-120, serial: DPM-2202, in: RM-104}
+    EQ-RC-01: {name: Roller compactor, type: Roller compactor, make: Demo Process Machines, model: RC-200, serial: DPM-2203, in: RM-104}
+    EQ-OBL-01: {name: Octagonal blender 500 L, type: Blender, make: Demo Process Machines, model: OB-500, serial: DPM-2204, in: RM-104}
+    EQ-BIN-01: {name: IPC bin blender 600 L, type: Blender, make: Demo Process Machines, model: BB-600, serial: DPM-2205, in: RM-104}
+    EQ-CMP-01: {name: Rotary tablet press 27 station, type: Tablet press, make: Demo Press Works, model: TP-27, serial: DPW-3101, in: RM-105}
+    EQ-DDM-01: {name: Deduster with metal detector, type: Deduster, make: Demo Press Works, model: DD-MD-1, serial: DPW-3102, in: RM-105}
+    EQ-CMP-02: {name: Rotary tablet press 37 station, type: Tablet press, make: Demo Press Works, model: TP-37, serial: DPW-3201, in: RM-106}
+    EQ-CMP-03: {name: Rotary tablet press 45 station (bilayer), type: Tablet press, make: Demo Press Works, model: TP-45B, serial: DPW-3202, in: RM-106}
+    EQ-CTG-01: {name: Auto coater 48 inch, type: Coater, make: Demo Coating Systems, model: AC-48, serial: DCS-4101, in: RM-107}
+    EQ-CTG-02: {name: Auto coater 36 inch, type: Coater, make: Demo Coating Systems, model: AC-36, serial: DCS-4001, in: RM-107,
+      retire: Replaced by EQ-CTG-01 (demo seed - retired item)}
+    EQ-SPV-01: {name: Coating solution preparation vessel 200 L, type: Vessel, make: Demo Coating Systems, model: SPV-200, serial: DCS-4102, in: RM-107}
+    EQ-BLS-01: {name: Blister packing machine, type: Blister packer, make: Demo Pack Lines, model: BP-250, serial: DPL-5101, in: RM-108}
+    EQ-STP-01: {name: Strip packing machine, type: Strip packer, make: Demo Pack Lines, model: SP-4, serial: DPL-5102, in: RM-108}
+    EQ-CRT-01: {name: Cartonator, type: Cartoner, make: Demo Pack Lines, model: CT-120, serial: DPL-5201, in: RM-109}
+    EQ-CKW-01: {name: Check weigher, type: Check weigher, make: Demo Pack Lines, model: CW-10, serial: DPL-5202, in: RM-109}
+    EQ-STB-01: {name: Stability chamber 25 C / 60 % RH, type: Stability chamber, make: Demo Lab Systems, model: SC-1000, serial: DLS-6101, in: RM-110}
+    EQ-PWS-01: {name: Purified water generation system, type: Water system, make: Demo Utilities, model: PW-1000, serial: DUT-7101, in: RM-112}
+    EQ-AHU-01: {name: Air handling unit (granulation and compression), type: AHU, make: Demo Utilities, model: AHU-12K, serial: DUT-7102, in: RM-112}
+    EQ-CAS-01: {name: Compressed air system, type: Compressor, make: Demo Utilities, model: OFC-50, serial: DUT-7103, in: RM-112}
+  instrument:
+    IN-BAL-01: {name: Analytical balance 220 g, type: Balance, make: Demo Weighing, model: AB-220, serial: DWG-8101, needsCalibration: true, in: RM-110}
+    IN-BAL-02: {name: Semi-micro balance 120 g, type: Balance, make: Demo Weighing, model: SM-120, serial: DWG-8102, needsCalibration: true, in: RM-110}
+    IN-BAL-03: {name: Platform balance 300 kg, type: Balance, make: Demo Weighing, model: PB-300, serial: DWG-8201, needsCalibration: true, in: RM-101}
+    IN-BAL-04: {name: Precision balance 6 kg, type: Balance, make: Demo Weighing, model: PR-6, serial: DWG-8202, needsCalibration: true, in: RM-101}
+    IN-BAL-05: {name: IPC balance (tablet weight), type: Balance, make: Demo Weighing, model: AB-220, serial: DWG-8301, needsCalibration: true, in: RM-105}
+    IN-LOD-01: {name: Moisture analyser (IR), type: Moisture analyser, make: Demo Weighing, model: MA-50, serial: DWG-8302, needsCalibration: true, in: RM-103}
+    IN-HT-01: {name: Tablet hardness tester, type: Hardness tester, make: Demo Lab Systems, model: HT-5, serial: DLS-6201, needsCalibration: true, in: RM-105}
+    IN-FRI-01: {name: Friabilator, type: Friabilator, make: Demo Lab Systems, model: FR-2, serial: DLS-6202, needsCalibration: true, in: RM-105}
+    IN-DT-01: {name: Disintegration tester, type: Disintegration tester, make: Demo Lab Systems, model: DT-2, serial: DLS-6203, needsCalibration: true, in: RM-110}
+    IN-DIS-01: {name: Dissolution apparatus 8 station, type: Dissolution apparatus, make: Demo Lab Systems, model: DS-8, serial: DLS-6204, needsCalibration: true, in: RM-110}
+    IN-HPLC-01: {name: HPLC system 1, type: HPLC, make: Demo Analytics, model: LC-20, serial: DAN-9101, needsCalibration: true, in: RM-110}
+    IN-HPLC-02: {name: HPLC system 2, type: HPLC, make: Demo Analytics, model: LC-20, serial: DAN-9102, needsCalibration: true, in: RM-110}
+    IN-UV-01: {name: UV-visible spectrophotometer, type: Spectrophotometer, make: Demo Analytics, model: UV-18, serial: DAN-9201, needsCalibration: true, in: RM-110}
+    IN-KF-01: {name: Karl Fischer titrator, type: Titrator, make: Demo Analytics, model: KF-1, serial: DAN-9202, needsCalibration: true, in: RM-110}
+    IN-PH-01: {name: pH meter, type: pH meter, make: Demo Analytics, model: PH-7, serial: DAN-9203, needsCalibration: true, in: RM-110}
+  supplier:
+    SUP-01: {name: Sahyadri Demo Actives Pvt Ltd, address: "Plot 12, Demo Industrial Area, Hyderabad, Telangana"}
+    SUP-02: {name: Narmada Demo Pharma Chem Ltd, address: "Plot 4, Demo GIDC Estate, Ankleshwar, Gujarat"}
+    SUP-03: {name: Aravalli Demo Excipients Pvt Ltd, address: "Unit 7, Demo Estate, Vadodara, Gujarat"}
+    SUP-04: {name: Konkan Demo Polymers Pvt Ltd, address: "Gala 21, Demo Industrial Estate, Thane, Maharashtra"}
+    SUP-05: {name: Kaveri Demo Starch Products Ltd, address: "Plot 3, Demo Phase 2, Bengaluru, Karnataka"}
+    SUP-06: {name: Indus Demo Foils Pvt Ltd, address: "Survey 55, Demo Road, Daman"}
+    SUP-07: {name: Ganga Demo Films Ltd, address: "Sector 80, Demo Zone, Noida, Uttar Pradesh"}
+    SUP-08: {name: Vindhya Demo Cartons Pvt Ltd, address: "Plot 9, Demo MIDC, Pune, Maharashtra"}
+    SUP-09: {name: Godavari Demo Labs Pvt Ltd, address: "Plot 30, Demo Pharma City, Visakhapatnam, Andhra Pradesh"}
+    SUP-10: {name: Malabar Demo Traders, address: "Demo Market Road, Kochi, Kerala",
+      retire: Supplier disqualified after audit (demo seed - inactive supplier)}
+  material:
+    # starting materials: actives (API-) and excipients (EXC-)
+    API-RAB: {name: Rabeprazole sodium, category: starting, unit: kg, from: [SUP-01]}
+    API-LIB: {name: Libtabine (fictional active of Libtab), category: starting, unit: kg, from: [SUP-09]}
+    API-PCM: {name: Paracetamol, category: starting, unit: kg, from: [SUP-02]}
+    API-MET: {name: Metformin hydrochloride, category: starting, unit: kg, from: [SUP-02, SUP-09]}
+    API-ATV: {name: Atorvastatin calcium, category: starting, unit: kg, from: [SUP-01]}
+    API-AML: {name: Amlodipine besilate, category: starting, unit: kg, from: [SUP-09]}
+    API-CTZ: {name: Cetirizine dihydrochloride, category: starting, unit: kg, from: [SUP-01]}
+    EXC-MCC101: {name: Microcrystalline cellulose PH101, category: starting, unit: kg, from: [SUP-03]}
+    EXC-MCC102: {name: Microcrystalline cellulose PH102, category: starting, unit: kg, from: [SUP-03]}
+    EXC-LAC: {name: Lactose monohydrate, category: starting, unit: kg, from: [SUP-03]}
+    EXC-MAN: {name: Mannitol, category: starting, unit: kg, from: [SUP-03]}
+    EXC-DCP: {name: Dibasic calcium phosphate, category: starting, unit: kg, from: [SUP-03]}
+    EXC-STA: {name: Maize starch, category: starting, unit: kg, from: [SUP-05]}
+    EXC-PGS: {name: Pregelatinised starch, category: starting, unit: kg, from: [SUP-05]}
+    EXC-PVP: {name: Povidone K30, category: starting, unit: kg, from: [SUP-04]}
+    EXC-HPC: {name: Hydroxypropyl cellulose, category: starting, unit: kg, from: [SUP-04]}
+    EXC-CCS: {name: Croscarmellose sodium, category: starting, unit: kg, from: [SUP-03]}
+    EXC-SSG: {name: Sodium starch glycolate, category: starting, unit: kg, from: [SUP-05]}
+    EXC-CPV: {name: Crospovidone, category: starting, unit: kg, from: [SUP-04]}
+    EXC-MGS: {name: Magnesium stearate, category: starting, unit: kg, from: [SUP-03]}
+    EXC-TAL: {name: Purified talc, category: starting, unit: kg, from: [SUP-03, SUP-10]}
+    EXC-SIO: {name: Colloidal silicon dioxide, category: starting, unit: kg, from: [SUP-03]}
+    EXC-MGO: {name: Heavy magnesium oxide, category: starting, unit: kg, from: [SUP-03]}
+    EXC-HPMC: {name: Hypromellose E5, category: starting, unit: kg, from: [SUP-04]}
+    EXC-MAC: {name: Methacrylic acid copolymer type C (enteric), category: starting, unit: kg, from: [SUP-04]}
+    EXC-TEC: {name: Triethyl citrate, category: starting, unit: kg, from: [SUP-04]}
+    EXC-FCW: {name: Film-coating premix white, category: starting, unit: kg, from: [SUP-04]}
+    EXC-FCY: {name: Film-coating premix yellow, category: starting, unit: kg, from: [SUP-04]}
+    EXC-IOX: {name: Iron oxide yellow, category: starting, unit: kg, from: [SUP-04]}
+    # processing aid (evaporates, not in the tablet)
+    SOL-IPA: {name: Isopropyl alcohol, category: other, unit: L, from: [SUP-02]}
+    # packaging materials
+    PKG-ALU-BL: {name: Aluminium blister foil 25 micron, category: packaging, unit: kg, from: [SUP-06]}
+    PKG-ALU-CF: {name: Cold-form aluminium laminate (alu-alu), category: packaging, unit: kg, from: [SUP-06]}
+    PKG-ALU-ST: {name: Aluminium strip foil 40 micron, category: packaging, unit: kg, from: [SUP-06]}
+    PKG-PVC: {name: PVC film 250 micron, category: packaging, unit: kg, from: [SUP-07]}
+    PKG-PVDC: {name: PVC/PVdC film 250/60, category: packaging, unit: kg, from: [SUP-07]}
+    PKG-CTN-RAB: {name: Carton Rabeprazole 20 mg 10 x 10, category: packaging, unit: nos, from: [SUP-08]}
+    PKG-CTN-LIB: {name: Carton Libtab 10 x 10, category: packaging, unit: nos, from: [SUP-08]}
+    PKG-CTN-GEN: {name: Carton general 10 x 10, category: packaging, unit: nos, from: [SUP-08]}
+    PKG-LFT: {name: Patient leaflet, category: packaging, unit: nos, from: [SUP-08]}
+    PKG-SHP: {name: Shipper carton 5 ply, category: packaging, unit: nos, from: [SUP-08]}
+  product:
+    FG-RAB20: {name: Rabeprazole sodium gastro-resistant tablets 20 mg, strength: 20 mg, dosageForm: Gastro-resistant tablet,
+      uses: [API-RAB, EXC-MAN, EXC-MGO, EXC-HPC, EXC-CPV, EXC-MGS, EXC-HPMC, EXC-MAC, EXC-TEC, EXC-TAL, EXC-IOX, PKG-ALU-CF, PKG-CTN-RAB, PKG-LFT, PKG-SHP]}
+    FG-LIB400: {name: Libtab film-coated tablets 400 mg, strength: 400 mg, dosageForm: Film-coated tablet,
+      uses: [API-LIB, EXC-MCC101, EXC-STA, EXC-PVP, EXC-CCS, EXC-MGS, EXC-FCW, PKG-ALU-BL, PKG-PVDC, PKG-CTN-LIB, PKG-SHP]}
+    FG-LIB250: {name: Libtab tablets 250 mg, strength: 250 mg, dosageForm: Tablet,
+      uses: [API-LIB, EXC-MCC102, EXC-DCP, EXC-CCS, EXC-SIO, EXC-MGS, PKG-ALU-ST, PKG-CTN-LIB, PKG-SHP]}
+    FG-PCM500: {name: Paracetamol tablets 500 mg, strength: 500 mg, dosageForm: Tablet,
+      uses: [API-PCM, EXC-STA, EXC-PGS, EXC-PVP, EXC-SSG, EXC-TAL, EXC-MGS, PKG-ALU-ST, PKG-CTN-GEN, PKG-SHP]}
+    FG-MET500: {name: Metformin hydrochloride film-coated tablets 500 mg, strength: 500 mg, dosageForm: Film-coated tablet,
+      uses: [API-MET, EXC-PVP, EXC-MCC101, EXC-MGS, EXC-FCW, SOL-IPA, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
+    FG-ATV10: {name: Atorvastatin calcium film-coated tablets 10 mg, strength: 10 mg, dosageForm: Film-coated tablet,
+      uses: [API-ATV, EXC-LAC, EXC-MCC102, EXC-CCS, EXC-HPC, EXC-MGS, EXC-FCW, PKG-ALU-CF, PKG-CTN-GEN, PKG-LFT, PKG-SHP]}
+    FG-AML5: {name: Amlodipine tablets 5 mg, strength: 5 mg, dosageForm: Tablet,
+      uses: [API-AML, EXC-MCC102, EXC-DCP, EXC-SSG, EXC-MGS, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
+    FG-CTZ10: {name: Cetirizine dihydrochloride film-coated tablets 10 mg, strength: 10 mg, dosageForm: Film-coated tablet,
+      uses: [API-CTZ, EXC-LAC, EXC-MCC101, EXC-SIO, EXC-MGS, EXC-FCY, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
