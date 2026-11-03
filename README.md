@@ -35,7 +35,10 @@ start the containers (`deploy/compose.yml`), check health, and re-apply the prev
 When the server already runs its own Caddy on ports 80 and 443 (e.g. for other sites), set `proxy: external` in the
 config. Apply then starts no platform caddy and publishes core and each licensed product on 127.0.0.1 only, at the fixed
 ports in `deploy/compose.external.yml`. It writes their site blocks to `/var/lib/medhanta/state/Caddyfile.host`.
-- Copy or `import` these blocks into the host Caddyfile, then run `caddy reload` on the host.
+- Copy these blocks into the host Caddyfile, then run `caddy reload` on the host. Don't `import` the file: the state
+  folder is root-only, so the host's Caddy cannot read it.
+- `proxy:` needs a platform `version` that includes this option; an older release refuses the config before changing
+  anything.
 - Go-live, or adding a licence, is an apply followed by a host reload.
 - To roll one product back, comment out that product's block in the host Caddyfile, or replace it with the old app's
   block, then reload. The other host sites are untouched.
