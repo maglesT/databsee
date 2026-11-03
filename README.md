@@ -31,6 +31,18 @@ Secrets (database passwords, OIDC keys) are in `customers/<name>.secrets.yaml.ag
 PL-13), load the products' permissions into the register, switch logins and links (only the differences, each logged with the change reference),
 start the containers (`deploy/compose.yml`), check health, and re-apply the previous config if anything fails (PL-10).
 
+### Behind the host's proxy (`proxy: external`)
+When the server already runs its own Caddy on ports 80 and 443 (e.g. for other sites), set `proxy: external` in the
+config. Apply then starts no platform caddy and publishes core and each licensed product on 127.0.0.1 only, at the fixed
+ports in `deploy/compose.external.yml`. It writes their site blocks to `/var/lib/medhanta/state/Caddyfile.host`.
+- Copy or `import` these blocks into the host Caddyfile, then run `caddy reload` on the host.
+- Go-live, or adding a licence, is an apply followed by a host reload.
+- To roll one product back, comment out that product's block in the host Caddyfile, or replace it with the old app's
+  block, then reload. The other host sites are untouched.
+
+With the default `proxy: caddy`, apply reloads the platform's caddy after every start, so a newly licensed product's
+host is served at once.
+
 ## Backups (PL-11, slice A6b)
 PostgreSQL archives every WAL file (at least every 5 minutes) to `/var/lib/medhanta/archive/wal`. Cron on the server:
 ```

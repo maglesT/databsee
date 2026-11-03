@@ -8,10 +8,11 @@
 // are switched only where they differ from the server, each switch logged in platform.link_log with the config's
 // change reference and reason (PL-02, PL-10). Migrations are additive, so a rollback leaves them in place.
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
+import YAML from 'yaml';
 import { migrate } from '../db/migrate.js';
 import { allProducts, checkConfig, manifest, outsideLogin, productLogin, readYaml, ROOT, STATE, type Config, type Manifest, type Secrets } from './config.js';
 
@@ -186,6 +187,21 @@ export const imageTags = () => Object.fromEntries(allProducts().flatMap((p) => {
   return s ? [[`${p.toUpperCase()}_COMMIT`, s.commit]] : [];
 }));
 
+/** Host port of core or a product with "proxy: external" (deploy/compose.external.yml, 127.0.0.1 only). */
+export function externalPort(service: string): number {
+  const file = YAML.parse(readFileSync(path.join(ROOT, 'deploy/compose.external.yml'), 'utf8')) as { services: Record<string, { ports: string[] }> };
+  const port = file.services[service]?.ports[0]?.match(/^127\.0\.0\.1:(\d+):3000$/)?.[1];
+  if (!port) throw new Error(`deploy/compose.external.yml has no 127.0.0.1 port for ${service}`);
+  return Number(port);
+}
+
+/** Site blocks for core and each licensed product: the platform's caddy (Caddyfile) or the host's proxy (Caddyfile.host). */
+export function caddyfile(config: Config): string {
+  const target = (service: string) => (config.proxy === 'external' ? `127.0.0.1:${externalPort(service)}` : `${service}:3000`);
+  return [`${config.domain} {\n  reverse_proxy ${target('core')}\n}`,
+    ...config.licences.map((p) => `${p}.${config.domain} {\n  reverse_proxy ${target(p)}\n}`)].join('\n') + '\n';
+}
+
 /** Docker Compose runtime: writes each service's settings, starts core, Caddy and the licensed products, removes
  *  the unlicensed ones, and waits until the started services report healthy. */
 export const docker: Runtime = {
@@ -215,13 +231,17 @@ export const docker: Runtime = {
       ...Object.fromEntries(Object.entries(secrets.backup).map(([k, v]) => [`RCLONE_CONFIG_OFFSITE_${k.toUpperCase()}`, v])),
       BACKUP_REMOTE: `offsite:${config.backup.path}`,
     }));
-    write('Caddyfile', [`${config.domain} {\n  reverse_proxy core:3000\n}`,
-      ...config.licences.map((p) => `${p}.${config.domain} {\n  reverse_proxy ${p}:3000\n}`)].join('\n') + '\n');
+    const external = config.proxy === 'external';
+    write(external ? 'Caddyfile.host' : 'Caddyfile', caddyfile(config));
 
-    const compose = (...args: string[]) => execFileSync('docker', ['compose', '-f', path.join(ROOT, 'deploy/compose.yml'), ...args],
+    const files = ['deploy/compose.yml', ...(external ? ['deploy/compose.external.yml'] : [])].flatMap((f) => ['-f', path.join(ROOT, f)]);
+    const compose = (...args: string[]) => execFileSync('docker', ['compose', ...files, ...args],
       { stdio: 'inherit', env: { ...process.env, VERSION: config.version, ...imageTags() } });
     for (const p of allProducts().filter((p) => !config.licences.includes(p))) compose('--profile', p, 'rm', '--stop', '--force', p);
-    compose(...config.licences.flatMap((p) => ['--profile', p]), 'up', '-d', '--wait', 'db', 'core', 'caddy', ...config.licences);
+    if (external) compose('rm', '--stop', '--force', 'caddy');   // the host's proxy owns 80/443
+    compose(...config.licences.flatMap((p) => ['--profile', p]), 'up', '-d', '--wait', 'db', 'core', ...(external ? [] : ['caddy']), ...config.licences);
+    // A running caddy keeps its old config when only the Caddyfile changed: reload it, so a new product's host is served.
+    if (!external) compose('exec', 'caddy', 'caddy', 'reload', '--config', '/etc/caddy/Caddyfile');
     execFileSync(path.join(ROOT, 'deploy/backup.sh'), ['check'], { stdio: 'inherit', env: { ...process.env, MEDHANTA_STATE: STATE } });
   },
 };

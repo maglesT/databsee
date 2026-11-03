@@ -28,6 +28,7 @@ const configSchema = z.object({
   backup: z.object({                                    // off-server copy of the backups (PL-11)
     path: z.string().regex(/^[A-Za-z0-9_./-]+$/),       // folder on the rclone remote, e.g. medhanta-backups/acme
   }),
+  proxy: z.enum(['caddy', 'external']).default('caddy'), // external: the host's own proxy owns 80/443 (compose.external.yml)
   licences: z.array(name).default([]),
   links: reads.default({}),                             // product -> provider database -> views
   outside_logins: reads.default({}),                    // outside system -> provider database -> views
