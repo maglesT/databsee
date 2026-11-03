@@ -19,5 +19,5 @@
     "identity": ["employee_v1"],
     "logbook": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "9a409080718d2497a2f91ae89ab987d4241ae114" }
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "760bd81dd21011ab3d8d27c6ebffc0bbd63794fe" }
 }
