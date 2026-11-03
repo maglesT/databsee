@@ -23,5 +23,5 @@
   ],
   "publishes": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"] },
-  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "5788524bcfe65a15726ffbaf327bae0820f005f2" }
+  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "7b94d41382d52c4b05132134c415b5ea44645dfd" }
 }
