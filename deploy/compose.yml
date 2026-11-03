@@ -89,6 +89,18 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  deviations:                        # Deviations & CAPA, built from its own repo at the commit in apps/deviations/manifest.json (D-42 in that repo)
+    image: medhanta/deviations:${DEVIATIONS_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [deviations]
+    command: ["node", "dist/server/index.js"]   # apply.ts runs its migrations as deviations_owner
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/deviations.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   recruitment:                       # Recruitment, built from its own repo at the commit in apps/recruitment/manifest.json (D-74 in that repo)
     image: medhanta/recruitment:${RECRUITMENT_COMMIT:-none}
     restart: unless-stopped

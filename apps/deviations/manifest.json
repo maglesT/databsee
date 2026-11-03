@@ -1,0 +1,23 @@
+{
+  "product": "deviations",
+  "database": "deviations",
+  "permissions": [
+    {"code": "deviations.deviation.report", "label": "Report deviations and correct your own reports"},
+    {"code": "deviations.deviation.classify", "label": "Classify, assign the investigator, set and change target dates"},
+    {"code": "deviations.deviation.approve", "label": "Approve or reject planned deviations (e-signature)"},
+    {"code": "deviations.investigation.write", "label": "Investigate deviations assigned to you, attachments, fetch related data, AI suggestions"},
+    {"code": "deviations.qa.oversee", "label": "Act on any deviation's investigation, report, attachments or CAPA, not only your own"},
+    {"code": "deviations.deviation.close", "label": "Close and reopen deviations (e-signature)"},
+    {"code": "deviations.capa.raise", "label": "Raise CAPAs, correct them, change due dates"},
+    {"code": "deviations.capa.complete", "label": "Mark CAPAs you own as done"},
+    {"code": "deviations.capa.verify", "label": "Verify CAPAs and record effectiveness checks (e-signature)"},
+    {"code": "deviations.audit.read", "label": "Read the audit trail, run the integrity check"},
+    {"code": "deviations.settings.manage", "label": "Edit site settings, areas and deviation types"}
+  ],
+  "publishes": ["capa_v1"],
+  "reads": {
+    "identity": ["employee_v1"],
+    "logbook": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1"]
+  },
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "9a409080718d2497a2f91ae89ab987d4241ae114" }
+}
