@@ -21,7 +21,7 @@ links:                            # product -> provider database -> published vi
   # mms: { master_data: [material_v1, supplier_v1, product_v1, room_v1] }   # Material Management
   # qms: { master_data: [product_v1, supplier_v1], deviations: [capa_v1] }   # QMS (deviations once Deviations is licensed)
   # qual: { master_data: [equipment_v1, instrument_v1, room_v1] }   # Qualification Protocols
-  # deviations: { identity: [employee_v1], logbook: [equipment_v1, entry_v1, calibration_v1, logbook_sop_v1] }   # Deviations & CAPA (Batchwright link off until Batchwright moves)
+  # deviations: { identity: [employee_v1], logbook: [equipment_v1, entry_v1, calibration_v1, logbook_sop_v1], ebmr: [batch_fact_v1, step_use_v1, cpp_value_v1, exception_v1, alarm_v1, batch_reference_v1, equipment_use_v1, ipc_result_v1, process_actual_v1, exception_detail_v1] }   # Deviations & CAPA
   # recruitment: { identity: [employee_v1] }   # Recruitment (staff directory for the write-time check)
   # ops: { master_data: [equipment_v1, product_v1], logbook: [equipment_v1, entry_v1] }   # Operations (logbook only when licensed)
   # ebmr: { master_data: [equipment_v1, instrument_v1, room_v1, material_v1, product_v1] }   # Batchwright (Tablets eBMR) at https://ebmr.<domain>
