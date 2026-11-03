@@ -399,3 +399,36 @@ describe('Recruitment, a product kept in its own repo (Recruitment D-74)', () =>
     expect(imageTags().RECRUITMENT_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });
+
+describe('Operations, a product kept in its own repo (Operations D-19)', () => {
+  const ops = {
+    ...base, licences: ['hello', 'ops'],
+    links: { hello: { master_data: ['equipment_v1'] }, ops: { master_data: ['equipment_v1', 'product_v1'] } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, ops_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, ops: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Operations offers its 11 permission codes, all its own', () => {
+    const m = manifest('ops');
+    expect(m.permissions).toHaveLength(11);
+    expect(m.permissions.every((p) => p.code.startsWith('ops.'))).toBe(true);
+  });
+
+  it('PL-08 Operations gets its own database, the master data of its link and sign-on; the Logbook only when licensed and linked', () => {
+    const { config, secrets: s } = checkConfig(ops, raw);
+    const env = productEnv(config, s!, 'ops');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'OPS_DATABASE_URL']);
+    expect(env.OPS_DATABASE_URL).toMatch(/^postgres:\/\/ops_app:.*@db:5432\/ops$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://ops.ci.example/cb');
+    expect(() => checkConfig({ ...ops, links: { ...ops.links, ops: { ...ops.links.ops, logbook: ['equipment_v1', 'entry_v1'] } } }, raw))
+      .toThrow(/link ops -> logbook: provider is not licensed/);
+  });
+
+  it('PL-10 its image is pinned to a full commit', () => {
+    expect(imageTags().OPS_COMMIT).toBe(manifest('ops').source!.commit);
+    expect(imageTags().OPS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});

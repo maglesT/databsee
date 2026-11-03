@@ -22,6 +22,7 @@ links:                            # product -> provider database -> published vi
   # qual: { master_data: [equipment_v1, instrument_v1, room_v1] }   # Qualification Protocols
   # deviations: { identity: [employee_v1], logbook: [equipment_v1, entry_v1, calibration_v1, logbook_sop_v1] }   # Deviations & CAPA (Batchwright link off until Batchwright moves)
   # recruitment: { identity: [employee_v1] }   # Recruitment (staff directory for the write-time check)
+  # ops: { master_data: [equipment_v1, product_v1], logbook: [equipment_v1, entry_v1] }   # Operations (logbook only when licensed)
   hello:
     master_data: [equipment_v1]
 outside_logins: {}                # outside system -> provider database -> views, e.g. sap: {materials: [material_v1]}

@@ -113,6 +113,25 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  ops:                               # Operations / OEE, built from its own repo at the commit in apps/ops/manifest.json (D-19 in that repo)
+    image: medhanta/ops:${OPS_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      ops-ml: { condition: service_started }
+    profiles: [ops]
+    command: ["node", "dist/server/index.js"]   # apply.ts runs its migrations as ops_owner
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/ops.env
+    environment: { PORT: "3000", ML_URL: "http://ops-ml:8000" }
+    networks: [default, ops-ml]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+  ops-ml:                            # Operations' ML worker (its D-08): internal network only, no database, no internet
+    image: medhanta/ops-ml:${OPS_COMMIT:-none}
+    restart: unless-stopped
+    profiles: [ops]
+    networks: [ops-ml]
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped
@@ -126,6 +145,8 @@ services:
 secrets:
   pg_superuser:
     file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/pg_superuser
+networks:
+  ops-ml: { internal: true }
 volumes:
   pgdata:
   caddy:

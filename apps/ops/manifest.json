@@ -1,0 +1,23 @@
+{
+  "product": "ops",
+  "database": "ops",
+  "permissions": [
+    {"code": "ops.data.read", "label": "See OEE, losses, parameters, suggestions and forecasts"},
+    {"code": "ops.entry.write", "label": "Enter, correct and delete runs, stops and parameter values"},
+    {"code": "ops.entry.correct_any", "label": "Correct runs, stops and values entered by others"},
+    {"code": "ops.import.run", "label": "Import CSV files"},
+    {"code": "ops.masterdata.edit", "label": "Edit machine and product settings, ideal rates and planned hours"},
+    {"code": "ops.link.refresh", "label": "Refresh from the Logbook and Batchwright"},
+    {"code": "ops.parameter.approve", "label": "Set approved parameter ranges and see batch-record limits"},
+    {"code": "ops.golden.exclude", "label": "Exclude batches from the golden reference"},
+    {"code": "ops.model.train", "label": "Train models and forecasts"},
+    {"code": "ops.audit.read", "label": "Read the audit trail"},
+    {"code": "ops.site.edit", "label": "Edit the site name and time zone"}
+  ],
+  "publishes": [],
+  "reads": {
+    "master_data": ["equipment_v1", "product_v1"],
+    "logbook": ["equipment_v1", "entry_v1"]
+  },
+  "source": { "repo": "https://github.com/maglesT/operations", "commit": "e1734df6e38be74dc60247984dd498f811c76d9f" }
+}
