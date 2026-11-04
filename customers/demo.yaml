@@ -8,7 +8,7 @@ security_contact: it-security@demo-pharma.example
 backup:
   path: medhanta-backups/demo-rehearsal # separate Drive folder, deleted with the demo
 change_ref: MED-GOLIVE-001
-reason: "Rehearsal: licence switch test (on)" #99) before the Batchwright move rehearsal
+reason: "Rehearsal: link test (on)" #99) before the Batchwright move rehearsal
 proxy: external # the host's Caddy owns 80/443 (README "Behind the host's proxy")
 db_port: 5440 # 127.0.0.1:5432 is the standalone Batchwright PostgreSQL on this server (D-18)
 licences:
@@ -83,4 +83,7 @@ links:
       - room_v1
       - material_v1
       - product_v1
+  recruitment:
+    identity:
+      - employee_v1
 outside_logins: {}
