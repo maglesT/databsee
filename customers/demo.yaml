@@ -1,14 +1,14 @@
 # Demo company (DEMO-ONLY, docs/demo-company.md): rehearsal of the go-live on the owner's server, test address only.
 # Removed completely after the rehearsal (owner's go-live plan, Phase 1); nothing of it goes into the real install.
 customer: demo
-version: 1.0.1                    # platform release (D-18 db_port)
+version: 1.0.2                    # platform release (D-18 db_port; ops D-20)
 domain: demo.187-126-126-5.sslip.io   # test name, NOT the go-live one
 offline: true                     # signed bundle downloaded from the apply run and applied by hand (no SSH from GitHub)
 security_contact: it-security@demo-pharma.example
 backup:
   path: medhanta-backups/demo-rehearsal   # separate Drive folder, deleted with the demo
 change_ref: MED-GOLIVE-001
-reason: Go-live rehearsal with the demo company (Phase 1), all 8 products licensed with their links
+reason: Go-live rehearsal (Phase 1), all 8 products; v1.0.2 = Operations fix (any Operations right includes reading, ops D-20)
 proxy: external                   # the host's Caddy owns 80/443 (README "Behind the host's proxy")
 db_port: 5440                     # 127.0.0.1:5432 is the standalone Batchwright PostgreSQL on this server (D-18)
 licences: [logbook, mms, qms, qual, deviations, recruitment, ops, ebmr]
