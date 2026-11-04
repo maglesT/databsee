@@ -19,7 +19,7 @@ services:
     command: ["node_modules/.bin/tsx", "apps/control-panel/index.ts"]
     env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/control-panel.env
     environment: { PORT: "3000" }
-    ports: ["127.0.0.1:3010:3000"]
+    ports: ["127.0.0.1:${CONTROL_PANEL_PORT:-3010}:3000"]   # CONTROL_PANEL_PORT where 3010 is taken (D-19)
     depends_on:
       db: { condition: service_healthy }
 secrets:
