@@ -171,9 +171,16 @@ describe('PL-01 the permission catalogue comes from the licensed manifests', () 
     expect(await id`select code from current_permission_grant where employee_id = ${holder}`).toEqual([]);
     expect(await id`select granted, reason from permission_grant where employee_id = ${holder} order by id`)
       .toEqual([{ granted: true, reason: 'test' }, { granted: false, reason: `permission removed from ${p} (CC-P2: b dropped)` }]);
-    // A product no longer licensed has all its codes withdrawn (core is never withdrawn).
+    // D-21: a product no longer licensed keeps its codes and its people's grants (dormant), and gets them back as they
+    // were when it is licensed again: nothing is written either way.
+    const holderA = await makeEmployee(`probea${run}`, [`${p}.a.do`]);
+    const off = await events();
     await loadPermissions(id, [manifest('hello')], 'CC-P3: licence off');
-    expect(await id`select code from current_permission where product = ${p}`).toEqual([]);
+    expect(await id`select code from current_permission where product = ${p}`).toEqual([{ code: `${p}.a.do` }]);
+    expect(await id`select code from current_permission_grant where employee_id = ${holderA}`).toEqual([{ code: `${p}.a.do` }]);
+    await loadPermissions(id, [manifest('hello'), m([{ code: `${p}.a.do`, label: 'A renamed' }])], 'CC-P4: licence on');
+    expect(await events()).toBe(off);
+    expect(await id`select code from current_permission_grant where employee_id = ${holderA}`).toEqual([{ code: `${p}.a.do` }]);
     expect((await id`select count(*)::int as n from current_permission where product = 'core'`)[0]!.n).toBe(3);
     await id.end();
   });
