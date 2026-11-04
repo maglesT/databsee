@@ -1,12 +1,12 @@
 // Slice A6: the customer config file and apply (PL-10), migration data checks (PL-13).
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
-import { applyConfig, caddyfile, externalPort, imageTags, loadPermissions, productEnv, type Runtime } from '../deploy/apply.js';
-import { allProducts, checkConfig, checkManifest, manifest, type Manifest } from '../deploy/config.js';
+import { applyConfig, caddyfile, dbPortEnv, externalPort, imageTags, loadPermissions, productEnv, type Runtime } from '../deploy/apply.js';
+import { allProducts, checkConfig, checkManifest, manifest, ROOT, type Manifest } from '../deploy/config.js';
 import { enableLogin, sqlstate } from './db.js';
 import { makeEmployee, run } from './core.js';
 
@@ -72,6 +72,17 @@ describe('PL-10 changes only through the config file, with change reference, tes
     // Every product has its own fixed host port (a product without one could not be licensed with proxy: external).
     const ports = ['core', ...allProducts()].map(externalPort);
     expect(new Set(ports).size).toBe(ports.length);
+  });
+
+  it('PL-10 the database host port is set in the config (default 5432), for a host where another PostgreSQL owns 5432', () => {
+    expect(A.db_port).toBe(5432);
+    const moved = check({ ...base, db_port: 5440 }).config;
+    expect(moved.db_port).toBe(5440);
+    expect(dbPortEnv(moved)).toBe('MEDHANTA_PG_PORT=5440\n');
+    expect(() => check({ ...base, db_port: 80 })).toThrow();
+    expect(() => check({ ...base, db_port: '5440' })).toThrow();
+    // compose publishes the database on 127.0.0.1 only, at that port.
+    expect(readFileSync(path.join(ROOT, 'deploy/compose.yml'), 'utf8')).toContain('"127.0.0.1:${MEDHANTA_PG_PORT:-5432}:5432"');
   });
 
   it('PL-10 licence on: login with its secret password, permissions loaded, links on and logged with the change reference', async () => {

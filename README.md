@@ -40,6 +40,9 @@ ports in `deploy/compose.external.yml`. It writes their site blocks to `/var/lib
 - `proxy:` needs a platform `version` that includes this option; an older release refuses the config before changing
   anything.
 - Go-live, or adding a licence, is an apply followed by a host reload.
+- The platform database is published on 127.0.0.1 only, at port 5432. If another PostgreSQL on the host owns 5432,
+  set `db_port` (e.g. `db_port: 5440`) in the config: apply connects there and writes it to `deploy/.env`, so compose
+  commands run from the release (including the runbooks' manual ones) use the same port (D-18).
 - To roll one product back, comment out that product's block in the host Caddyfile, or replace it with the old app's
   block, then reload. The other host sites are untouched.
 

@@ -15,6 +15,7 @@ reason: First installation
 # A new product (docs/05-add-a-product.md): add its name to licences, its links under links (views from its manifest
 # "reads"), and its login password and OIDC client secret to the secrets (template: example.secrets.template.yaml).
 # proxy: external                # the host already runs its own proxy on 80/443 (README "Behind the host's proxy")
+# db_port: 5440                  # host port of the platform database (127.0.0.1 only) if another PostgreSQL owns 5432 (D-18)
 licences: [hello]                 # licensed products; all others are off (login off, containers stopped)
 links:                            # product -> provider database -> published views it reads
   # logbook: { master_data: [equipment_v1, instrument_v1, room_v1, product_v1] }   # Pharma Logbook (D-29)

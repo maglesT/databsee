@@ -29,6 +29,7 @@ const configSchema = z.object({
     path: z.string().regex(/^[A-Za-z0-9_./-]+$/),       // folder on the rclone remote, e.g. medhanta-backups/acme
   }),
   proxy: z.enum(['caddy', 'external']).default('caddy'), // external: the host's own proxy owns 80/443 (compose.external.yml)
+  db_port: z.number().int().min(1024).max(65535).default(5432), // host port of the database server, 127.0.0.1 only (D-18)
   licences: z.array(name).default([]),
   links: reads.default({}),                             // product -> provider database -> views
   outside_logins: reads.default({}),                    // outside system -> provider database -> views

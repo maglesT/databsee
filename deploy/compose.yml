@@ -31,7 +31,7 @@ services:
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
     secrets: [pg_superuser]
-    ports: ["127.0.0.1:5432:5432"]   # for apply.ts on the host only
+    ports: ["127.0.0.1:${MEDHANTA_PG_PORT:-5432}:5432"]   # for apply.ts on the host only; db_port in the config (D-18)
     volumes:
       - pgdata:/var/lib/postgresql/data
       - /var/lib/medhanta/archive:/archive
