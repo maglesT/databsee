@@ -13,7 +13,8 @@ people:
     dept: IT
     codes: [core.people.manage, core.masterdata.edit, core.masterdata.view,
       ebmr.continuity.alarm_acknowledge, ebmr.continuity.hardening_attest, ebmr.platform.operate,
-      ebmr.platform.time_source_manage, ebmr.record.read, ebmr.support.grant_request, ebmr.system.configure]
+      ebmr.platform.time_source_manage, ebmr.record.read, ebmr.support.grant_request, ebmr.system.configure,
+      ebmr.iam.device_manage]
   qa.head:   # D-30: identity admin who also holds QA signing codes
     name: Kavita Rao
     dept: QA
