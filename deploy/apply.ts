@@ -201,6 +201,9 @@ export const imageTags = () => Object.fromEntries(allProducts().flatMap((p) => {
   return s ? [[`${p.toUpperCase()}_COMMIT`, s.commit]] : [];
 }));
 
+/** deploy/.env: compose reads it from the folder of its first file, so manual compose commands get the same db port (D-18). */
+export const dbPortEnv = (config: Config) => `MEDHANTA_PG_PORT=${config.db_port}\n`;
+
 /** Host port of core or a product with "proxy: external" (deploy/compose.external.yml, 127.0.0.1 only). */
 export function externalPort(service: string): number {
   const file = YAML.parse(readFileSync(path.join(ROOT, 'deploy/compose.external.yml'), 'utf8')) as { services: Record<string, { ports: string[] }> };
@@ -279,6 +282,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (!configFile || !secretsFile) throw new Error('usage: tsx deploy/apply.ts customers/<name>.yaml <secrets.yaml>');
   const { config, secrets } = checkConfig(readYaml(configFile), readYaml(secretsFile));
   process.env.PGPASSWORD ??= secrets!.logins.postgres;
+  // D-18: the database server's host port (another PostgreSQL on the host may own 5432). deploy/.env carries it to
+  // every compose command run from this release, including the runbooks' manual ones.
+  process.env.PGPORT ??= String(config.db_port);
+  process.env.MEDHANTA_PG_PORT = String(config.db_port);
+  writeFileSync(path.join(ROOT, 'deploy/.env'), dbPortEnv(config));
   // The database runs first: everything else is applied through it.
   mkdirSync(STATE, { recursive: true, mode: 0o700 });
   writeFileSync(path.join(STATE, 'pg_superuser'), secrets!.logins.postgres ?? '', { mode: 0o600 });

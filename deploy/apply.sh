@@ -44,5 +44,6 @@ cd "$here"
 secrets=$MEDHANTA_STATE/secrets.yaml
 trap 'rm -f "$secrets"' EXIT
 age -d -i "${AGE_KEY_FILE:-/etc/medhanta/age.key}" -o "$secrets" "${config%.yaml}.secrets.yaml.age"
-export PGHOST=${PGHOST:-127.0.0.1} PGPORT=${PGPORT:-5432} PGUSER=${PGUSER:-postgres}
+# PGPORT: the config's db_port unless given here (apply.ts, D-18).
+export PGHOST=${PGHOST:-127.0.0.1} PGUSER=${PGUSER:-postgres}
 node_modules/.bin/tsx deploy/apply.ts "$config" "$secrets"
