@@ -145,7 +145,7 @@
   ],
   "publishes": ["batch_fact_v1", "step_use_v1", "cpp_value_v1", "exception_v1", "alarm_v1", "batch_reference_v1", "equipment_use_v1", "ipc_result_v1", "process_actual_v1", "exception_detail_v1"],
   "reads": {"master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"]},
-  "source": {"repo": "https://github.com/maglesT/ebmr", "commit": "081ffde0cbb2578cf17852e7bd7906ff0143b4e9"},
+  "source": {"repo": "https://github.com/maglesT/ebmr", "commit": "ffa0289df5410485fc18e6891874852bc658c8f2"},
   "migrate": "own",
   "logins": ["ebmr_authn", "ebmr_analytics", "ebmr_listener", "ebmr_report", "ebmr_sandbox", "ebmr_sandbox_listener"]
 }
