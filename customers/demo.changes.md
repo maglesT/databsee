@@ -1,0 +1,12 @@
+# Infrastructure change log: demo (go-live rehearsal, DEMO-ONLY)
+
+Every change to this customer's host, operating system, PostgreSQL or Docker (PL-10). Config and release changes are
+recorded by the Git history of `demo.yaml` and the apply runs; they are not repeated here. Times are UTC.
+Server: 187.126.126.5 (Hostinger KVM 8, Ubuntu 24.04.5), shared with the standalone apps (owner's go-live plan).
+
+| Date | Change | Customer change reference | Tested how | By |
+|---|---|---|---|---|
+| 2026-11-04 08:39 | Phase 0: jq 1.7 and yq installed (apt); Docker 29.1.3 / Compose 2.40.3, Node 22.23.3, age 1.1.1, rclone 1.60.1, openssh already present; ufw allows only 22, 80, 443 | MED-GOLIVE-001 | `jq --version`, `yq -r .version customers/example.yaml`, `ufw status` | Claude (server admin session) for the owner |
+| 2026-11-04 08:39 | Phase 0: server age key `/etc/medhanta/age.key` (600), public age1m3pxw83mll2sxns0k7f9axrwy3yllt5ahdsggj2phvhvsd04538snj6mxx; release signing key "medhanta-release" made, public key in `/etc/medhanta/allowed_signers`, private key added by the owner as GitHub secret BUNDLE_SIGNING_KEY (Environment `production`, main only) | MED-GOLIVE-001 | `age-keygen -y`, `cat allowed_signers`; signature checked by the first bundle | Claude; owner (GitHub) |
+| 2026-11-04 08:50 | Phase 0: GitHub secret PRODUCT_SOURCE_TOKEN (fine-grained, contents read-only, 8 product repos); offline site (`offline: true`), so no DEPLOY_SSH_KEY and no deploy user | MED-GOLIVE-001 | apply run builds the bundle | owner |
+| 2026-11-04 09:00 | Platform release v1.0.1 (D-18): database host port as config `db_port`; this server uses 5440 because 127.0.0.1:5432 is the standalone Batchwright PostgreSQL | MED-GOLIVE-001 | 117/118 tests on postgres:17.11 (PL-11 restore test needs /root access as user postgres: also fails on v1.0.0 here), compose config shows 127.0.0.1:5440 | Claude (PR #50); owner merged and released |
