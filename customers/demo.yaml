@@ -1,0 +1,24 @@
+# Demo company (DEMO-ONLY, docs/demo-company.md): rehearsal of the go-live on the owner's server, test address only.
+# Removed completely after the rehearsal (owner's go-live plan, Phase 1); nothing of it goes into the real install.
+customer: demo
+version: 1.0.1                    # platform release (D-18 db_port)
+domain: demo.187-126-126-5.sslip.io   # test name, NOT the go-live one
+offline: true                     # signed bundle downloaded from the apply run and applied by hand (no SSH from GitHub)
+security_contact: it-security@demo-pharma.example
+backup:
+  path: medhanta-backups/demo-rehearsal   # separate Drive folder, deleted with the demo
+change_ref: MED-GOLIVE-001
+reason: Go-live rehearsal with the demo company (Phase 1), all 8 products licensed with their links
+proxy: external                   # the host's Caddy owns 80/443 (README "Behind the host's proxy")
+db_port: 5440                     # 127.0.0.1:5432 is the standalone Batchwright PostgreSQL on this server (D-18)
+licences: [logbook, mms, qms, qual, deviations, recruitment, ops, ebmr]
+links:                            # every commented line of customers/example.yaml
+  logbook: { master_data: [equipment_v1, instrument_v1, room_v1, product_v1] }   # Pharma Logbook (D-29)
+  mms: { master_data: [material_v1, supplier_v1, product_v1, room_v1] }   # Material Management
+  qms: { master_data: [product_v1, supplier_v1], deviations: [capa_v1] }   # QMS (deviations once Deviations is licensed)
+  qual: { master_data: [equipment_v1, instrument_v1, room_v1] }   # Qualification Protocols
+  deviations: { identity: [employee_v1], logbook: [equipment_v1, entry_v1, calibration_v1, logbook_sop_v1], ebmr: [batch_fact_v1, step_use_v1, cpp_value_v1, exception_v1, alarm_v1, batch_reference_v1, equipment_use_v1, ipc_result_v1, process_actual_v1, exception_detail_v1] }   # Deviations & CAPA
+  recruitment: { identity: [employee_v1] }   # Recruitment (staff directory for the write-time check)
+  ops: { master_data: [equipment_v1, product_v1], logbook: [equipment_v1, entry_v1], ebmr: [batch_fact_v1, step_use_v1, cpp_value_v1, process_actual_v1, ipc_result_v1] }   # Operations (logbook, ebmr only when licensed)
+  ebmr: { master_data: [equipment_v1, instrument_v1, room_v1, material_v1, product_v1] }   # Batchwright (Tablets eBMR) at https://ebmr.<domain>
+outside_logins: {}
