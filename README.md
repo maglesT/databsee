@@ -96,7 +96,8 @@ each switch's apply result. The customer files stay the only source of truth; th
 Setup: `docker compose -f deploy/control-panel.yml up -d db`, then `db/server/init.sh control_panel` and
 `tsx db/migrate.ts control_panel` against it, then start `panel`. `control-panel.env` holds `CONTROL_PANEL_DATABASE_URL`,
 `GITHUB_REPO=maglesT/databsee`, `GITHUB_TOKEN` (fine-grained, contents read/write and actions read on this repo only) and
-`CONTROL_PANEL_USERS='owner:<hash>'` (single quotes: the hash contains $; hash from `tsx apps/control-panel/index.ts hash-password`). Serve it over HTTPS only.
+`CONTROL_PANEL_USERS='owner:<hash>'` (single quotes: the hash contains $; hash from `tsx apps/control-panel/index.ts hash-password`). Serve it over HTTPS only. Where another app owns 127.0.0.1:3010, run its compose commands with
+`CONTROL_PANEL_PORT=<free port>` (D-19).
 
 ## Access review and adding products (slice A9)
 - **Access review report** (PL-12): core, People screen, "access review report" (identity administrators). It is one
