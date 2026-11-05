@@ -52,6 +52,8 @@ describe('PL-06 audit trail of master data', () => {
     await add('room', code('R1'), 'Granulation room');
     expect((await editor.call('POST', '/api/items', { kind: 'room', code: code('R1'), name: 'Other', reason: 'r' })).statusCode).toBe(409);
     expect((await editor.call('POST', '/api/items', { kind: 'material', code: code('M0'), name: 'No unit', fields: { category: 'starting' }, reason: 'r' })).statusCode).toBe(400);
+    await add('material', code('MI'), 'Granulate intermediate', { category: 'intermediate', unit: 'kg' });
+    expect((await editor.call('POST', '/api/items', { kind: 'material', code: code('MX'), name: 'Bad category', fields: { category: 'bulk', unit: 'kg' }, reason: 'r' })).statusCode).toBe(400);
     expect((await editor.call('POST', '/api/items', { kind: 'room', code: code('R9'), name: 'x', fields: { colour: 'red' }, reason: 'r' })).statusCode).toBe(400);
   });
 

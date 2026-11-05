@@ -46,7 +46,7 @@ function FieldInputs({ kind, values = {} }: { kind: Kind; values?: Record<string
           <label key={name}><input type="checkbox" name={name} defaultChecked={Boolean(values[name])} style={{ display: 'inline', width: 'auto' }} /> {label}</label>
         ) : input === 'category' ? (
           <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? 'starting')}>
-            <option value="starting">Starting material</option><option value="packaging">Packaging material</option><option value="other">Other</option>
+            <option value="starting">Starting material</option><option value="packaging">Packaging material</option><option value="intermediate">Intermediate</option><option value="other">Other</option>
           </select></label>
         ) : (
           <label key={name}>{label}<input name={name} defaultValue={String(values[name] ?? '')} /></label>
