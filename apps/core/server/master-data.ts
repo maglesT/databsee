@@ -13,7 +13,7 @@ export const FIELDS = {
   equipment: z.object({ type: text, make: text, model: text, serial: text }).strict(),
   instrument: z.object({ type: text, make: text, model: text, serial: text, needsCalibration: z.boolean().optional() }).strict(),
   room: z.object({ area: text, grade: text }).strict(),
-  material: z.object({ category: z.enum(['starting', 'packaging', 'other']), unit: z.string().trim().min(1, 'Unit is required.').max(20) }).strict(),
+  material: z.object({ category: z.enum(['starting', 'packaging', 'intermediate', 'other']), unit: z.string().trim().min(1, 'Unit is required.').max(20) }).strict(),
   supplier: z.object({ address: text }).strict(),
   product: z.object({ strength: text, dosageForm: text }).strict(),
 };
