@@ -12,6 +12,7 @@ import type { SendMail } from './mail.js';
 import { hashPassword, passwordProblem, temporaryPassword, verifyPassword } from './passwords.js';
 import { buildProvider, type OidcSettings } from './oidc.js';
 import { registerMasterData } from './master-data.js';
+import { productInfo } from '../products.js';
 
 export interface Deps {
   sql: Sql;
@@ -134,24 +135,36 @@ async function setOwnPassword(sql: Sql, me: { id: string; login: string; fullNam
 
 const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-/** The sign-in page a product sends people to (server-rendered: works without JavaScript). */
+/** The sign-in page a product sends people to (server-rendered: works without JavaScript), in the Medhanta look. */
 function signInPage(product: string, uid: string, o: { error?: string; login?: string; change?: boolean; reauth?: boolean }) {
-  const field = (label: string, name: string, type: string, value = '') =>
-    `<label>${label}<input name="${name}" type="${type}" value="${esc(value)}" required></label>`;
+  const field = (label: string, name: string, type: string, value = '', auto = '') =>
+    `<label>${label}<input name="${name}" type="${type}" value="${esc(value)}"${auto ? ` autocomplete="${auto}"` : ''} required></label>`;
+  const p = productInfo(product);
+  const title = o.reauth ? 'Confirm it is you' : o.change ? 'Choose a new password' : `Sign in to ${p.name}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in - Medhanta</title><style>
-body{margin:0;font-family:system-ui,sans-serif;background:#f7f8fa;color:#1d2330}form{max-width:360px;margin:60px auto;background:#fff;border:1px solid #e3e6ec;border-radius:8px;padding:20px}
-label{display:block;margin:10px 0;font-size:14px}input{display:block;width:100%;box-sizing:border-box;padding:7px;margin-top:4px;border:1px solid #e3e6ec;border-radius:6px;font:inherit}
-button{margin-top:8px;padding:7px 14px;border-radius:6px;border:0;background:#2457c5;color:#fff;font:inherit}.e{color:#b42318}.m{color:#667085;font-size:14px}</style></head><body>
+<title>${esc(title)} - Medhanta</title><link rel="icon" type="image/png" href="/favicon.png"><style>
+:root{--brand:#e8500f;--brand-dark:#c8410a;--grey:#5f5f5f;--muted:#666b73;--line:#d9d3ce;--bad:#c0352b;--grad:linear-gradient(90deg,#dd1a10,#f4511e 55%,#f7941d)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;background:#faf8f6;color:#2b2b2b;-webkit-font-smoothing:antialiased}
+main{max-width:420px;margin:0 auto;padding:7vh 20px 40px;text-align:center}.logo{width:250px;max-width:80%;height:auto}
+form{text-align:left;background:#fff;border:1px solid #ebe7e4;border-radius:12px;padding:22px;margin-top:10px;box-shadow:0 1px 2px rgba(60,40,30,.05),0 4px 14px rgba(60,40,30,.06);position:relative;overflow:hidden}
+form::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:var(--grad)}
+.for{margin:0 0 2px;color:var(--brand);font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}h1{font-size:1.35rem;margin:0 0 6px}
+label{display:grid;gap:5px;margin:12px 0;color:var(--muted);font-size:.88rem;font-weight:500}
+input{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px}input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(232,80,15,.18)}
+button{width:100%;margin-top:10px;padding:11px 16px;border-radius:8px;border:0;background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer}button:hover{background:var(--brand-dark)}
+.e{color:var(--bad);font-weight:500}.m{color:var(--muted);font-size:.9rem;margin:4px 0}footer{margin-top:16px;color:var(--muted);font-size:.8rem}</style></head><body><main>
+<img class="logo" src="/medhanta-logo.png" alt="Medhanta: Where Expertise Meets Intelligence">
 <form method="post" action="/interaction/${esc(uid)}/login">
-<h2>Sign in to ${esc(product)}</h2>
+<p class="for">${esc(p.name)}</p>
+<h1>${esc(title)}</h1>
 ${o.reauth ? '<p class="m">Enter your password again to confirm it is you.</p>' : ''}
 ${o.change ? '<p class="m">Your password is temporary or has expired. Choose a new one (at least 10 characters).</p>' : ''}
-${field('Login ID', 'login', 'text', o.login)}
-${field(o.change ? 'Current password' : 'Password', 'password', 'password')}
-${o.change ? field('New password', 'next', 'password') + field('New password again', 'repeat', 'password') : ''}
+${field('Login ID', 'login', 'text', o.login, 'username')}
+${field(o.change ? 'Current password' : 'Password', 'password', 'password', '', 'current-password')}
+${o.change ? field('New password', 'next', 'password', '', 'new-password') + field('New password again', 'repeat', 'password', '', 'new-password') : ''}
 ${o.error ? `<p class="e" role="alert">${esc(o.error)}</p>` : ''}
-<button>${o.change ? 'Change password and sign in' : 'Sign in'}</button></form></body></html>`;
+<button>${o.change ? 'Change password and sign in' : o.reauth ? 'Confirm' : 'Sign in'}</button></form>
+<footer>One Medhanta login for every application.</footer></main></body></html>`;
 }
 
 export function csv(rows: Record<string, unknown>[]): string {
@@ -220,6 +233,19 @@ export function buildApp(deps: Deps) {
   });
 
   app.get('/api/me', async (req) => req.me);
+
+  // "Your applications": the products this person holds at least one permission in and that sign on through core here
+  // (an OIDC client of this site), with the address to open. Core itself is not listed: its screens are in the menu.
+  app.get('/api/my-apps', async (req) => {
+    const clients = deps.oidc?.clients ?? [];
+    if (!clients.length) return [];
+    const held = new Set((await sql<{ product: string }[]>`
+      select distinct product from current_permission_grant where employee_id = ${req.me!.id} and product <> 'core'`).map((r) => r.product));
+    return clients
+      .filter((c) => held.has(c.client_id) && c.redirect_uris[0])
+      .map((c) => ({ product: c.client_id, url: new URL(c.redirect_uris[0]!).origin + '/' }))
+      .sort((a, b) => a.product.localeCompare(b.product));
+  });
 
   app.post('/api/me/password', async (req) => {
     const me = req.me!;

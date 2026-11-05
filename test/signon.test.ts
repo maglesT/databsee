@@ -131,6 +131,19 @@ describe('PL-01 single sign-on gives each product only its own permissions', () 
     expect(renewal.body.error).toBe('invalid_grant');
   });
 
+  it('PL-01 Your applications lists only the products the person holds a permission in, with the address to open', async () => {
+    const apps = async (login: string) => {
+      const res = await app.inject({ method: 'POST', url: '/api/login', payload: { login, password: PASSWORD } });
+      const cookies = Object.fromEntries(res.cookies.map((c) => [c.name, c.value]));
+      return (await app.inject({ method: 'GET', url: '/api/my-apps', cookies })).json();
+    };
+    await makeEmployee(`apps${run}`, ['core.people.manage', 'hello.note.read']);
+    await makeEmployee(`noapps${run}`, ['core.people.manage']);
+    expect(await apps(`apps${run}`)).toEqual([{ product: 'hello', url: 'https://hello.test/' }]);
+    expect(await apps(`noapps${run}`)).toEqual([]);                    // core rights alone list nothing
+    expect((await app.inject({ method: 'GET', url: '/api/my-apps' })).statusCode).toBe(401);
+  });
+
   it('PL-01 access tokens live 5 minutes', async () => {
     const id = await makeEmployee(`ttl${run}`);
     await grant(id, ['hello.note.sign']);
