@@ -2,6 +2,9 @@
 // and switches licences, links and outside logins by committing the customer config file to GitHub, which applies it
 // (A7). Every switch needs the customer's change reference and a reason (D-08, PL-10) and is logged in switch_log.
 // Plain server-rendered pages, no JavaScript. Sign-in: HTTP Basic over HTTPS, users from the environment.
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import formbody from '@fastify/formbody';
 import Fastify, { type FastifyRequest } from 'fastify';
 import type { Sql } from 'postgres';
@@ -23,19 +26,37 @@ interface Switch { kind: 'licence' | 'link' | 'outside'; name: string; provider?
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)} · Medhanta control panel</title>
+<link rel="icon" type="image/png" href="/favicon.png">
 <style>
-body{font:15px/1.5 system-ui,sans-serif;margin:0 auto;max-width:900px;padding:16px;color:#1d2433;background:#fff}
-a{color:#2457c5}h1{font-size:22px;margin:8px 0}h2{font-size:17px;margin:24px 0 8px}
-table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e3e6ec;padding:6px 8px;text-align:left}
-.muted{color:#667085}.ok{color:#137333}.bad{color:#b42318}
-form.switch label{display:block;margin:10px 0}input[type=text]{width:100%;padding:6px;box-sizing:border-box}
-button{padding:6px 14px;border:1px solid #2457c5;background:#2457c5;color:#fff;border-radius:4px;cursor:pointer}
-.diagram{width:100%;height:auto;border:1px solid #e3e6ec;border-radius:6px}
-.node rect{fill:#f5f7fb;stroke:#98a2b3}.node.product rect{fill:#e8f0fe;stroke:#2457c5}.node.outside rect{fill:#fff7e6;stroke:#c27c0e}
-.node text{text-anchor:middle;font-size:13px}.node text.sub{font-size:10px;fill:#667085}
-.link line{stroke:#2457c5;stroke-width:2}.link.off line{stroke:#98a2b3;stroke-dasharray:5 4}.link text{font-size:10px;fill:#475467}
-marker path{fill:#2457c5}
-</style></head><body><p class="muted"><a href="/">Customers</a></p>${body}</body></html>`;
+:root{--brand:#e8500f;--brand-dark:#c8410a;--brand-soft:#fff1e8;--grey:#5f5f5f;--muted:#666b73;--line:#ebe7e4;--line2:#d9d3ce;--ok:#17803d;--ok-soft:#e4f5ea;--bad:#c0352b;--bad-soft:#fdebe9;
+--grad:linear-gradient(90deg,#dd1a10,#f4511e 55%,#f7941d);--shadow:0 1px 2px rgba(60,40,30,.05),0 4px 14px rgba(60,40,30,.06)}
+*{box-sizing:border-box}body{font:15px/1.5 Inter,'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;margin:0;color:#2b2b2b;background:#faf8f6;-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:16px;padding:8px 20px 11px;background:#fff;box-shadow:0 2px 12px rgba(60,40,30,.08)}
+header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--grad)}
+.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none}.brand img{height:36px}.brand b{display:block;color:var(--grey);font-size:1.02rem}
+.brand small{display:block;color:var(--brand);font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+header nav{flex:1}header nav a{color:var(--grey);text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:500}header nav a:hover{background:var(--brand-soft);color:var(--brand-dark)}
+main{max-width:1000px;margin:0 auto;padding:22px 20px 48px}
+a{color:var(--brand);text-underline-offset:3px}a:hover{color:var(--brand-dark)}h1{font-size:1.5rem;margin:6px 0 14px}h2{font-size:1.1rem;margin:26px 0 10px}
+table{border-collapse:separate;border-spacing:0;width:100%;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+td,th{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}tr:last-child td{border-bottom:0}
+th{background:#fbf7f4;color:var(--muted);font-size:.75rem;font-weight:650;text-transform:uppercase;letter-spacing:.04em}
+.muted{color:var(--muted)}.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+form.switch{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);max-width:640px}
+form.switch label{display:grid;gap:5px;margin:12px 0;color:var(--muted);font-size:.9rem;font-weight:500}
+input[type=text]{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line2);border-radius:8px}input[type=text]:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(232,80,15,.18)}
+button{font:inherit;font-weight:600;padding:9px 16px;border:1px solid var(--brand);background:var(--brand);color:#fff;border-radius:8px;cursor:pointer}button:hover{background:var(--brand-dark)}
+.diagram{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.node rect{fill:#faf8f6;stroke:#b9b1ab}.node.product rect{fill:var(--brand-soft);stroke:var(--brand)}.node.outside rect{fill:#fff6d6;stroke:#c27c0e}
+.node text{text-anchor:middle;font-size:13px;fill:#2b2b2b}.node text.sub{font-size:10px;fill:var(--muted)}
+.link line{stroke:var(--brand);stroke-width:2}.link.off line{stroke:#b9b1ab;stroke-dasharray:5 4}.link text{font-size:10px;fill:var(--grey)}
+marker path{fill:var(--brand)}
+</style></head><body><header><a class="brand" href="/"><img src="/medhanta-mark.png" alt="Medhanta"><span><b>Medhanta</b><small>Control panel</small></span></a>
+<nav><a href="/">Customers</a></nav></header><main>${body}</main></body></html>`;
+
+// The Medhanta mark and icon for the panel's pages (the same files as the core screens).
+const brandFiles: Record<string, string> = { '/medhanta-mark.png': 'medhanta-mark.png', '/favicon.png': 'favicon.png' };
+const brandDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../core/web/public');
 
 export function buildPanel(deps: PanelDeps) {
   const { db, repo } = deps;
@@ -71,6 +92,10 @@ export function buildPanel(deps: PanelDeps) {
     if (config.customer !== customer) throw bad(`customers/${customer}.yaml says customer "${config.customer}"; fix the file first.`);
     return { text, sha, config };
   };
+
+  for (const [url, file] of Object.entries(brandFiles)) {
+    app.get(url, async (_req, reply) => reply.header('cache-control', 'max-age=86400').type('image/png').send(readFileSync(path.join(brandDir, file))));
+  }
 
   app.get('/', async (_req, reply) => {
     const names = await repo.customers();

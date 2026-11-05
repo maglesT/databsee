@@ -1,21 +1,118 @@
-:root { --fg: #1d2330; --muted: #667085; --line: #e3e6ec; --bg: #f7f8fa; --accent: #2457c5; --warn: #b42318; font-family: system-ui, sans-serif; color: var(--fg); background: var(--bg); }
-body { margin: 0; }
-header { display: flex; gap: 16px; align-items: center; padding: 10px 20px; background: #fff; border-bottom: 1px solid var(--line); }
-header strong { margin-right: auto; }
-main { max-width: 960px; margin: 20px auto; padding: 0 16px; }
-.card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); font-size: 14px; }
-th { color: var(--muted); font-weight: 600; }
-label { display: block; margin: 8px 0; font-size: 14px; }
-input, select { display: block; width: 100%; max-width: 360px; padding: 6px; margin-top: 4px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
-button { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; font: inherit; }
-button.plain { background: #fff; color: var(--accent); }
-a { color: var(--accent); cursor: pointer; }
-.alert { background: #fef3f2; border: 1px solid #fecdca; color: var(--warn); padding: 10px 16px; display: flex; gap: 12px; align-items: center; }
-.error { color: var(--warn); }
-.note { background: #ecfdf3; border: 1px solid #abefc6; padding: 10px; border-radius: 6px; }
+/* Medhanta core: the same look as the Medhanta products (Deviations, Materials, Logbook): Medhanta orange on white,
+   grey text, the red-orange-amber gradient under the top bar. Status colours keep their meaning and are never the brand
+   orange. */
+:root {
+  --bg: #faf8f6;
+  --card: #fff;
+  --fg: #2b2b2b;
+  --muted: #666b73;
+  --line: #ebe7e4;
+  --line-strong: #d9d3ce;
+  /* Medhanta: red #dd1a10 -> orange #f4511e -> amber #f7941d, grey #5f5f5f */
+  --brand: #e8500f;
+  --brand-dark: #c8410a;
+  --brand-soft: #fff1e8;
+  --brand-grey: #5f5f5f;
+  --brand-gradient: linear-gradient(90deg, #dd1a10, #f4511e 55%, #f7941d);
+  --ok: #17803d;
+  --ok-soft: #e4f5ea;
+  --bad: #c0352b;
+  --bad-soft: #fdebe9;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(60, 40, 30, 0.05), 0 4px 14px rgba(60, 40, 30, 0.06);
+  /* Kept for older rules: the accent is the brand orange, warnings are red. */
+  --accent: var(--brand);
+  --warn: var(--bad);
+  font-family: Inter, 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; margin: 6px 0 4px; }
+h2 { font-size: 1.15rem; font-weight: 650; margin: 0 0 8px; }
+h3 { font-size: 1rem; font-weight: 650; margin: 14px 0 6px; }
+
+/* Top bar: white, Medhanta mark, gradient underline */
+header { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 8px 20px 11px;
+  background: #fff; color: var(--brand-grey); box-shadow: 0 2px 12px rgba(60, 40, 30, 0.08); }
+header::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--brand-gradient); }
+.brand { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; margin-right: 8px; text-decoration: none; }
+.brand img { height: 36px; width: auto; }
+.brand b { display: block; font-size: 1.02rem; color: var(--brand-grey); letter-spacing: 0.01em; }
+.brand small { display: block; font-size: 0.66rem; font-weight: 600; color: var(--brand); letter-spacing: 0.06em; text-transform: uppercase; }
+header nav { display: flex; flex-wrap: wrap; gap: 2px; flex: 1; }
+header nav a { color: var(--brand-grey); text-decoration: none; padding: 8px 12px; border-radius: 8px; font-size: 0.95rem; font-weight: 500; }
+header nav a:hover { background: var(--brand-soft); color: var(--brand-dark); }
+header nav a.on { background: var(--brand-soft); color: var(--brand); font-weight: 650; box-shadow: inset 0 -2px 0 var(--brand); }
+.who { display: flex; gap: 10px; align-items: center; font-size: 0.92rem; color: var(--brand-grey); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 48px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
+
+/* Tables */
+table { width: 100%; border-collapse: separate; border-spacing: 0; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 0.93rem; vertical-align: top; }
+th { background: #fbf7f4; color: var(--muted); font-size: 0.75rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: #fdfaf8; }
+
+/* Forms */
+label { display: grid; gap: 5px; margin: 10px 0; color: var(--muted); font-size: 0.88rem; font-weight: 500; }
+input, select, textarea { font: inherit; color: var(--fg); background: #fff; width: 100%; max-width: 380px; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 8px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(232, 80, 15, 0.18); }
+label.check { display: flex; gap: 8px; align-items: center; color: var(--fg); font-size: 0.93rem; font-weight: 400; margin: 6px 0; }
+label.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--brand); }
+
+/* Buttons: brand orange; .plain is the quiet one */
+button { font: inherit; font-size: 0.93rem; font-weight: 500; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--brand); background: var(--brand); color: #fff;
+  cursor: pointer; min-height: 40px; transition: background 0.15s, border-color 0.15s; }
+button:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(232, 80, 15, 0.3); }
+button.plain { background: #fff; color: var(--brand-grey); border-color: var(--line-strong); }
+button.plain:hover { background: var(--brand-soft); color: var(--brand-dark); border-color: var(--brand); }
+a { color: var(--brand); cursor: pointer; text-underline-offset: 3px; }
+a:hover { color: var(--brand-dark); }
+
+/* Messages */
+.alert { background: var(--bad); color: #fff; padding: 10px 20px; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.alert button.plain { color: var(--bad); border-color: #fff; }
+.error { color: var(--bad); font-weight: 500; }
+.note { background: var(--ok-soft); border: 1px solid #abefc6; padding: 10px 12px; border-radius: 8px; }
 .muted { color: var(--muted); }
-.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
-label.check { display: flex; gap: 8px; align-items: center; }
-label.check input { width: auto; margin: 0; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+
+/* Sign-in: centred, with the full Medhanta logo */
+.signin { max-width: 420px; margin: 0 auto; padding-top: 8vh; text-align: center; }
+.signin .logo { width: 260px; max-width: 80%; height: auto; margin-bottom: 8px; }
+.signin form { text-align: left; position: relative; overflow: hidden; }
+.signin form::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--brand-gradient); }
+.signin form input { max-width: none; }
+.signin form button { width: 100%; margin-top: 8px; }
+.signin footer { margin-top: 18px; color: var(--muted); font-size: 0.8rem; }
+
+/* Your applications: one tile per product the person may use */
+.hello { margin-bottom: 18px; }
+.apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.app { display: flex; flex-direction: column; gap: 10px; padding: 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); color: var(--fg); text-decoration: none; transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s; position: relative; overflow: hidden; }
+.app::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--brand-gradient); opacity: 0; transition: opacity 0.12s; }
+.app:hover { transform: translateY(-2px); border-color: #f3c9b1; box-shadow: 0 6px 22px rgba(232, 80, 15, 0.14); color: var(--fg); }
+.app:hover::before { opacity: 1; }
+.app .icon { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-gradient); color: #fff;
+  font-weight: 750; font-size: 1.05rem; letter-spacing: 0.03em; overflow: hidden; }
+.app .icon img { width: 52px; height: 52px; object-fit: contain; background: #fff; }
+.app b { font-size: 1.05rem; }
+.app span { color: var(--muted); font-size: 0.88rem; }
+.app em { margin-top: auto; color: var(--brand); font-style: normal; font-weight: 600; font-size: 0.88rem; }
+.admin-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+
+/* Status chips */
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.chip-ok { background: var(--ok-soft); color: var(--ok); }
+.chip-bad { background: var(--bad-soft); color: var(--bad); }
+.chip-off { background: #efedeb; color: var(--muted); }

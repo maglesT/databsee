@@ -3,28 +3,35 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { api } from './api.js';
 import { form, Link, useAction, when } from './ui.js';
 import { MasterData } from './MasterData.js';
+import { productInfo } from '../products.js';
 
 interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean }
 interface Person { id: string; login: string; fullName: string; email: string | null; active: boolean; lockedAt: string | null }
 interface Permission { product: string; code: string; label: string }
 interface Grant { product: string; code: string; grantedBy: string; grantedAt: string }
+interface MyApp { product: string; url: string }
 interface Alert { id: string; message: string; at: string; emailedAt: string | null; emailError: string | null }
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [page, setPage] = useState<Page>({ name: 'home' });
+  const [apps, setApps] = useState<MyApp[] | undefined>(undefined);
   const load = useCallback(() => api<Me>('GET', '/api/me').then(setMe, () => setMe(null)), []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (me && !me.mustChange) api<MyApp[]>('GET', '/api/my-apps').then(setApps, () => setApps([])); }, [me]);
 
   if (me === undefined) return null;
   if (me === null) return <SignIn onDone={load} />;
-  if (me.mustChange) return <Shell me={me} onSignOut={() => setMe(null)} go={setPage}><ChangePassword me={me} onDone={load} /></Shell>;
+  if (me.mustChange) return <Shell me={me} onSignOut={() => setMe(null)} go={setPage} current="password" hasApps={false}><ChangePassword me={me} onDone={load} /></Shell>;
   const people = can(me, 'core.people.manage');
   const md = can(me, 'core.masterdata.view', 'core.masterdata.edit');
-  const name = page.name === 'home' ? (people ? 'people' : md ? 'master-data' : 'none') : page.name;
+  // Home is "Your applications" for anyone who may use a product; someone with only core rights lands on that screen.
+  const name = page.name === 'home' ? (apps?.length ? 'apps' : people ? 'people' : md ? 'master-data' : 'none') : page.name;
+  if (apps === undefined) return null;
   return (
-    <Shell me={me} onSignOut={() => setMe(null)} go={setPage}>
-      {name === 'none' && <div className="card">Signed in. You have no rights in the core screens.</div>}
+    <Shell me={me} onSignOut={() => setMe(null)} go={setPage} current={name} hasApps={apps.length > 0}>
+      {name === 'apps' && <Applications me={me} apps={apps} go={setPage} people={people} md={md} />}
+      {name === 'none' && <div className="card">Signed in. You have no applications yet: ask your administrator for access.</div>}
       {name === 'people' && people && <People open={(id) => setPage({ name: 'person', id })} />}
       {page.name === 'person' && people && <PersonPage id={page.id} me={me} back={() => setPage({ name: 'people' })} />}
       {name === 'master-data' && md && <MasterData canEdit={can(me, 'core.masterdata.edit')} />}
@@ -34,20 +41,25 @@ export function App() {
 
 const can = (me: Me, ...codes: string[]) => codes.some((c) => me.permissions.includes(c));
 
-type Page = { name: 'home' } | { name: 'people' } | { name: 'person'; id: string } | { name: 'master-data' };
+type Page = { name: 'home' } | { name: 'apps' } | { name: 'people' } | { name: 'person'; id: string } | { name: 'master-data' };
 
-function Shell({ me, children, onSignOut, go }: { me: Me; children: ReactNode; onSignOut: () => void; go: (p: Page) => void }) {
+function Shell({ me, children, onSignOut, go, current, hasApps }: { me: Me; children: ReactNode; onSignOut: () => void; go: (p: Page) => void; current: string; hasApps: boolean }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const loadAlerts = useCallback(() => { if (!me.mustChange) api<Alert[]>('GET', '/api/alerts').then(setAlerts, () => {}); }, [me]);
   useEffect(() => { loadAlerts(); const t = setInterval(loadAlerts, 30000); return () => clearInterval(t); }, [loadAlerts]);
   return (
     <>
       <header>
-        <strong>Medhanta core</strong>
-        {!me.mustChange && can(me, 'core.people.manage') && <Link onClick={() => go({ name: 'people' })}>People</Link>}
-        {!me.mustChange && can(me, 'core.masterdata.view', 'core.masterdata.edit') && <Link onClick={() => go({ name: 'master-data' })}>Master data</Link>}
-        <span className="muted">{me.fullName}</span>
-        <button className="plain" onClick={() => api('POST', '/api/logout').finally(onSignOut)}>Sign out</button>
+        <a className="brand" href="/" onClick={(e) => { e.preventDefault(); go({ name: hasApps ? 'apps' : 'home' }); }}>
+          <img src="/medhanta-mark.png" alt="Medhanta" /><span><b>Medhanta</b><small>Platform</small></span>
+        </a>
+        <nav>
+          {!me.mustChange && hasApps && <Tab on={current === 'apps'} onClick={() => go({ name: 'apps' })}>Applications</Tab>}
+          {!me.mustChange && can(me, 'core.people.manage') && <Tab on={current === 'people' || current === 'person'} onClick={() => go({ name: 'people' })}>People</Tab>}
+          {!me.mustChange && can(me, 'core.masterdata.view', 'core.masterdata.edit') && <Tab on={current === 'master-data'} onClick={() => go({ name: 'master-data' })}>Master data</Tab>}
+        </nav>
+        <span className="who">{me.fullName}
+          <button className="plain" onClick={() => api('POST', '/api/logout').finally(onSignOut)}>Sign out</button></span>
       </header>
       {alerts.map((a) => (
         <div className="alert" key={a.id} role="alert">
@@ -60,10 +72,53 @@ function Shell({ me, children, onSignOut, go }: { me: Me; children: ReactNode; o
   );
 }
 
+function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
+  return <a href="#" className={on ? 'on' : undefined} aria-current={on ? 'page' : undefined} onClick={(e) => { e.preventDefault(); onClick(); }}>{children}</a>;
+}
+
+/** Your applications: one tile per product the person holds a permission in; each opens the product (it signs on through core). */
+function Applications({ me, apps, go, people, md }: { me: Me; apps: MyApp[]; go: (p: Page) => void; people: boolean; md: boolean }) {
+  return (
+    <>
+      <div className="hello"><h1>Hello, {me.fullName.split(' ')[0]}</h1><p className="muted">Choose an application. You are signed in to all of them with this login.</p></div>
+      <div className="apps">
+        {[...apps].sort((x, y) => productInfo(x.product).name.localeCompare(productInfo(y.product).name)).map((a) => {
+          const p = productInfo(a.product);
+          return (
+            <a className="app" key={a.product} href={a.url}>
+              <ProductIcon product={a.product} initials={p.initials} />
+              <b>{p.name}</b>
+              <span>{p.tagline}</span>
+              <em>Open →</em>
+            </a>
+          );
+        })}
+      </div>
+      {(people || md) && (
+        <div className="admin-links">
+          {people && <button className="plain" onClick={() => go({ name: 'people' })}>People and permissions</button>}
+          {md && <button className="plain" onClick={() => go({ name: 'master-data' })}>Master data</button>}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** The product's logo (public/products/<product>.png) or, without one, its initials in Medhanta colours. */
+function ProductIcon({ product, initials }: { product: string; initials: string }) {
+  const [logo, setLogo] = useState(true);
+  return (
+    <div className="icon" aria-hidden="true">
+      {logo ? <img src={`/products/${product}.png`} alt="" onError={() => setLogo(false)} /> : initials}
+    </div>
+  );
+}
+
 function SignIn({ onDone }: { onDone: () => void }) {
   const a = useAction();
   return (
-    <main>
+    <main className="signin">
+      <img className="logo" src="/medhanta-logo.png" alt="Medhanta: Where Expertise Meets Intelligence" />
       <form className="card" onSubmit={(e) => { e.preventDefault(); const f = form(e); void a.run(async () => { await api('POST', '/api/login', f); onDone(); }); }}>
         <h2>Sign in</h2>
         <label>Login ID<input name="login" autoComplete="username" required /></label>
@@ -71,6 +126,7 @@ function SignIn({ onDone }: { onDone: () => void }) {
         <a.Error />
         <button>Sign in</button>
       </form>
+      <footer>One login for every Medhanta application.</footer>
     </main>
   );
 }
@@ -116,7 +172,7 @@ function People({ open }: { open: (id: string) => void }) {
                 <td><Link onClick={() => open(p.id)}>{p.login}</Link></td>
                 <td>{p.fullName}</td>
                 <td>{p.email}</td>
-                <td>{!p.active ? 'Inactive' : p.lockedAt ? 'Locked' : 'Active'}</td>
+                <td>{!p.active ? <span className="chip chip-off">Inactive</span> : p.lockedAt ? <span className="chip chip-bad">Locked</span> : <span className="chip chip-ok">Active</span>}</td>
               </tr>
             ))}
           </tbody>
