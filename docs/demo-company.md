@@ -55,7 +55,8 @@ DEMO-ONLY and is never used for a real customer.
 | Codes nobody holds (no sterile area in a tablet plant) | `logbook.entry.record_sterile`, `logbook.entry.record_steriliser_test` |
 
 The products `FG-RAB20`, `FG-LIB400` and `FG-LIB250` are Batchwright's tablets: rabeprazole and the two invented
-Libtab library tablets.
+Libtab library tablets. `FG-OME20` (capsules), `FG-CEF1G` (injectables) and `API-PCM` (substance) try Batchwright's
+other editions, chosen from the dosage form. They are demo master data only: the plant has no sterile area.
 
 Batchwright's `ebmr.*` codes follow its old roles (ebmr `docs/build-plan/phase-b/demo-grants.md`): operators OPERATOR + DISPENSER;
 supervisors SHIFT_SUPERVISOR + VERIFIER + STAGE_RESPONSIBLE + BATCH_ISSUER; `prod.head` HEAD_OF_PRODUCTION + PROCESS_OWNER +
@@ -180,7 +181,7 @@ Links: equipment and instruments `located_in` their room, materials `supplied_by
 | `SUP-09` | Godavari Demo Labs Pvt Ltd | Plot 30, Demo Pharma City, Visakhapatnam, Andhra Pradesh |  |
 | `SUP-10` | Malabar Demo Traders | Demo Market Road, Kochi, Kerala | retired / inactive |
 
-### Material (40)
+### Material (43)
 
 | Code | Name | Category, unit | Suppliers | Note |
 |---|---|---|---|---|
@@ -191,6 +192,8 @@ Links: equipment and instruments `located_in` their room, materials `supplied_by
 | `API-ATV` | Atorvastatin calcium | starting, kg | SUP-01 |  |
 | `API-AML` | Amlodipine besilate | starting, kg | SUP-09 |  |
 | `API-CTZ` | Cetirizine dihydrochloride | starting, kg | SUP-01 |  |
+| `API-OME` | Omeprazole | starting, kg | SUP-01 |  |
+| `API-CEF` | Ceftriaxone sodium (sterile) | starting, kg | SUP-09 |  |
 | `EXC-MCC101` | Microcrystalline cellulose PH101 | starting, kg | SUP-03 |  |
 | `EXC-MCC102` | Microcrystalline cellulose PH102 | starting, kg | SUP-03 |  |
 | `EXC-LAC` | Lactose monohydrate | starting, kg | SUP-03 |  |
@@ -213,6 +216,7 @@ Links: equipment and instruments `located_in` their room, materials `supplied_by
 | `EXC-FCW` | Film-coating premix white | starting, kg | SUP-04 |  |
 | `EXC-FCY` | Film-coating premix yellow | starting, kg | SUP-04 |  |
 | `EXC-IOX` | Iron oxide yellow | starting, kg | SUP-04 |  |
+| `EXC-HGC` | Empty hard gelatin capsule shells size 2 | starting, nos | SUP-04 |  |
 | `SOL-IPA` | Isopropyl alcohol | other, L | SUP-02 |  |
 | `PKG-ALU-BL` | Aluminium blister foil 25 micron | packaging, kg | SUP-06 |  |
 | `PKG-ALU-CF` | Cold-form aluminium laminate (alu-alu) | packaging, kg | SUP-06 |  |
@@ -225,7 +229,7 @@ Links: equipment and instruments `located_in` their room, materials `supplied_by
 | `PKG-LFT` | Patient leaflet | packaging, nos | SUP-08 |  |
 | `PKG-SHP` | Shipper carton 5 ply | packaging, nos | SUP-08 |  |
 
-### Product (8)
+### Product (11)
 
 | Code | Name | Strength, form | Uses | Note |
 |---|---|---|---|---|
@@ -237,3 +241,6 @@ Links: equipment and instruments `located_in` their room, materials `supplied_by
 | `FG-ATV10` | Atorvastatin calcium film-coated tablets 10 mg | 10 mg, Film-coated tablet | API-ATV, EXC-LAC, EXC-MCC102, EXC-CCS, EXC-HPC, EXC-MGS, EXC-FCW, PKG-ALU-CF, PKG-CTN-GEN, PKG-LFT, PKG-SHP |  |
 | `FG-AML5` | Amlodipine tablets 5 mg | 5 mg, Tablet | API-AML, EXC-MCC102, EXC-DCP, EXC-SSG, EXC-MGS, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP |  |
 | `FG-CTZ10` | Cetirizine dihydrochloride film-coated tablets 10 mg | 10 mg, Film-coated tablet | API-CTZ, EXC-LAC, EXC-MCC101, EXC-SIO, EXC-MGS, EXC-FCY, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP |  |
+| `FG-OME20` | Omeprazole 20 mg capsules | 20 mg, Hard gelatin capsule | API-OME, EXC-MAN, EXC-HPMC, EXC-MAC, EXC-TEC, EXC-TAL, EXC-HGC, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP | Batchwright Capsules edition |
+| `FG-CEF1G` | Ceftriaxone 1 g powder for injection | 1 g, Powder for injection | API-CEF, PKG-CTN-GEN, PKG-LFT, PKG-SHP | Batchwright Injectables edition |
+| `API-PCM` | Paracetamol (API) | API |  | Batchwright API (substance) edition; same code as the material `API-PCM` (codes are unique per kind) |
