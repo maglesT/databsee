@@ -288,6 +288,8 @@ items:
     API-ATV: {name: Atorvastatin calcium, category: starting, unit: kg, from: [SUP-01]}
     API-AML: {name: Amlodipine besilate, category: starting, unit: kg, from: [SUP-09]}
     API-CTZ: {name: Cetirizine dihydrochloride, category: starting, unit: kg, from: [SUP-01]}
+    API-OME: {name: Omeprazole, category: starting, unit: kg, from: [SUP-01]}
+    API-CEF: {name: Ceftriaxone sodium (sterile), category: starting, unit: kg, from: [SUP-09]}
     EXC-MCC101: {name: Microcrystalline cellulose PH101, category: starting, unit: kg, from: [SUP-03]}
     EXC-MCC102: {name: Microcrystalline cellulose PH102, category: starting, unit: kg, from: [SUP-03]}
     EXC-LAC: {name: Lactose monohydrate, category: starting, unit: kg, from: [SUP-03]}
@@ -310,6 +312,7 @@ items:
     EXC-FCW: {name: Film-coating premix white, category: starting, unit: kg, from: [SUP-04]}
     EXC-FCY: {name: Film-coating premix yellow, category: starting, unit: kg, from: [SUP-04]}
     EXC-IOX: {name: Iron oxide yellow, category: starting, unit: kg, from: [SUP-04]}
+    EXC-HGC: {name: Empty hard gelatin capsule shells size 2, category: starting, unit: nos, from: [SUP-04]}
     # processing aid (evaporates, not in the tablet)
     SOL-IPA: {name: Isopropyl alcohol, category: other, unit: L, from: [SUP-02]}
     # packaging materials
@@ -340,3 +343,8 @@ items:
       uses: [API-AML, EXC-MCC102, EXC-DCP, EXC-SSG, EXC-MGS, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
     FG-CTZ10: {name: Cetirizine dihydrochloride film-coated tablets 10 mg, strength: 10 mg, dosageForm: Film-coated tablet,
       uses: [API-CTZ, EXC-LAC, EXC-MCC101, EXC-SIO, EXC-MGS, EXC-FCY, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
+    FG-OME20: {name: Omeprazole 20 mg capsules, strength: 20 mg, dosageForm: Hard gelatin capsule,
+      uses: [API-OME, EXC-MAN, EXC-HPMC, EXC-MAC, EXC-TEC, EXC-TAL, EXC-HGC, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
+    FG-CEF1G: {name: Ceftriaxone 1 g powder for injection, strength: 1 g, dosageForm: Powder for injection,
+      uses: [API-CEF, PKG-CTN-GEN, PKG-LFT, PKG-SHP]}
+    API-PCM: {name: Paracetamol (API), dosageForm: API}
