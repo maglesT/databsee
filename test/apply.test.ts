@@ -385,7 +385,7 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     expect(env.EBMR_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/ebmr/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
     expect(dev.links.deviations).toEqual(manifest('deviations').reads);
-    expect(manifest('deviations').publishes).toEqual(['capa_v1']);   // read by the QMS through a link (Deviations D-40)
+    expect(manifest('deviations').publishes).toEqual(['capa_v1', 'deviation_v1']);   // read by the QMS through a link (Deviations D-40)
   });
 
   it('PL-08 the QMS reads capa_v1 through a link once Deviations is licensed', () => {
@@ -501,7 +501,9 @@ describe('Batchwright (ebmr), a product kept in its own repo that migrates itsel
       'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
     expect(env.EBMR_DATABASE_URL).toMatch(/^postgres:\/\/ebmr_app:.*@db:5432\/ebmr$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://ebmr.ci.example/cb');
-    expect(bw.links.ebmr).toEqual(manifest('ebmr').reads);
+    expect(bw.links.ebmr).toEqual({ master_data: manifest('ebmr').reads!.master_data });
+    // Batch deviations: Batchwright reads Deviations' deviation_v1 when the site links them (owner, 8 Nov 2026).
+    expect(manifest('ebmr').reads!.deviations).toEqual(['deviation_v1']);
     expect(manifest('ebmr').publishes).toEqual(['batch_fact_v1', 'step_use_v1', 'cpp_value_v1', 'exception_v1', 'alarm_v1', 'batch_reference_v1',
       'equipment_use_v1', 'ipc_result_v1', 'process_actual_v1', 'exception_detail_v1']);
     expect(caddyfile({ ...config, proxy: 'external' })).toContain(`ebmr.ci.example {\n  reverse_proxy 127.0.0.1:${externalPort('ebmr')}\n}`);
