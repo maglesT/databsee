@@ -4,7 +4,7 @@ Date: 2026-11-02 (second platform session). For the next platform session. Read 
 `docs/decisions.md` (D-01 to D-17) and `compliance/register.yaml`.
 
 ## Who and how
-- Owner: triplerascals03@gmail.com (sends from arccra003@gmail.com). Writes short, informal messages; prefers the
+- Owner: email addresses are held outside the repository. Writes short, informal messages; prefers the
   simpler option. Wrote "approvddd all thngs" (recorded as D-12, D-13).
 - Lead (portfolio coordinator): session `session_01PybpFurhHU4ktqworXhVvF`. Report at each milestone with the remote
   `send_message` tool. The lead checks every requirement against a binding clause: before adding anything, cite the
