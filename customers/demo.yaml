@@ -1,14 +1,14 @@
 # Demo company (DEMO-ONLY, docs/demo-company.md): rehearsal of the go-live on the owner's server, test address only.
 # Removed completely after the rehearsal (owner's go-live plan, Phase 1); nothing of it goes into the real install.
 customer: demo
-version: 1.0.5 # platform release (D-22 Medhanta look and Your applications; material category intermediate #61)
+version: 1.1.0 # platform release (#64: Deviations publishes deviation_v1; Batchwright reads it; Deviations c2f8db8 migration 0013; Batchwright 83b47a4)
 domain: demo.187-126-126-5.sslip.io # test name, NOT the go-live one
 offline: true # signed bundle downloaded from the apply run and applied by hand (no SSH from GitHub)
 security_contact: it-security@demo-pharma.example
 backup:
   path: medhanta-backups/demo-rehearsal # separate Drive folder, deleted with the demo
 change_ref: MED-GOLIVE-001
-reason: "Demo on v1.0.5: Medhanta look for core and the control panel, Your applications page (D-22)"
+reason: "Demo on v1.1.0: Deviations report.deviation_v1 (migration 0013) and Batchwright 83b47a4 with batch deviations by Deviations number (#192)"
 proxy: external # the host's Caddy owns 80/443 (README "Behind the host's proxy")
 db_port: 5440 # 127.0.0.1:5432 is the standalone Batchwright PostgreSQL on this server (D-18)
 licences:
