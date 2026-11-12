@@ -1,7 +1,7 @@
 # Demo company (DEMO-ONLY, docs/demo-company.md): rehearsal of the go-live on the owner's server, test address only.
 # Removed completely after the rehearsal (owner's go-live plan, Phase 1); nothing of it goes into the real install.
 customer: demo
-version: 1.1.1 # platform release (Batchwright pinned at 8e7b00c: G1-G9 fixes, batch deviations by Deviations number #192, migrations 1878-1907, 3000, 5006-5008)
+version: 1.1.2 # platform release (one person per browser, D-23: core sign-in/sign-out start and end the products' single sign-on; Logbook pinned at 88a38a2 with back-channel logout)
 domain: demo.187-126-126-5.sslip.io # test name, NOT the go-live one
 offline: true # signed bundle downloaded from the apply run and applied by hand (no SSH from GitHub)
 security_contact: it-security@demo-pharma.example
