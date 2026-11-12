@@ -16,7 +16,7 @@
     {"code": "qual.alerts.manage", "label": "See and acknowledge alerts (integrity mismatches)"},
     {"code": "qual.settings.manage", "label": "Edit the site settings"}
   ],
-  "publishes": [],
+  "publishes": ["qualification_v1", "protocol_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1"] },
-  "source": { "repo": "https://github.com/maglesT/prot", "commit": "c099da6840517217068a7cc56af683b41df7c00f" }
+  "source": { "repo": "https://github.com/maglesT/prot", "commit": "b21ec0e11addba0d23e7a9f6a41afaaa53ffc595" }
 }

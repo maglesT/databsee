@@ -177,7 +177,7 @@ people:
     name: Sanjay Deshmukh
     dept: Engineering
     codes: [core.masterdata.edit, core.masterdata.view,
-      logbook.entry.record_maintenance, logbook.entry.record_calibration, logbook.site.manage, logbook.advice.ask, logbook.review.read,
+      logbook.entry.record_maintenance, logbook.entry.record_calibration, logbook.entry.record_requalification, logbook.site.manage, logbook.advice.ask, logbook.review.read,
       qual.item.edit, qual.run.execute, deviations.deviation.report, deviations.investigation.write, deviations.capa.complete, ops.data.read, ops.masterdata.edit, ops.link.refresh, ops.import.run, ops.model.train, ops.site.edit,
       ebmr.batch_number.rule_define, ebmr.config.change_close, ebmr.config.change_raise, ebmr.formula.approve,
       ebmr.formula.manage, ebmr.formula.read, ebmr.incident.raise, ebmr.label.design, ebmr.logbook.entry,
@@ -186,7 +186,7 @@ people:
   eng.tech:
     name: Imran Shaikh
     dept: Engineering
-    codes: [logbook.entry.record_maintenance, logbook.entry.record_calibration, logbook.entry.record_general, logbook.advice.ask,
+    codes: [logbook.entry.record_maintenance, logbook.entry.record_calibration, logbook.entry.record_requalification, logbook.entry.record_general, logbook.advice.ask,
       logbook.voice_note.record, qual.run.execute,
       ebmr.incident.raise, ebmr.logbook.entry, ebmr.logbook.sign, ebmr.record.read]
   purchase.mgr:
@@ -212,61 +212,61 @@ people:
 # in: room (located_in), from: suppliers (supplied_by), uses: materials (product uses). retire: <reason> = inactive.
 items:
   room:
-    RM-101: {name: Dispensing booth, area: Dispensing, grade: D}
-    RM-102: {name: Sampling booth, area: Warehouse, grade: D}
-    RM-103: {name: Granulation room 1, area: Granulation, grade: D}
-    RM-104: {name: Granulation room 2 and blending, area: Granulation, grade: D}
-    RM-105: {name: Compression room 1, area: Compression, grade: D}
-    RM-106: {name: Compression room 2, area: Compression, grade: D}
-    RM-107: {name: Coating room, area: Coating, grade: D}
-    RM-108: {name: Primary packing (blister and strip), area: Packing, grade: D}
-    RM-109: {name: Secondary packing hall, area: Packing, grade: CNC}
-    RM-110: {name: QC instrument laboratory, area: QC, grade: CNC}
-    RM-111: {name: Raw and packing material warehouse, area: Warehouse, grade: CNC}
-    RM-112: {name: Utilities block, area: Utilities, grade: CNC}
+    RM-101: {name: Dispensing booth, cleaningBasis: operation, cleanHoldHours: 72, dirtyHoldHours: 24, requalificationFrequencyMonths: 12, area: Dispensing, grade: D}
+    RM-102: {name: Sampling booth, cleaningBasis: operation, cleanHoldHours: 72, dirtyHoldHours: 24, requalificationFrequencyMonths: 12, area: Warehouse, grade: D}
+    RM-103: {name: Granulation room 1, cleaningBasis: operation, cleanHoldHours: 72, dirtyHoldHours: 24, requalificationFrequencyMonths: 12, area: Granulation, grade: D}
+    RM-104: {name: Granulation room 2 and blending, cleaningBasis: operation, cleanHoldHours: 72, dirtyHoldHours: 24, requalificationFrequencyMonths: 12, area: Granulation, grade: D}
+    RM-105: {name: Compression room 1, cleaningBasis: operation, cleanHoldHours: 72, dirtyHoldHours: 24, requalificationFrequencyMonths: 12, area: Compression, grade: D}
+    RM-106: {name: Compression room 2, cleaningBasis: operation, cleanHoldHours: 72, dirtyHoldHours: 24, requalificationFrequencyMonths: 12, area: Compression, grade: D}
+    RM-107: {name: Coating room, cleaningBasis: operation, cleanHoldHours: 72, dirtyHoldHours: 24, requalificationFrequencyMonths: 12, area: Coating, grade: D}
+    RM-108: {name: Primary packing (blister and strip), cleaningBasis: operation, cleanHoldHours: 72, dirtyHoldHours: 24, requalificationFrequencyMonths: 12, area: Packing, grade: D}
+    RM-109: {name: Secondary packing hall, cleaningBasis: frequency, cleaningFrequencyHours: 24, area: Packing, grade: CNC}
+    RM-110: {name: QC instrument laboratory, cleaningBasis: frequency, cleaningFrequencyHours: 24, area: QC, grade: CNC}
+    RM-111: {name: Raw and packing material warehouse, cleaningBasis: frequency, cleaningFrequencyHours: 168, area: Warehouse, grade: CNC}
+    RM-112: {name: Utilities block, cleaningBasis: frequency, cleaningFrequencyHours: 168, area: Utilities, grade: CNC}
   equipment:
-    EQ-LAF-01: {name: Dispensing laminar air flow, type: Dispensing booth, make: Demo Cleanair, model: RLAF-4, serial: DCA-1001, in: RM-101}
-    EQ-SFT-01: {name: Vibro sifter 30 inch, type: Sifter, make: Demo Process Machines, model: VS-30, serial: DPM-2101, in: RM-103}
-    EQ-RMG-01: {name: Rapid mixer granulator 150 L, type: Granulator, make: Demo Process Machines, model: RMG-150, serial: DPM-2102, in: RM-103}
-    EQ-FBD-01: {name: Fluid bed dryer 60 kg, type: Dryer, make: Demo Process Machines, model: FBD-60, serial: DPM-2103, in: RM-103}
-    EQ-MLT-01: {name: Multimill, type: Mill, make: Demo Process Machines, model: MM-5, serial: DPM-2104, in: RM-103}
-    EQ-RMG-02: {name: Rapid mixer granulator 300 L, type: Granulator, make: Demo Process Machines, model: RMG-300, serial: DPM-2201, in: RM-104}
-    EQ-FBD-02: {name: Fluid bed dryer 120 kg, type: Dryer, make: Demo Process Machines, model: FBD-120, serial: DPM-2202, in: RM-104}
-    EQ-RC-01: {name: Roller compactor, type: Roller compactor, make: Demo Process Machines, model: RC-200, serial: DPM-2203, in: RM-104}
-    EQ-OBL-01: {name: Octagonal blender 500 L, type: Blender, make: Demo Process Machines, model: OB-500, serial: DPM-2204, in: RM-104}
-    EQ-BIN-01: {name: IPC bin blender 600 L, type: Blender, make: Demo Process Machines, model: BB-600, serial: DPM-2205, in: RM-104}
-    EQ-CMP-01: {name: Rotary tablet press 27 station, type: Tablet press, make: Demo Press Works, model: TP-27, serial: DPW-3101, in: RM-105}
-    EQ-DDM-01: {name: Deduster with metal detector, type: Deduster, make: Demo Press Works, model: DD-MD-1, serial: DPW-3102, in: RM-105}
-    EQ-CMP-02: {name: Rotary tablet press 37 station, type: Tablet press, make: Demo Press Works, model: TP-37, serial: DPW-3201, in: RM-106}
-    EQ-CMP-03: {name: Rotary tablet press 45 station (bilayer), type: Tablet press, make: Demo Press Works, model: TP-45B, serial: DPW-3202, in: RM-106}
-    EQ-CTG-01: {name: Auto coater 48 inch, type: Coater, make: Demo Coating Systems, model: AC-48, serial: DCS-4101, in: RM-107}
-    EQ-CTG-02: {name: Auto coater 36 inch, type: Coater, make: Demo Coating Systems, model: AC-36, serial: DCS-4001, in: RM-107,
+    EQ-LAF-01: {name: Dispensing laminar air flow, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Dispensing booth, make: Demo Cleanair, model: RLAF-4, serial: DCA-1001, in: RM-101}
+    EQ-SFT-01: {name: Vibro sifter 30 inch, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Sifter, make: Demo Process Machines, model: VS-30, serial: DPM-2101, in: RM-103}
+    EQ-RMG-01: {name: Rapid mixer granulator 150 L, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Granulator, make: Demo Process Machines, model: RMG-150, serial: DPM-2102, in: RM-103}
+    EQ-FBD-01: {name: Fluid bed dryer 60 kg, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Dryer, make: Demo Process Machines, model: FBD-60, serial: DPM-2103, in: RM-103}
+    EQ-MLT-01: {name: Multimill, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Mill, make: Demo Process Machines, model: MM-5, serial: DPM-2104, in: RM-103}
+    EQ-RMG-02: {name: Rapid mixer granulator 300 L, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Granulator, make: Demo Process Machines, model: RMG-300, serial: DPM-2201, in: RM-104}
+    EQ-FBD-02: {name: Fluid bed dryer 120 kg, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Dryer, make: Demo Process Machines, model: FBD-120, serial: DPM-2202, in: RM-104}
+    EQ-RC-01: {name: Roller compactor, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Roller compactor, make: Demo Process Machines, model: RC-200, serial: DPM-2203, in: RM-104}
+    EQ-OBL-01: {name: Octagonal blender 500 L, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Blender, make: Demo Process Machines, model: OB-500, serial: DPM-2204, in: RM-104}
+    EQ-BIN-01: {name: IPC bin blender 600 L, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Blender, make: Demo Process Machines, model: BB-600, serial: DPM-2205, in: RM-104}
+    EQ-CMP-01: {name: Rotary tablet press 27 station, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Tablet press, make: Demo Press Works, model: TP-27, serial: DPW-3101, in: RM-105}
+    EQ-DDM-01: {name: Deduster with metal detector, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Deduster, make: Demo Press Works, model: DD-MD-1, serial: DPW-3102, in: RM-105}
+    EQ-CMP-02: {name: Rotary tablet press 37 station, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Tablet press, make: Demo Press Works, model: TP-37, serial: DPW-3201, in: RM-106}
+    EQ-CMP-03: {name: Rotary tablet press 45 station (bilayer), cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Tablet press, make: Demo Press Works, model: TP-45B, serial: DPW-3202, in: RM-106}
+    EQ-CTG-01: {name: Auto coater 48 inch, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Coater, make: Demo Coating Systems, model: AC-48, serial: DCS-4101, in: RM-107}
+    EQ-CTG-02: {name: Auto coater 36 inch, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Coater, make: Demo Coating Systems, model: AC-36, serial: DCS-4001, in: RM-107,
       retire: Replaced by EQ-CTG-01 (demo seed - retired item)}
-    EQ-SPV-01: {name: Coating solution preparation vessel 200 L, type: Vessel, make: Demo Coating Systems, model: SPV-200, serial: DCS-4102, in: RM-107}
-    EQ-BLS-01: {name: Blister packing machine, type: Blister packer, make: Demo Pack Lines, model: BP-250, serial: DPL-5101, in: RM-108}
-    EQ-STP-01: {name: Strip packing machine, type: Strip packer, make: Demo Pack Lines, model: SP-4, serial: DPL-5102, in: RM-108}
-    EQ-CRT-01: {name: Cartonator, type: Cartoner, make: Demo Pack Lines, model: CT-120, serial: DPL-5201, in: RM-109}
-    EQ-CKW-01: {name: Check weigher, type: Check weigher, make: Demo Pack Lines, model: CW-10, serial: DPL-5202, in: RM-109}
-    EQ-STB-01: {name: Stability chamber 25 C / 60 % RH, type: Stability chamber, make: Demo Lab Systems, model: SC-1000, serial: DLS-6101, in: RM-110}
-    EQ-PWS-01: {name: Purified water generation system, type: Water system, make: Demo Utilities, model: PW-1000, serial: DUT-7101, in: RM-112}
-    EQ-AHU-01: {name: Air handling unit (granulation and compression), type: AHU, make: Demo Utilities, model: AHU-12K, serial: DUT-7102, in: RM-112}
-    EQ-CAS-01: {name: Compressed air system, type: Compressor, make: Demo Utilities, model: OFC-50, serial: DUT-7103, in: RM-112}
+    EQ-SPV-01: {name: Coating solution preparation vessel 200 L, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Vessel, make: Demo Coating Systems, model: SPV-200, serial: DCS-4102, in: RM-107}
+    EQ-BLS-01: {name: Blister packing machine, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Blister packer, make: Demo Pack Lines, model: BP-250, serial: DPL-5101, in: RM-108}
+    EQ-STP-01: {name: Strip packing machine, cleanHoldHours: 72, dirtyHoldHours: 24, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Strip packer, make: Demo Pack Lines, model: SP-4, serial: DPL-5102, in: RM-108}
+    EQ-CRT-01: {name: Cartonator, cleanHoldHours: 168, dirtyHoldHours: 48, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Cartoner, make: Demo Pack Lines, model: CT-120, serial: DPL-5201, in: RM-109}
+    EQ-CKW-01: {name: Check weigher, cleanHoldHours: 168, dirtyHoldHours: 48, pmFrequencyDays: 90, requalificationFrequencyMonths: 24, type: Check weigher, make: Demo Pack Lines, model: CW-10, serial: DPL-5202, in: RM-109}
+    EQ-STB-01: {name: Stability chamber 25 C / 60 % RH, pmFrequencyDays: 180, calibrationFrequencyDays: 180, requalificationFrequencyMonths: 12, type: Stability chamber, make: Demo Lab Systems, model: SC-1000, serial: DLS-6101, in: RM-110}
+    EQ-PWS-01: {name: Purified water generation system, pmFrequencyDays: 30, requalificationFrequencyMonths: 12, type: Water system, make: Demo Utilities, model: PW-1000, serial: DUT-7101, in: RM-112}
+    EQ-AHU-01: {name: Air handling unit (granulation and compression), pmFrequencyDays: 90, requalificationFrequencyMonths: 12, type: AHU, make: Demo Utilities, model: AHU-12K, serial: DUT-7102, in: RM-112}
+    EQ-CAS-01: {name: Compressed air system, pmFrequencyDays: 30, requalificationFrequencyMonths: 24, type: Compressor, make: Demo Utilities, model: OFC-50, serial: DUT-7103, in: RM-112}
   instrument:
-    IN-BAL-01: {name: Analytical balance 220 g, type: Balance, make: Demo Weighing, model: AB-220, serial: DWG-8101, needsCalibration: true, in: RM-110}
-    IN-BAL-02: {name: Semi-micro balance 120 g, type: Balance, make: Demo Weighing, model: SM-120, serial: DWG-8102, needsCalibration: true, in: RM-110}
-    IN-BAL-03: {name: Platform balance 300 kg, type: Balance, make: Demo Weighing, model: PB-300, serial: DWG-8201, needsCalibration: true, in: RM-101}
-    IN-BAL-04: {name: Precision balance 6 kg, type: Balance, make: Demo Weighing, model: PR-6, serial: DWG-8202, needsCalibration: true, in: RM-101}
-    IN-BAL-05: {name: IPC balance (tablet weight), type: Balance, make: Demo Weighing, model: AB-220, serial: DWG-8301, needsCalibration: true, in: RM-105}
-    IN-LOD-01: {name: Moisture analyser (IR), type: Moisture analyser, make: Demo Weighing, model: MA-50, serial: DWG-8302, needsCalibration: true, in: RM-103}
-    IN-HT-01: {name: Tablet hardness tester, type: Hardness tester, make: Demo Lab Systems, model: HT-5, serial: DLS-6201, needsCalibration: true, in: RM-105}
-    IN-FRI-01: {name: Friabilator, type: Friabilator, make: Demo Lab Systems, model: FR-2, serial: DLS-6202, needsCalibration: true, in: RM-105}
-    IN-DT-01: {name: Disintegration tester, type: Disintegration tester, make: Demo Lab Systems, model: DT-2, serial: DLS-6203, needsCalibration: true, in: RM-110}
-    IN-DIS-01: {name: Dissolution apparatus 8 station, type: Dissolution apparatus, make: Demo Lab Systems, model: DS-8, serial: DLS-6204, needsCalibration: true, in: RM-110}
-    IN-HPLC-01: {name: HPLC system 1, type: HPLC, make: Demo Analytics, model: LC-20, serial: DAN-9101, needsCalibration: true, in: RM-110}
-    IN-HPLC-02: {name: HPLC system 2, type: HPLC, make: Demo Analytics, model: LC-20, serial: DAN-9102, needsCalibration: true, in: RM-110}
-    IN-UV-01: {name: UV-visible spectrophotometer, type: Spectrophotometer, make: Demo Analytics, model: UV-18, serial: DAN-9201, needsCalibration: true, in: RM-110}
-    IN-KF-01: {name: Karl Fischer titrator, type: Titrator, make: Demo Analytics, model: KF-1, serial: DAN-9202, needsCalibration: true, in: RM-110}
-    IN-PH-01: {name: pH meter, type: pH meter, make: Demo Analytics, model: PH-7, serial: DAN-9203, needsCalibration: true, in: RM-110}
+    IN-BAL-01: {name: Analytical balance 220 g, calibrationFrequencyDays: 90, pmFrequencyDays: 180, type: Balance, make: Demo Weighing, model: AB-220, serial: DWG-8101, needsCalibration: true, in: RM-110}
+    IN-BAL-02: {name: Semi-micro balance 120 g, calibrationFrequencyDays: 90, pmFrequencyDays: 180, type: Balance, make: Demo Weighing, model: SM-120, serial: DWG-8102, needsCalibration: true, in: RM-110}
+    IN-BAL-03: {name: Platform balance 300 kg, calibrationFrequencyDays: 90, pmFrequencyDays: 180, type: Balance, make: Demo Weighing, model: PB-300, serial: DWG-8201, needsCalibration: true, in: RM-101}
+    IN-BAL-04: {name: Precision balance 6 kg, calibrationFrequencyDays: 90, pmFrequencyDays: 180, type: Balance, make: Demo Weighing, model: PR-6, serial: DWG-8202, needsCalibration: true, in: RM-101}
+    IN-BAL-05: {name: IPC balance (tablet weight), calibrationFrequencyDays: 90, pmFrequencyDays: 180, type: Balance, make: Demo Weighing, model: AB-220, serial: DWG-8301, needsCalibration: true, in: RM-105}
+    IN-LOD-01: {name: Moisture analyser (IR), calibrationFrequencyDays: 180, pmFrequencyDays: 365, type: Moisture analyser, make: Demo Weighing, model: MA-50, serial: DWG-8302, needsCalibration: true, in: RM-103}
+    IN-HT-01: {name: Tablet hardness tester, calibrationFrequencyDays: 180, pmFrequencyDays: 365, type: Hardness tester, make: Demo Lab Systems, model: HT-5, serial: DLS-6201, needsCalibration: true, in: RM-105}
+    IN-FRI-01: {name: Friabilator, calibrationFrequencyDays: 180, pmFrequencyDays: 365, type: Friabilator, make: Demo Lab Systems, model: FR-2, serial: DLS-6202, needsCalibration: true, in: RM-105}
+    IN-DT-01: {name: Disintegration tester, calibrationFrequencyDays: 180, pmFrequencyDays: 365, type: Disintegration tester, make: Demo Lab Systems, model: DT-2, serial: DLS-6203, needsCalibration: true, in: RM-110}
+    IN-DIS-01: {name: Dissolution apparatus 8 station, calibrationFrequencyDays: 180, pmFrequencyDays: 180, requalificationFrequencyMonths: 12, type: Dissolution apparatus, make: Demo Lab Systems, model: DS-8, serial: DLS-6204, needsCalibration: true, in: RM-110}
+    IN-HPLC-01: {name: HPLC system 1, calibrationFrequencyDays: 180, pmFrequencyDays: 180, requalificationFrequencyMonths: 12, type: HPLC, make: Demo Analytics, model: LC-20, serial: DAN-9101, needsCalibration: true, in: RM-110}
+    IN-HPLC-02: {name: HPLC system 2, calibrationFrequencyDays: 180, pmFrequencyDays: 180, requalificationFrequencyMonths: 12, type: HPLC, make: Demo Analytics, model: LC-20, serial: DAN-9102, needsCalibration: true, in: RM-110}
+    IN-UV-01: {name: UV-visible spectrophotometer, calibrationFrequencyDays: 180, pmFrequencyDays: 180, requalificationFrequencyMonths: 12, type: Spectrophotometer, make: Demo Analytics, model: UV-18, serial: DAN-9201, needsCalibration: true, in: RM-110}
+    IN-KF-01: {name: Karl Fischer titrator, calibrationFrequencyDays: 180, pmFrequencyDays: 365, type: Titrator, make: Demo Analytics, model: KF-1, serial: DAN-9202, needsCalibration: true, in: RM-110}
+    IN-PH-01: {name: pH meter, calibrationFrequencyDays: 180, pmFrequencyDays: 365, type: pH meter, make: Demo Analytics, model: PH-7, serial: DAN-9203, needsCalibration: true, in: RM-110}
   supplier:
     SUP-01: {name: Sahyadri Demo Actives Pvt Ltd, address: "Plot 12, Demo Industrial Area, Hyderabad, Telangana"}
     SUP-02: {name: Narmada Demo Pharma Chem Ltd, address: "Plot 4, Demo GIDC Estate, Ankleshwar, Gujarat"}
