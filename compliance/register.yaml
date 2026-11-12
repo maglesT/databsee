@@ -29,9 +29,13 @@ rules:
   implementation: Each product declares its permissions in its manifest; apply loads them into the register's catalogue, and
     each employee holds a subset of them (D-16). One sign-on (OIDC). The token a product receives carries only that product's
     permission codes from the register. Deactivating an employee ends sign-on for every product; access tokens live 5 minutes
-    and every renewal re-checks the register. Products keep their own server-side permission checks.
+    and every renewal re-checks the register. Products keep their own server-side permission checks. One person per browser
+    (D-23); signing in on core's screens starts the single sign-on and signing out ends it, with the products' grants; a
+    product that declares a back-channel logout path in its manifest is told at once, so a shared terminal never shows the
+    previous person.
   test: Deactivated employee cannot sign on to any product; a person gets exactly the ticked permissions; a token for product
-    A carries no permissions of product B.
+    A carries no permissions of product B; after sign-out on core, or another person's sign-in there, no product gets the
+    previous person.
 - id: PL-02
   title: Access grants are recorded
   rule: Creating, changing and cancelling access (employee permissions, product-to-product links, outside-system logins) is recorded

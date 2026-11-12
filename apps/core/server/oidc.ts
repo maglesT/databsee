@@ -3,14 +3,17 @@
 // PL-01: a product's token carries only that product's permission codes (claim `permissions`, D-16); an inactive or
 // locked employee has no account, so renewals fail (access tokens live 5 minutes). PL-05: prompt=login / max_age=0
 // forces the password again.
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import Provider, { type Adapter, type AdapterPayload, type Configuration, type KoaContextWithOIDC } from 'oidc-provider';
 import type { Sql } from 'postgres';
 
 export interface OidcSettings {
   issuer: string;                                            // e.g. https://site.example/oidc
-  clients: { client_id: string; client_secret: string; redirect_uris: string[]; post_logout_redirect_uris?: string[] }[];
+  // backchannel_logout_uri: where core tells the product that the person signed out (OIDC Back-Channel Logout 1.0).
+  clients: { client_id: string; client_secret: string; redirect_uris: string[]; post_logout_redirect_uris?: string[]; backchannel_logout_uri?: string }[];
   jwks: { keys: object[] };                                  // private signing key(s), from the customer secrets
   cookieKeys: string[];
+  fetch?: typeof fetch;                                      // tests only: catches the back-channel logout calls
 }
 
 /** Keeps the provider's state in identity.oidc_payload. */
@@ -59,8 +62,8 @@ export function buildProvider(sql: Sql, s: OidcSettings) {
     scopes: ['openid', 'profile', 'permissions'],
     claims: { openid: ['sub'], profile: ['name', 'preferred_username'], permissions: ['permissions'] },
     pkce: { required: () => true },
-    features: { devInteractions: { enabled: false }, revocation: { enabled: true }, rpInitiatedLogout: { enabled: true } },
-    ttl: { AccessToken: 300, IdToken: 300, AuthorizationCode: 60, Interaction: 600, Session: 8 * 3600, Grant: 8 * 3600, RefreshToken: 8 * 3600 },
+    features: { devInteractions: { enabled: false }, revocation: { enabled: true }, rpInitiatedLogout: { enabled: true }, backchannelLogout: { enabled: true } },
+    ttl: { AccessToken: 300, IdToken: 300, AuthorizationCode: 60, Interaction: 600, Session: SIGN_ON_TTL_S, Grant: 8 * 3600, RefreshToken: 8 * 3600 },
     rotateRefreshToken: true,
     issueRefreshToken: async (_ctx, client) => client.grantTypeAllowed('refresh_token'),
     interactions: { url: (_ctx, interaction) => `/interaction/${interaction.uid}` },
@@ -76,8 +79,70 @@ export function buildProvider(sql: Sql, s: OidcSettings) {
       return grant;
     },
     findAccount: (ctx, sub) => findAccount(sql, sub, ctx.oidc.client?.clientId),
+    ...(s.fetch ? { fetch: s.fetch } : {}),
   };
   const provider = new Provider(s.issuer, config);
   provider.proxy = true; // behind Caddy
   return provider;
+}
+
+// One person per browser (PL-01, shared terminals). The products' single sign-on (the provider's session, cookie
+// "_session" signed as "_session.sig") and the core screens' own sign-in start and end together: core's sign-in starts
+// the single sign-on, its sign-out ends it, and the products are told at once (back-channel logout).
+export const SIGN_ON_COOKIE = '_session';
+export const SIGN_ON_TTL_S = 8 * 3600;
+
+/** The signature the provider's cookie library gives a signed cookie: HMAC-SHA1 of "name=value", URL-safe base64. */
+export function cookieSignature(key: string, name: string, value: string): string {
+  return createHmac('sha1', key).update(`${name}=${value}`).digest('base64').replace(/\//g, '_').replace(/\+/g, '-').replace(/=+$/, '');
+}
+
+/** The single sign-on session id this browser holds, if its signature is one of the provider's cookie keys. */
+export function signOnCookie(keys: string[], cookies: Record<string, string | undefined>): string | undefined {
+  const value = cookies[SIGN_ON_COOKIE];
+  const sig = cookies[`${SIGN_ON_COOKIE}.sig`];
+  if (!value || !sig) return undefined;
+  const ok = keys.some((k) => {
+    const want = Buffer.from(cookieSignature(k, SIGN_ON_COOKIE, value));
+    const got = Buffer.from(sig);
+    return want.length === got.length && timingSafeEqual(want, got);
+  });
+  return ok ? value : undefined;
+}
+
+/** Who the single sign-on session `id` belongs to, while it lasts. */
+export async function signOnAccount(provider: Provider, id: string | undefined): Promise<string | undefined> {
+  if (!id) return undefined;
+  return (await provider.Session.find(id))?.accountId;
+}
+
+/** Starts a single sign-on session for `accountId` (the password was just checked by core). Returns its id. */
+export async function startSignOn(provider: Provider, accountId: string): Promise<string> {
+  const session = new provider.Session();
+  session.loginAccount({ accountId, amr: ['pwd'] });
+  await session.save(SIGN_ON_TTL_S);
+  return session.jti;   // the session's id, as the provider's cookie holds it
+}
+
+/**
+ * Ends single sign-on session `id` as the provider's own "sign out" does: each product it signed into is told by
+ * back-channel logout (where the product takes it), the products' grants and refresh tokens are revoked, and the
+ * session is deleted. A product that cannot be reached keeps its session until its next renewal, which then fails.
+ */
+export async function endSignOn(provider: Provider, sql: Sql, id: string | undefined): Promise<void> {
+  if (!id) return;
+  const session = await provider.Session.find(id);
+  if (!session) return;
+  const accountId = session.accountId;
+  for (const [clientId, { grantId }] of Object.entries(session.authorizations ?? {})) {
+    // backchannelLogout is the provider's own call (lib/models/client.js); its type package does not list it.
+    const client = (await provider.Client.find(clientId)) as (InstanceType<Provider['Client']> & { backchannelLogout(sub: string, sid: string | undefined): Promise<void> }) | undefined;
+    if (client?.backchannelLogoutUri && accountId) {
+      await client.backchannelLogout(accountId, session.sidFor(clientId)).catch((err: Error) => {
+        provider.emit('backchannel.error', undefined, err, client, accountId);
+      });
+    }
+    if (grantId) await sql`delete from oidc_payload where grant_id = ${grantId} or (model = 'Grant' and id = ${grantId})`;
+  }
+  await session.destroy();
 }

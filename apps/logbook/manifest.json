@@ -21,7 +21,8 @@
     {"code": "logbook.voice_note.record", "label": "Record voice notes"},
     {"code": "logbook.advice.ask", "label": "Ask for breakdown suggestions"}
   ],
+  "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"] },
-  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "92cd362c19698c2ffd7585acfd523bec206d4b69" }
+  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "88a38a2fbaf95adbb9fe7dd41b45fa0b4cb585a7" }
 }

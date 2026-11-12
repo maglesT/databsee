@@ -252,8 +252,11 @@ export const docker: Runtime = {
       SECURITY_CONTACT_EMAIL: config.security_contact,
       ...(secrets.smtp_url ? { SMTP_URL: secrets.smtp_url } : {}),
       OIDC_ISSUER: `https://${config.domain}/oidc`,
-      OIDC_CLIENTS: JSON.stringify(config.licences.map((p) => ({
-        client_id: p, client_secret: secrets.oidc.clients[p], redirect_uris: [`https://${p}.${config.domain}/cb`] }))),
+      OIDC_CLIENTS: JSON.stringify(config.licences.map((p) => {
+        const backchannel = manifest(p).signon?.backchannel_logout;
+        return { client_id: p, client_secret: secrets.oidc.clients[p], redirect_uris: [`https://${p}.${config.domain}/cb`],
+          ...(backchannel ? { backchannel_logout_uri: `https://${p}.${config.domain}${backchannel}` } : {}) };
+      })),
       OIDC_JWKS: JSON.stringify(secrets.oidc.jwks),
       OIDC_COOKIE_KEYS: secrets.oidc.cookie_keys.join(','),
     }));

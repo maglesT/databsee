@@ -61,6 +61,9 @@ export interface Manifest {
   // Further database logins a self-migrating product creates (Batchwright: ebmr_authn, ebmr_analytics, ...). Its own
   // migrator sets them; apply switches them off with the product's licence, as it does <product>_app.
   logins?: string[];
+  // The product's own sign-on endpoints. backchannel_logout: the path where core tells it that the person signed out
+  // at core (OIDC Back-Channel Logout 1.0), so its session ends at once rather than at its next renewal (PL-01).
+  signon?: { backchannel_logout?: string };
 }
 
 /** A permission code: <product>.<thing>.<action>, lower case and dotted (same check as db/identity/0004). */
@@ -83,6 +86,8 @@ export function checkManifest(m: Manifest, product: string, where = product): Ma
     if (!new RegExp(`^${product}_[a-z0-9_]+$`).test(l) || l === `${product}_app` || l === `${product}_owner`)
       throw new Error(`${where}: extra login "${l}" must be ${product}_<name>, not ${product}_app or ${product}_owner`);
   if (m.logins && m.migrate !== 'own') throw new Error(`${where}: extra logins belong to a product that migrates itself`);
+  if (m.signon?.backchannel_logout !== undefined && !/^\/[a-z0-9/_-]*$/.test(m.signon.backchannel_logout))
+    throw new Error(`${where}: signon.backchannel_logout must be a path such as /backchannel-logout`);
   if (!Array.isArray(m.permissions) || m.permissions.length === 0) throw new Error(`${where}: needs a list of permissions`);
   const seen = new Set<string>();
   for (const p of m.permissions) {
