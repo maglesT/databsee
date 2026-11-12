@@ -1,7 +1,7 @@
 # Demo company (DEMO-ONLY, docs/demo-company.md): rehearsal of the go-live on the owner's server, test address only.
 # Removed completely after the rehearsal (owner's go-live plan, Phase 1); nothing of it goes into the real install.
 customer: demo
-version: 1.2.2 # platform release (1.2.2: graph shows change over, breakdown, requalification needed, PM due; 1.2.1: missed limits count from installation; Logbook redesign: items by master ID, dues, activity dropdown, one activity at a time; missed limits raise deviations; Qualification publishes qualification_v1/protocol_v1; includes 1.1.2 sign-out fix)
+version: 1.2.3 # platform release (1.2.3: Logbook batches from Batchwright; 1.2.2: graph shows change over, breakdown, requalification needed, PM due; 1.2.1: missed limits count from installation; Logbook redesign: items by master ID, dues, activity dropdown, one activity at a time; missed limits raise deviations; Qualification publishes qualification_v1/protocol_v1; includes 1.1.2 sign-out fix)
 domain: demo.187-126-126-5.sslip.io # test name, NOT the go-live one
 offline: true # signed bundle downloaded from the apply run and applied by hand (no SSH from GitHub)
 security_contact: it-security@demo-pharma.example
@@ -32,6 +32,9 @@ links:
       - protocol_v1
     deviations:
       - deviation_v1
+    ebmr:
+      - batch_fact_v1
+      - equipment_use_v1
   mms:
     master_data:
       - material_v1
