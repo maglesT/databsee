@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { POLICY } from './config.js';
 import type { SendMail } from './mail.js';
 import { hashPassword, passwordProblem, temporaryPassword, verifyPassword } from './passwords.js';
-import { buildProvider, type OidcSettings } from './oidc.js';
+import { buildProvider, endSignOn, SIGN_ON_COOKIE, SIGN_ON_TTL_S, signOnAccount, signOnCookie, startSignOn, cookieSignature, type OidcSettings } from './oidc.js';
 import { registerMasterData } from './master-data.js';
 import { productInfo } from '../products.js';
 
@@ -182,7 +182,25 @@ export function buildApp(deps: Deps) {
   const app = Fastify({ logger: false });
   app.register(cookie);
   if (deps.webRoot) app.register(fastifyStatic, { root: deps.webRoot });
-  if (deps.oidc) mountSignOn(app, deps, deps.oidc);
+  const provider = deps.oidc ? buildProvider(sql, deps.oidc) : null;
+  if (deps.oidc && provider) mountSignOn(app, deps, deps.oidc, provider);
+
+  // One person per browser (PL-01): core's sign-in and the products' single sign-on start and end together.
+  const signOnOpts = { path: '/', httpOnly: true, sameSite: 'lax' as const, secure: deps.secureCookies };
+  const browserSignOn = (req: FastifyRequest) => (deps.oidc ? signOnCookie(deps.oidc.cookieKeys, req.cookies) : undefined);
+  const setSignOn = (reply: FastifyReply, id: string) => {
+    reply.setCookie(SIGN_ON_COOKIE, id, { ...signOnOpts, maxAge: SIGN_ON_TTL_S });
+    reply.setCookie(`${SIGN_ON_COOKIE}.sig`, cookieSignature(deps.oidc!.cookieKeys[0]!, SIGN_ON_COOKIE, id), { ...signOnOpts, maxAge: SIGN_ON_TTL_S });
+  };
+  const clearSignOn = (reply: FastifyReply) => {
+    reply.clearCookie(SIGN_ON_COOKIE, { path: '/' });
+    reply.clearCookie(`${SIGN_ON_COOKIE}.sig`, { path: '/' });
+  };
+  const newSession = async (reply: FastifyReply, employeeId: string) => {
+    const sid = randomBytes(32).toString('base64url');
+    await sql`insert into session (id, employee_id) values (${sessionKey(sid)}, ${employeeId})`;
+    reply.setCookie(SESSION_COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'strict', secure: deps.secureCookies });
+  };
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
@@ -195,15 +213,21 @@ export function buildApp(deps: Deps) {
 
   // Session check for every /api route except sign-on. Idle sessions end (PL-01); a temporary or expired password
   // allows only the password change (PL-04).
-  app.addHook('preHandler', async (req: FastifyRequest) => {
-    if (!req.url.startsWith('/api/') || req.url === '/api/login') return;
+  app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+    // Sign-out works with or without a live session: it must always end the single sign-on too.
+    if (!req.url.startsWith('/api/') || req.url === '/api/login' || req.url === '/api/logout') return;
     const sid = req.cookies[SESSION_COOKIE];
-    if (!sid) throw new HttpError(401, 'Please sign in.');
-    const [s] = await sql<{ employee_id: string }[]>`
+    const [s] = sid ? await sql<{ employee_id: string }[]>`
       update session set last_seen_at = now()
       where id = ${sessionKey(sid)} and last_seen_at > now() - make_interval(mins => ${POLICY.sessionIdleMinutes})
-      returning employee_id`;
-    const me = s && (await loadMe(sql, s.employee_id));
+      returning employee_id` : [];
+    let me = s && (await loadMe(sql, s.employee_id));
+    // Signed in through a product first: the same login opens the core screens (one login for every application).
+    if (!me && provider) {
+      const account = await signOnAccount(provider, browserSignOn(req));
+      me = account ? await loadMe(sql, account) : undefined;
+      if (me) await newSession(reply, me.id);
+    }
     if (!me) throw new HttpError(401, 'Please sign in.');
     req.me = me;
     if (me.mustChange && !['/api/me', '/api/me/password', '/api/logout'].includes(req.url)) {
@@ -220,15 +244,29 @@ export function buildApp(deps: Deps) {
     const b = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(req.body);
     const id = await checkPassword(deps, b.login, b.password);
     if (!id) throw new HttpError(401, 'Wrong login or password, or the account is locked or inactive.');
-    const sid = randomBytes(32).toString('base64url');
-    await sql`insert into session (id, employee_id) values (${sessionKey(sid)}, ${id})`;
-    reply.setCookie(SESSION_COOKIE, sid, { path: '/', httpOnly: true, sameSite: 'strict', secure: deps.secureCookies });
+    const old = req.cookies[SESSION_COOKIE];
+    if (old) await sql`delete from session where id = ${sessionKey(old)}`;
+    await newSession(reply, id);
+    if (provider) {
+      // The products' single sign-on follows: kept for the same person, ended (products told) for anyone else.
+      const current = browserSignOn(req);
+      if ((await signOnAccount(provider, current)) !== id) {
+        await endSignOn(provider, sql, current);
+        setSignOn(reply, await startSignOn(provider, id));
+      }
+    }
     return loadMe(sql, id);
   });
 
   app.post('/api/logout', async (req, reply) => {
-    await sql`delete from session where id = ${sessionKey(req.cookies[SESSION_COOKIE]!)}`;
+    const sid = req.cookies[SESSION_COOKIE];
+    if (sid) await sql`delete from session where id = ${sessionKey(sid)}`;
     reply.clearCookie(SESSION_COOKIE, { path: '/' });
+    // PL-01: signing out of core signs the person out of every product on this browser, and the products are told.
+    if (provider) {
+      await endSignOn(provider, sql, browserSignOn(req));
+      clearSignOn(reply);
+    }
     return { ok: true };
   });
 
@@ -443,9 +481,13 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding
 }
 
 /** Mounts the OIDC provider at /oidc and its sign-in page at /interaction (slice A3). */
-function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings) {
+function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, provider: ReturnType<typeof buildProvider>) {
   const { sql } = deps;
-  const provider = buildProvider(sql, settings);
+  // "Yes, sign me out" at core's sign-out page (a product's logout) also ends the core screens' session on this browser.
+  provider.on('end_session.success', (ctx: { oidc?: { params?: { logout?: unknown } }; cookies: { get(n: string, o: { signed: boolean }): string | undefined } }) => {
+    const sid = ctx.oidc?.params?.logout ? ctx.cookies.get(SESSION_COOKIE, { signed: false }) : undefined;
+    if (sid) void sql`delete from session where id = ${sessionKey(sid)}`.catch(() => {});
+  });
   const callback = provider.callback();
   const mountPath = new URL(settings.issuer).pathname.replace(/\/$/, '');
 
@@ -502,6 +544,9 @@ function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings) {
       const [has] = await sql`select 1 from current_permission_grant where employee_id = ${id} and product = ${product} limit 1`;
       if (!has) return show({ error: `You have no access to ${product}. Ask your administrator.` });
 
+      // One person per browser: a core screens' session of someone else on this browser ends.
+      const sid = req.cookies[SESSION_COOKIE];
+      if (sid) await sql`delete from session where id = ${sessionKey(sid)} and employee_id <> ${id}`;
       reply.hijack();
       await provider.interactionFinished(req.raw, reply.raw, { login: { accountId: id } }, { mergeWithLastSubmission: false });
     });

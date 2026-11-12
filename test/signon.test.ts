@@ -1,6 +1,6 @@
 // Slice A3: single sign-on for the products (OIDC authorization code + PKCE), driven over HTTP.
 import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../apps/core/server/app.js';
 import { coreApp, grant, helloCatalogue, makeEmployee, PASSWORD, run, superuser } from './core.js';
 
@@ -19,16 +19,20 @@ beforeAll(async () => {
 afterAll(async () => { await t.sql.end(); await t.md.end(); });
 
 /** A browser stand-in: keeps cookies and follows the provider's redirects until the sign-in page or the product. */
-function browser() {
+function browser(a = app) {
   const jar = new Map<string, string>();
-  const request = async (method: 'GET' | 'POST', url: string, form?: Record<string, string>) => {
-    const res = await app.inject({
-      method, url, headers: { host: 'core.test', ...(form ? { 'content-type': 'application/x-www-form-urlencoded' } : {}) },
-      cookies: Object.fromEntries(jar), payload: form ? new URLSearchParams(form).toString() : undefined,
-    });
+  const keep = (res: Awaited<ReturnType<typeof a.inject>>) => {
     for (const c of res.cookies) { if (c.maxAge === 0 || c.value === '') jar.delete(c.name); else jar.set(c.name, c.value); }
     return res;
   };
+  const request = async (method: 'GET' | 'POST', url: string, form?: Record<string, string>) => keep(await a.inject({
+    method, url, headers: { host: 'core.test', ...(form ? { 'content-type': 'application/x-www-form-urlencoded' } : {}) },
+    cookies: Object.fromEntries(jar), payload: form ? new URLSearchParams(form).toString() : undefined,
+  }));
+  /** The core screens' API (JSON), on the same cookies. */
+  const api = async (method: 'GET' | 'POST', url: string, body?: object) => keep(await a.inject({
+    method, url, headers: { host: 'core.test' }, cookies: Object.fromEntries(jar), ...(body ? { payload: body } : {}),
+  }));
   /** Follows redirects: returns the sign-in page HTML (+ its form action) or the code sent to the product. */
   const follow = async (start: Awaited<ReturnType<typeof request>>) => {
     let res = start;
@@ -43,7 +47,7 @@ function browser() {
     }
     throw new Error('too many redirects');
   };
-  return { request, follow };
+  return { request, follow, api, jar };
 }
 
 function pkce() {
@@ -63,14 +67,14 @@ async function signIn(b: ReturnType<typeof browser>, action: string, form: Recor
 }
 
 const basic = 'Basic ' + Buffer.from('hello:hello-secret').toString('base64');
-async function token(form: Record<string, string>) {
-  const res = await app.inject({ method: 'POST', url: '/oidc/token', headers: { host: 'core.test', authorization: basic, 'content-type': 'application/x-www-form-urlencoded' },
+async function token(form: Record<string, string>, a = app) {
+  const res = await a.inject({ method: 'POST', url: '/oidc/token', headers: { host: 'core.test', authorization: basic, 'content-type': 'application/x-www-form-urlencoded' },
     payload: new URLSearchParams(form).toString() });
   return { status: res.statusCode, body: res.json() as Record<string, string> };
 }
-const exchange = (code: string, verifier: string) => token({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: CLIENT.redirect_uris[0]! });
-async function userinfo(accessToken: string) {
-  return (await app.inject({ method: 'GET', url: '/oidc/me', headers: { host: 'core.test', authorization: `Bearer ${accessToken}` } })).json();
+const exchange = (code: string, verifier: string, a = app) => token({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: CLIENT.redirect_uris[0]! }, a);
+async function userinfo(accessToken: string, a = app) {
+  return (await a.inject({ method: 'GET', url: '/oidc/me', headers: { host: 'core.test', authorization: `Bearer ${accessToken}` } })).json();
 }
 const idClaims = (jwt: string) => JSON.parse(Buffer.from(jwt.split('.')[1]!, 'base64url').toString());
 
@@ -199,5 +203,118 @@ describe('PL-04 password rules apply to product sign-on too', () => {
     const { rows } = { rows: await t.sql`select kind, product from credential_event where employee_id = ${id} order by id` };
     expect(rows.filter((r) => r.kind === 'signon_failed' && r.product === 'hello')).toHaveLength(6);
     expect(rows.some((r) => r.kind === 'locked')).toBe(true);
+  });
+});
+
+describe('PL-01 one person per browser: core sign-in and the products\' single sign-on start and end together', () => {
+  // A product that takes back-channel logout; the provider's outgoing calls are caught instead of sent.
+  const BACKCHANNEL = 'https://hello.test/backchannel-logout';
+  const sent: { url: string; token: Record<string, unknown> }[] = [];
+  const catcher = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+    sent.push({ url: String(url), token: idClaims(new URLSearchParams(String(init?.body)).get('logout_token')!) });
+    return new Response(null, { status: 200 });
+  });
+  let app2: ReturnType<typeof buildApp>;
+  beforeAll(() => {
+    app2 = buildApp({ ...t.deps, oidc: { issuer: ISSUER, clients: [{ ...CLIENT, backchannel_logout_uri: BACKCHANNEL }], jwks: { keys: [{ ...key, use: 'sig', kid: 'test' }] },
+      cookieKeys: ['test-cookie-key'], fetch: catcher as unknown as typeof fetch } });
+  });
+  const person = async (name: string) => {
+    const id = await makeEmployee(`${name}${run}`, ['core.masterdata.view']);
+    await grant(id, ['hello.note.read']);
+    return { id, login: `${name}${run}` };
+  };
+  /** The product signs on in this browser and gets its tokens (a code without a password means single sign-on). */
+  const productSignOn = async (b: ReturnType<typeof browser>) => {
+    const { step, verifier } = await startAuth(b);
+    return step.code ? { silent: true, tokens: (await exchange(step.code, verifier, app2)).body } : { silent: false, page: step.page ?? '' };
+  };
+  const loggedOut = (sub: string) => sent.filter((x) => x.token.sub === sub);
+
+  it('PL-01 signing in on core\'s screens also signs the person on to the products: no second password', async () => {
+    const a = await person('one');
+    const b = browser(app2);
+    expect((await b.api('POST', '/api/login', { login: a.login, password: PASSWORD })).statusCode).toBe(200);
+    const p = await productSignOn(b);
+    expect(p.silent).toBe(true);
+    expect((await userinfo(p.tokens!.access_token!, app2)).sub).toBe(a.id);
+  });
+
+  it('PL-01 sign-out on core ends the single sign-on, revokes the product\'s renewal and tells the product at once', async () => {
+    const a = await person('out');
+    const b = browser(app2);
+    await b.api('POST', '/api/login', { login: a.login, password: PASSWORD });
+    const p = await productSignOn(b);
+    expect((await b.api('POST', '/api/logout')).statusCode).toBe(200);
+
+    const [told] = loggedOut(a.id);
+    expect(told?.url).toBe(BACKCHANNEL);
+    expect(told?.token).toMatchObject({ iss: ISSUER, aud: 'hello', sub: a.id, events: { 'http://schemas.openid.net/event/backchannel-logout': {} } });
+    expect(told?.token.nonce).toBeUndefined();
+    const renewal = await token({ grant_type: 'refresh_token', refresh_token: p.tokens!.refresh_token! }, app2);
+    expect(renewal.body.error).toBe('invalid_grant');
+    expect((await productSignOn(b)).silent).toBe(false);                     // the product asks for the password again
+    expect((await b.api('GET', '/api/me')).statusCode).toBe(401);
+  });
+
+  it('PL-01 another person signing in on core first ends the previous person\'s single sign-on, products told', async () => {
+    const a = await person('first');
+    const c = await person('second');
+    const b = browser(app2);
+    await b.api('POST', '/api/login', { login: a.login, password: PASSWORD });
+    await productSignOn(b);
+    await b.api('POST', '/api/login', { login: c.login, password: PASSWORD });
+    expect(loggedOut(a.id)).toHaveLength(1);
+    const p = await productSignOn(b);
+    expect(p.silent).toBe(true);
+    expect((await userinfo(p.tokens!.access_token!, app2)).sub).toBe(c.id);   // never the previous person
+    expect((await b.api('GET', '/api/me')).json().login).toBe(c.login);
+  });
+
+  it('PL-01 the same person signing in again keeps their single sign-on (products not signed out)', async () => {
+    const a = await person('again');
+    const b = browser(app2);
+    await b.api('POST', '/api/login', { login: a.login, password: PASSWORD });
+    await productSignOn(b);
+    await b.api('POST', '/api/login', { login: a.login, password: PASSWORD });
+    expect(loggedOut(a.id)).toHaveLength(0);
+  });
+
+  it('PL-01 sign-out still ends the single sign-on after the core screens\' session went idle', async () => {
+    const a = await person('idle');
+    const b = browser(app2);
+    await b.api('POST', '/api/login', { login: a.login, password: PASSWORD });
+    await productSignOn(b);
+    const su = superuser();
+    await su`update session set last_seen_at = now() - interval '1 day' where employee_id = ${a.id}`;
+    await su.end();
+    expect((await b.api('POST', '/api/logout')).statusCode).toBe(200);
+    expect(loggedOut(a.id)).toHaveLength(1);
+    expect((await productSignOn(b)).silent).toBe(false);
+  });
+
+  it('PL-01 signed in through a product, the core screens open as that person; "Yes, sign me out" at core ends both', async () => {
+    const a = await person('viaprod');
+    const b = browser(app2);
+    const { step } = await startAuth(b);
+    expect((await signIn(b, step.action!, { login: a.login, password: PASSWORD })).code).toBeTruthy();
+    expect((await b.api('GET', '/api/me')).json().login).toBe(a.login);
+
+    const form = (await b.request('GET', '/oidc/session/end')).body;
+    const xsrf = /name="xsrf" value="([^"]+)"/.exec(form)?.[1];
+    expect(xsrf).toBeTruthy();
+    await b.request('POST', '/oidc/session/end/confirm', { xsrf: xsrf!, logout: 'yes' });
+    await new Promise((r) => setTimeout(r, 200));                             // the provider's event runs after its answer
+    expect((await b.api('GET', '/api/me')).statusCode).toBe(401);
+    expect(loggedOut(a.id)).toHaveLength(1);
+  });
+
+  it('PL-01 a single sign-on cookie with a wrong signature is not taken', async () => {
+    const a = await person('forged');
+    const b = browser(app2);
+    await b.api('POST', '/api/login', { login: a.login, password: PASSWORD });
+    b.jar.delete('sid');
+    b.jar.set('_session.sig', 'forged');
+    expect((await b.api('GET', '/api/me')).statusCode).toBe(401);
   });
 });

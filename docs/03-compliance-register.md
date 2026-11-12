@@ -18,9 +18,9 @@ Generated from `compliance/register.yaml` by `scripts/check-register.py --render
 
 **Breaks if dropped.** 11.10(d)/(g), A11 12.1, SchM 20.4.
 
-**Implementation (least strict).** Each product declares its permissions in its manifest; apply loads them into the register's catalogue, and each employee holds a subset of them (D-16). One sign-on (OIDC). The token a product receives carries only that product's permission codes from the register. Deactivating an employee ends sign-on for every product; access tokens live 5 minutes and every renewal re-checks the register. Products keep their own server-side permission checks.
+**Implementation (least strict).** Each product declares its permissions in its manifest; apply loads them into the register's catalogue, and each employee holds a subset of them (D-16). One sign-on (OIDC). The token a product receives carries only that product's permission codes from the register. Deactivating an employee ends sign-on for every product; access tokens live 5 minutes and every renewal re-checks the register. Products keep their own server-side permission checks. One person per browser (D-23); signing in on core's screens starts the single sign-on and signing out ends it, with the products' grants; a product that declares a back-channel logout path in its manifest is told at once, so a shared terminal never shows the previous person.
 
-**Test.** Deactivated employee cannot sign on to any product; a person gets exactly the ticked permissions; a token for product A carries no permissions of product B.
+**Test.** Deactivated employee cannot sign on to any product; a person gets exactly the ticked permissions; a token for product A carries no permissions of product B; after sign-out on core, or another person's sign-in there, no product gets the previous person.
 
 ### PL-02 — Access grants are recorded
 
