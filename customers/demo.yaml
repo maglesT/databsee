@@ -1,7 +1,7 @@
 # Demo company (DEMO-ONLY, docs/demo-company.md): rehearsal of the go-live on the owner's server, test address only.
 # Removed completely after the rehearsal (owner's go-live plan, Phase 1); nothing of it goes into the real install.
 customer: demo
-version: 1.1.2 # platform release (one person per browser, D-23: core sign-in/sign-out start and end the products' single sign-on; Logbook pinned at 88a38a2 with back-channel logout)
+version: 1.2.0 # platform release (Logbook redesign: items by master ID, dues, activity dropdown, one activity at a time; missed limits raise deviations; Qualification publishes qualification_v1/protocol_v1; includes 1.1.2 sign-out fix)
 domain: demo.187-126-126-5.sslip.io # test name, NOT the go-live one
 offline: true # signed bundle downloaded from the apply run and applied by hand (no SSH from GitHub)
 security_contact: it-security@demo-pharma.example
@@ -27,6 +27,11 @@ links:
       - instrument_v1
       - room_v1
       - product_v1
+    qual:
+      - qualification_v1
+      - protocol_v1
+    deviations:
+      - deviation_v1
   mms:
     master_data:
       - material_v1
@@ -52,6 +57,7 @@ links:
       - entry_v1
       - calibration_v1
       - logbook_sop_v1
+      - overdue_v1
     ebmr:
       - batch_fact_v1
       - step_use_v1
