@@ -103,3 +103,46 @@ describe('PL-08 products read master data live through the views', () => {
     expect((await editor.call('POST', '/api/item-links', { fromId: eq, toId: supplier, type: 'supplied_by', active: true, reason: 'x' })).statusCode).toBe(400);
   });
 });
+
+describe('PL-08 maintenance, cleaning and requalification parameters are kept once in master data (D-24)', () => {
+  it('PL-08 the parameters are checked: whole numbers in range, and a frequency-based room needs its frequency', async () => {
+    const bad = (kind: string, fields: object) => editor.call('POST', '/api/items', { kind, code: code(`P${Math.random().toString(36).slice(2, 6)}`), name: 'x', fields, reason: 'r' });
+    expect((await bad('equipment', { cleanHoldHours: 1.5 })).statusCode).toBe(400);
+    expect((await bad('equipment', { dirtyHoldHours: 0 })).statusCode).toBe(400);
+    expect((await bad('equipment', { pmFrequencyDays: '30' })).statusCode).toBe(400);
+    expect((await bad('room', { cleaningBasis: 'frequency' })).json().error).toMatch(/needs its cleaning frequency/);
+    expect((await bad('room', { cleaningFrequencyHours: 24 })).json().error).toMatch(/Only a frequency-based room/);
+    expect((await bad('room', { calibrationFrequencyDays: 30 })).statusCode).toBe(400);   // rooms are not calibrated
+  });
+
+  it('PL-08 a linked product reads them from the views; a change is a new version with its reason', async () => {
+    const press = await add('equipment', code('FP'), 'Rotary press', { cleanHoldHours: 72, dirtyHoldHours: 8, pmFrequencyDays: 90, calibrationFrequencyDays: 180, requalificationFrequencyMonths: 24 });
+    const bal = await add('instrument', code('IB'), 'Balance', { needsCalibration: true, calibrationFrequencyDays: 30, requalificationFrequencyMonths: 12 });
+    const store = await add('room', code('ST'), 'RM store', { cleaningBasis: 'frequency', cleaningFrequencyHours: 168, requalificationFrequencyMonths: 36 });
+    const granulation = await add('room', code('GN'), 'Granulation room', { cleanHoldHours: 24, dirtyHoldHours: 4 });
+    const su = postgres({ database: 'master_data', onnotice: () => {}, max: 1 });
+    await su`select platform.set_link('hello_app', array['equipment_v1', 'instrument_v1', 'room_v1'], true, 'CC-MD3', 'hello reads the parameters')`;
+    await enableLogin('hello_app');
+    const hello = postgres({ database: 'master_data', username: 'hello_app', password: 'test-only', onnotice: () => {}, max: 1 });
+    const eq = async () => (await hello`select clean_hold_hours, dirty_hold_hours, pm_frequency_days, calibration_frequency_days, requalification_frequency_months
+      from report.equipment_v1 where code = ${code('FP')}`)[0];
+    expect(await eq()).toEqual({ clean_hold_hours: 72, dirty_hold_hours: 8, pm_frequency_days: 90, calibration_frequency_days: 180, requalification_frequency_months: 24 });
+    expect((await hello`select calibration_frequency_days, requalification_frequency_months, needs_calibration from report.instrument_v1 where code = ${code('IB')}`)[0])
+      .toEqual({ calibration_frequency_days: 30, requalification_frequency_months: 12, needs_calibration: true });
+    expect((await hello`select code, cleaning_basis, cleaning_frequency_hours, clean_hold_hours, dirty_hold_hours, requalification_frequency_months
+      from report.room_v1 where code in (${code('ST')}, ${code('GN')}) order by code`)).toEqual([
+      { code: code('GN'), cleaning_basis: 'operation', cleaning_frequency_hours: null, clean_hold_hours: 24, dirty_hold_hours: 4, requalification_frequency_months: null },
+      { code: code('ST'), cleaning_basis: 'frequency', cleaning_frequency_hours: 168, clean_hold_hours: null, dirty_hold_hours: null, requalification_frequency_months: 36 },
+    ]);
+    // A change of a hold time is a new version with its reason, and products read it at once (no copy anywhere).
+    expect((await editor.call('PATCH', `/api/items/${press}`, { fields: { cleanHoldHours: 48, dirtyHoldHours: 8, pmFrequencyDays: 90, calibrationFrequencyDays: 180, requalificationFrequencyMonths: 24 },
+      reason: 'Clean hold per cleaning validation report CV-014' })).statusCode).toBe(200);
+    expect((await eq())!.clean_hold_hours).toBe(48);
+    const h = (await editor.call('GET', `/api/items/${press}/history`)).json();
+    expect(h.versions.at(-1)).toMatchObject({ version: 2, reason: 'Clean hold per cleaning validation report CV-014' });
+    expect(bal && store && granulation).toBeTruthy();
+    await su`select platform.set_link('hello_app', array['equipment_v1', 'instrument_v1', 'room_v1'], false, 'CC-MD4', 'cleanup')`;
+    await hello.end();
+    await su.end();
+  });
+});
