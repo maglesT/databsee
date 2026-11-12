@@ -25,5 +25,5 @@
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1", "overdue_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"], "qual": ["qualification_v1", "protocol_v1"], "deviations": ["deviation_v1"] },
-  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "77e71a6416472b08097b20aa42c01aec7991ce25" }
+  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "247836f753494766b760c567820d1a901cb6d058" }
 }
