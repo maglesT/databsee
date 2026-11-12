@@ -8,11 +8,23 @@ import { csv, HttpError } from './app.js';
 type Need = (req: FastifyRequest, codes: string[]) => { id: string; fullName: string };
 
 const text = z.string().trim().max(200).optional();
+// D-24: the maintenance and cleaning parameters of an item, kept once here for every product (Logbook, Batchwright,
+// Qualification): hold times in hours, frequencies in days (calibration, preventive maintenance) or hours (cleaning of a
+// frequency-based room), months (requalification). Whole numbers; empty means "not applicable". Due dates are never stored: products work them
+// out from the last time the activity was done and these values.
+const hours = z.number({ invalid_type_error: 'Hours must be a whole number.' }).int('Hours must be a whole number.').min(1).max(24 * 365).optional();
+const days = z.number({ invalid_type_error: 'Days must be a whole number.' }).int('Days must be a whole number.').min(1).max(3650).optional();
+const months = z.number({ invalid_type_error: 'Months must be a whole number.' }).int('Months must be a whole number.').min(1).max(240).optional();
+const care = { cleanHoldHours: hours, dirtyHoldHours: hours, pmFrequencyDays: days, calibrationFrequencyDays: days, requalificationFrequencyMonths: months };
 /** The system checks on each kind's own fields (A11 6 / SchM 20.6: no critical batch data is entered here). */
 export const FIELDS = {
-  equipment: z.object({ type: text, make: text, model: text, serial: text }).strict(),
-  instrument: z.object({ type: text, make: text, model: text, serial: text, needsCalibration: z.boolean().optional() }).strict(),
-  room: z.object({ area: text, grade: text }).strict(),
+  equipment: z.object({ type: text, make: text, model: text, serial: text, ...care }).strict(),
+  instrument: z.object({ type: text, make: text, model: text, serial: text, needsCalibration: z.boolean().optional(), ...care }).strict(),
+  // A room is operation-based (cleaned after use: dirty hold, clean hold) or frequency-based (cleaned every N hours).
+  room: z.object({ area: text, grade: text, cleaningBasis: z.enum(['operation', 'frequency']).optional(), cleaningFrequencyHours: hours,
+    cleanHoldHours: hours, dirtyHoldHours: hours, pmFrequencyDays: days, requalificationFrequencyMonths: months }).strict()
+    .refine((f) => f.cleaningBasis !== 'frequency' || f.cleaningFrequencyHours !== undefined, { message: 'A frequency-based room needs its cleaning frequency (hours).' })
+    .refine((f) => f.cleaningFrequencyHours === undefined || f.cleaningBasis === 'frequency', { message: 'Only a frequency-based room has a cleaning frequency.' }),
   material: z.object({ category: z.enum(['starting', 'packaging', 'intermediate', 'other']), unit: z.string().trim().min(1, 'Unit is required.').max(20) }).strict(),
   supplier: z.object({ address: text }).strict(),
   product: z.object({ strength: text, dosageForm: text }).strict(),
