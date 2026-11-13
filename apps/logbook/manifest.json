@@ -24,6 +24,6 @@
   ],
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1", "overdue_v1"],
-  "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"], "qual": ["qualification_v1", "protocol_v1"], "deviations": ["deviation_v1"], "ebmr": ["batch_fact_v1", "equipment_use_v1"] },
-  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "987787d8ed395097bee3ccd5676c92b9142b1241" }
+  "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"], "qual": ["qualification_v1", "protocol_v1"], "deviations": ["deviation_v1"], "ebmr": ["batch_fact_v1", "equipment_use_v1", "exception_detail_v1", "ipc_result_v1", "process_actual_v1", "alarm_v1"] },
+  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "29b6ad8b31abf444840dcdb2d2c1b51d6bc7a38b" }
 }
