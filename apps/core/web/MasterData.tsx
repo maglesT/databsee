@@ -11,7 +11,7 @@ const KINDS: { kind: Kind; label: string }[] = [
   { kind: 'material', label: 'Materials' }, { kind: 'supplier', label: 'Suppliers' }, { kind: 'product', label: 'Products' },
 ];
 
-type Input = 'text' | 'check' | 'category' | 'number' | 'basis';
+type Input = 'text' | 'check' | 'category' | 'number' | 'basis' | 'eqclass';
 /** D-24: maintenance, cleaning and requalification parameters (empty = not applicable). */
 const CARE: [string, string, Input][] = [
   ['cleanHoldHours', 'Clean hold (hours)', 'number'], ['dirtyHoldHours', 'Dirty hold (hours)', 'number'],
@@ -20,7 +20,7 @@ const CARE: [string, string, Input][] = [
 ];
 /** Each kind's own fields: [name, label, input]. */
 const FIELDS: Record<Kind, [string, string, Input][]> = {
-  equipment: [['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ...CARE],
+  equipment: [['equipmentClass', 'Category', 'eqclass'], ['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ...CARE],
   instrument: [['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ['needsCalibration', 'Needs calibration', 'check'], ...CARE],
   room: [['area', 'Area', 'text'], ['grade', 'Grade', 'text'], ['cleaningBasis', 'Room cleaning', 'basis'], ['cleaningFrequencyHours', 'Cleaning every (hours, frequency-based rooms)', 'number'],
     ...CARE.filter(([n]) => n !== 'calibrationFrequencyDays')],
@@ -58,6 +58,10 @@ function FieldInputs({ kind, values = {} }: { kind: Kind; values?: Record<string
         ) : input === 'basis' ? (
           <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? 'operation')}>
             <option value="operation">Operation-based (cleaned after use: dirty hold, clean hold)</option><option value="frequency">Frequency-based (cleaned on a schedule)</option>
+          </select></label>
+        ) : input === 'eqclass' ? (
+          <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? 'process')}>
+            <option value="process">Process equipment</option><option value="engineering_system">Engineering system (utility: HVAC, water, steam, gases, power…)</option>
           </select></label>
         ) : input === 'category' ? (
           <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? 'starting')}>
