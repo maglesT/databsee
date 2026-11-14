@@ -18,7 +18,8 @@ const months = z.number({ invalid_type_error: 'Months must be a whole number.' }
 const care = { cleanHoldHours: hours, dirtyHoldHours: hours, pmFrequencyDays: days, calibrationFrequencyDays: days, requalificationFrequencyMonths: months };
 /** The system checks on each kind's own fields (A11 6 / SchM 20.6: no critical batch data is entered here). */
 export const FIELDS = {
-  equipment: z.object({ type: text, make: text, model: text, serial: text, ...care }).strict(),
+  // Owner 2026-11-14 (D-26): process equipment or an engineering (utility) system; products group them by it.
+  equipment: z.object({ type: text, make: text, model: text, serial: text, equipmentClass: z.enum(['process', 'engineering_system']).optional(), ...care }).strict(),
   instrument: z.object({ type: text, make: text, model: text, serial: text, needsCalibration: z.boolean().optional(), ...care }).strict(),
   // A room is operation-based (cleaned after use: dirty hold, clean hold) or frequency-based (cleaned every N hours).
   room: z.object({ area: text, grade: text, cleaningBasis: z.enum(['operation', 'frequency']).optional(), cleaningFrequencyHours: hours,

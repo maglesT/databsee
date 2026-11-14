@@ -141,6 +141,12 @@ describe('PL-08 maintenance, cleaning and requalification parameters are kept on
     const h = (await editor.call('GET', `/api/items/${press}/history`)).json();
     expect(h.versions.at(-1)).toMatchObject({ version: 2, reason: 'Clean hold per cleaning validation report CV-014' });
     expect(bal && store && granulation).toBeTruthy();
+    // D-26: equipment is process equipment (default) or an engineering system; anything else is refused.
+    const ahu = await add('equipment', code('AH'), 'Air handling unit', { equipmentClass: 'engineering_system' });
+    expect((await hello`select code, equipment_class from report.equipment_v1 where code in (${code('FP')}, ${code('AH')}) order by code`))
+      .toEqual([{ code: code('AH'), equipment_class: 'engineering_system' }, { code: code('FP'), equipment_class: 'process' }]);
+    expect(ahu).toBeTruthy();
+    expect((await editor.call('PATCH', `/api/items/${press}`, { fields: { equipmentClass: 'utility' }, reason: 'x' })).statusCode).toBe(400);
     await su`select platform.set_link('hello_app', array['equipment_v1', 'instrument_v1', 'room_v1'], false, 'CC-MD4', 'cleanup')`;
     await hello.end();
     await su.end();
