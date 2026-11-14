@@ -18,7 +18,7 @@ people:
     name: Kavita Rao
     dept: QA
     codes: [core.people.manage, core.masterdata.view,
-      logbook.review.read, logbook.review.sign, logbook.settings.approve, logbook.audit.read,
+      logbook.review.read, logbook.review.sign, logbook.settings.approve, logbook.audit.read, logbook.exception.decide,
       mms.source.approve, mms.lot.disposition, mms.fg.release, mms.audit.read, mms.audit.review,
       deviations.deviation.classify, deviations.deviation.approve, deviations.deviation.close, deviations.capa.verify, deviations.qa.oversee, deviations.audit.read,
       qms.qa.sign, qms.audit.read,

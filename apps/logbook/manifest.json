@@ -20,7 +20,8 @@
     {"code": "logbook.settings.approve", "label": "Approve logbook settings"},
     {"code": "logbook.site.manage", "label": "Edit the site record, item settings and equipment details"},
     {"code": "logbook.voice_note.record", "label": "Record voice notes"},
-    {"code": "logbook.advice.ask", "label": "Ask for breakdown suggestions"}
+    {"code": "logbook.advice.ask", "label": "Ask for breakdown suggestions"},
+    {"code": "logbook.exception.decide", "label": "Decide the route of a problem (Deviations or a Logbook exception) and approve Logbook exceptions"}
   ],
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1", "overdue_v1"],
