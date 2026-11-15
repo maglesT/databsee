@@ -22,5 +22,5 @@
              "equipment_use_v1", "ipc_result_v1", "process_actual_v1", "exception_detail_v1"],
     "truebatch": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "11d7243e1c1df9ab28e63f0d3d85107b476f835a" }
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "5f3f260b2c40226f0d2a38d1f0300cbb85c39978" }
 }

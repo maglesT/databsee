@@ -26,6 +26,6 @@
     {"code": "mms.settings.manage", "label": "Edit the site, MMS settings, MMS item settings and customers"}
   ],
   "publishes": ["lot_v1", "lot_test_v1"],
-  "reads": { "master_data": ["material_v1", "supplier_v1", "product_v1", "room_v1"] },
-  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "cafb0ecf1df0bfd80315c7d4372c57265c51cc56" }
+  "reads": { "master_data": ["material_v1", "supplier_v1", "product_v1", "room_v1"], "truebatch": ["material_use_v1"], "truebatch_packing": ["material_use_v1"] },
+  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "f03cc82686d68ce63126122b28a6677593443a9f" }
 }

@@ -6,7 +6,7 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
 import { applyConfig, caddyfile, dbPortEnv, externalPort, imageTags, loadPermissions, migrateRun, productEnv, productHost, type Runtime } from '../deploy/apply.js';
-import { allProducts, checkConfig, checkManifest, manifest, ROOT, type Manifest } from '../deploy/config.js';
+import { allProducts, checkConfig, checkManifest, manifest, readYaml, ROOT, type Manifest } from '../deploy/config.js';
 import { enableLogin, sqlstate } from './db.js';
 import { makeEmployee, run } from './core.js';
 
@@ -556,10 +556,11 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch: 'test-only-client-secret' } },
   };
 
-  it('PL-01 TrueBatch offers its 10 permission codes, all its own', () => {
+  it('PL-01 TrueBatch offers its 11 permission codes, all its own, the demo skip among them', () => {
     const codes = manifest('truebatch').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(10);
+    expect(codes).toHaveLength(11);
     expect(codes.every((c) => c.startsWith('truebatch.'))).toBe(true);
+    expect(codes).toContain('truebatch.demo.skip');   // works only with TRUEBATCH_DEMO=1 (D-30)
     expect(manifest('truebatch').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
   });
 
@@ -572,7 +573,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch.ci.example/cb');
     expect(tb.links.truebatch.master_data).toEqual(manifest('truebatch').reads!.master_data);
     expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms']);
-    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);
+    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
@@ -633,11 +634,12 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_packing: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Packing offers its 10 permission codes, all its own, QC approval among them', () => {
+  it('PL-01 Packing offers its 11 permission codes, all its own, QC approval and the demo skip among them', () => {
     const codes = manifest('truebatch_packing').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(10);
+    expect(codes).toHaveLength(11);
     expect(codes.every((c) => c.startsWith('truebatch_packing.'))).toBe(true);
     expect(codes).toContain('truebatch_packing.qc.approve');
+    expect(codes).toContain('truebatch_packing.demo.skip');   // works only with TRUEBATCH_DEMO=1 (D-30)
     // TrueBatch's codes stay TrueBatch's: no code of one product starts with the other's name and a dot.
     expect(manifest('truebatch').permissions.some((p) => p.code.startsWith('truebatch_packing.'))).toBe(false);
     expect(manifest('truebatch_packing').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
@@ -656,7 +658,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-packing.ci.example {\n  reverse_proxy 127.0.0.1:8111\n}');
     expect(caddyfile(config)).toContain('truebatch-packing.ci.example {\n  reverse_proxy truebatch_packing:3000\n}');
     expect(tp.links.truebatch_packing.master_data).toEqual(manifest('truebatch_packing').reads!.master_data);
-    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1']);
+    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1']);
     // It reads the released bulk batches of TrueBatch Tablets only while TrueBatch is licensed and linked.
     expect(() => checkConfig({ ...tp, links: { ...tp.links, truebatch_packing: { ...tp.links.truebatch_packing, truebatch: ['batch_fact_v1'] } } }, raw))
       .toThrow(/link truebatch_packing -> truebatch: provider is not licensed/);
@@ -743,5 +745,70 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     for (const dockerfile of ['/etc/Dockerfile', '../other/Dockerfile', 'ops/../../x', 'ops/Docker file', ''])
       expect(() => checkManifest({ ...m, source: { ...m.source!, dockerfile } }, 'truebatch_packing'), dockerfile).toThrow(/source.dockerfile/);
     expect(checkManifest({ ...m, source: { ...m.source!, dockerfile: 'ops/Dockerfile' } }, 'truebatch_packing').source!.dockerfile).toBe('ops/Dockerfile');
+  });
+});
+
+describe('Release 1.5.0: what both TrueBatch products used, read by the Logbook and MMS; the demo skip (D-30)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const all = {
+    ...base, licences: ['hello', 'truebatch', 'truebatch_packing', 'logbook', 'mms'],
+    links: {
+      hello: { master_data: ['equipment_v1'] },
+      truebatch: { master_data: md }, truebatch_packing: { master_data: md },
+      logbook: { master_data: ['equipment_v1'], truebatch: ['batch_fact_v1', 'equipment_use_v1'], truebatch_packing: ['equipment_use_v1'] },
+      mms: { master_data: ['material_v1'], truebatch: ['material_use_v1'], truebatch_packing: ['material_use_v1'] },
+    },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_app: PW, truebatch_packing_app: PW, logbook_app: PW, mms_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch: 'test-only-client-secret',
+      truebatch_packing: 'test-only-client-secret', logbook: 'test-only-client-secret', mms: 'test-only-client-secret' } },
+  };
+
+  it('PL-08 the Logbook reads both products\' equipment_use_v1, MMS both products\' material_use_v1; each view is published; each URL comes only with its link', () => {
+    expect(manifest('logbook').reads!.truebatch).toEqual(['batch_fact_v1', 'equipment_use_v1']);   // Logbook D-46
+    expect(manifest('logbook').reads!.truebatch_packing).toEqual(['equipment_use_v1']);           // Logbook D-47
+    expect(manifest('mms').reads!.truebatch).toEqual(['material_use_v1']);                        // MMS D-57
+    expect(manifest('mms').reads!.truebatch_packing).toEqual(['material_use_v1']);                // MMS D-58
+    for (const reader of ['logbook', 'mms'])
+      for (const provider of ['truebatch', 'truebatch_packing'])
+        expect(manifest(reader).reads![provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `${reader} -> ${provider}`).toEqual([]);
+
+    const { config, secrets: s } = checkConfig(all, raw);
+    const logbook = productEnv(config, s!, 'logbook'), mms = productEnv(config, s!, 'mms');
+    expect(logbook.TRUEBATCH_DATABASE_URL).toMatch(/^postgres:\/\/logbook_app:.*@db:5432\/truebatch$/);
+    expect(logbook.TRUEBATCH_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/logbook_app:.*@db:5432\/truebatch_packing$/);
+    expect(mms.TRUEBATCH_DATABASE_URL).toMatch(/^postgres:\/\/mms_app:.*@db:5432\/truebatch$/);
+    expect(mms.TRUEBATCH_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/mms_app:.*@db:5432\/truebatch_packing$/);
+    // Each link on its own: without the packing link, MMS gets no packing URL (and keeps TrueBatch's).
+    const { truebatch_packing: _cut, ...mmsTablets } = all.links.mms;
+    const one = checkConfig({ ...all, links: { ...all.links, mms: mmsTablets } }, raw);
+    expect(productEnv(one.config, one.secrets!, 'mms')).not.toHaveProperty('TRUEBATCH_PACKING_DATABASE_URL');
+    expect(productEnv(one.config, one.secrets!, 'mms').TRUEBATCH_DATABASE_URL).toMatch(/@db:5432\/truebatch$/);
+    // Without the Packing licence, neither may link to it.
+    expect(() => checkConfig({ ...all, licences: all.licences.filter((p) => p !== 'truebatch_packing'),
+      links: { logbook: all.links.logbook, mms: all.links.mms } }, raw))
+      .toThrow(/link logbook -> truebatch_packing: provider is not licensed; link mms -> truebatch_packing: provider is not licensed/);
+  });
+
+  it('PL-10 TRUEBATCH_DEMO (skip a wait) comes only from the customer\'s own secrets, for the product named there; never by default', () => {
+    const plain = checkConfig(all, raw);
+    for (const p of all.licences) expect(productEnv(plain.config, plain.secrets!, p), p).not.toHaveProperty('TRUEBATCH_DEMO');
+    // Neither the example config nor the secrets template sets it, so a new customer copied from them has no demo skip.
+    const template = readYaml(path.join(ROOT, 'customers/example.secrets.template.yaml')) as { env?: object };
+    expect(template.env).toEqual({});
+    expect(readFileSync(path.join(ROOT, 'customers/example.yaml'), 'utf8')).not.toMatch(/TRUEBATCH_DEMO/);
+
+    const demo = checkConfig(all, { ...raw, env: { truebatch: { TRUEBATCH_DEMO: '1' }, truebatch_packing: { TRUEBATCH_DEMO: '1' } } });
+    expect(productEnv(demo.config, demo.secrets!, 'truebatch').TRUEBATCH_DEMO).toBe('1');
+    expect(productEnv(demo.config, demo.secrets!, 'truebatch_packing').TRUEBATCH_DEMO).toBe('1');
+    for (const p of ['hello', 'logbook', 'mms']) expect(productEnv(demo.config, demo.secrets!, p), p).not.toHaveProperty('TRUEBATCH_DEMO');
+    // A setting is text: an unquoted 1 in the secrets is refused, not taken as a number.
+    expect(() => checkConfig(all, { ...raw, env: { truebatch: { TRUEBATCH_DEMO: 1 } } })).toThrow();
+    // A name the platform sets (database, sign-on) cannot be replaced from the secrets.
+    const clash = checkConfig(all, { ...raw, env: { truebatch: { TRUEBATCH_DATABASE_URL: 'postgres://x@elsewhere/x', OIDC_ISSUER: 'https://evil.example' } } });
+    expect(productEnv(clash.config, clash.secrets!, 'truebatch').TRUEBATCH_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_app:.*@db:5432\/truebatch$/);
+    expect(productEnv(clash.config, clash.secrets!, 'truebatch').OIDC_ISSUER).toBe('https://ci.example/oidc');
   });
 });
