@@ -388,9 +388,10 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
     expect(env.EBMR_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/ebmr/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
-    const { truebatch: fromTrueBatch, ...reads } = manifest('deviations').reads!;
+    const { truebatch: fromTrueBatch, truebatch_packing: fromPacking, ...reads } = manifest('deviations').reads!;
     expect(dev.links.deviations).toEqual(reads);
     expect(fromTrueBatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch once licensed (Deviations D-51, D-28)
+    expect(fromPacking).toEqual(['deviation_note_v1']);   // TrueBatch Tablets Packing once licensed (Deviations D-53, D-31)
     expect(manifest('deviations').publishes).toEqual(['capa_v1', 'deviation_v1']);   // read by the QMS through a link (Deviations D-40)
   });
 
@@ -658,7 +659,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-packing.ci.example {\n  reverse_proxy 127.0.0.1:8111\n}');
     expect(caddyfile(config)).toContain('truebatch-packing.ci.example {\n  reverse_proxy truebatch_packing:3000\n}');
     expect(tp.links.truebatch_packing.master_data).toEqual(manifest('truebatch_packing').reads!.master_data);
-    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1']);
+    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1']);
     // It reads the released bulk batches of TrueBatch Tablets only while TrueBatch is licensed and linked.
     expect(() => checkConfig({ ...tp, links: { ...tp.links, truebatch_packing: { ...tp.links.truebatch_packing, truebatch: ['batch_fact_v1'] } } }, raw))
       .toThrow(/link truebatch_packing -> truebatch: provider is not licensed/);
@@ -810,5 +811,47 @@ describe('Release 1.5.0: what both TrueBatch products used, read by the Logbook 
     const clash = checkConfig(all, { ...raw, env: { truebatch: { TRUEBATCH_DATABASE_URL: 'postgres://x@elsewhere/x', OIDC_ISSUER: 'https://evil.example' } } });
     expect(productEnv(clash.config, clash.secrets!, 'truebatch').TRUEBATCH_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_app:.*@db:5432\/truebatch$/);
     expect(productEnv(clash.config, clash.secrets!, 'truebatch').OIDC_ISSUER).toBe('https://ci.example/oidc');
+  });
+});
+
+describe('Release 1.6.0: Deviations files TrueBatch Tablets Packing\'s deviation notes as it files TrueBatch\'s (D-31)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const all = {
+    ...base, licences: ['hello', 'truebatch', 'truebatch_packing', 'deviations'],
+    links: {
+      hello: { master_data: ['equipment_v1'] },
+      truebatch: { master_data: md }, truebatch_packing: { master_data: md },
+      deviations: { truebatch: ['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1'], truebatch_packing: ['deviation_note_v1'] },
+    },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_app: PW, truebatch_packing_app: PW, deviations_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch: 'test-only-client-secret',
+      truebatch_packing: 'test-only-client-secret', deviations: 'test-only-client-secret' } },
+  };
+
+  it('PL-08 Deviations reads Packing\'s deviation_note_v1, published by Packing with TrueBatch\'s name; the URL comes only with the link', () => {
+    expect(manifest('truebatch_packing').publishes).toContain('deviation_note_v1');
+    expect(manifest('truebatch').publishes).toContain('deviation_note_v1');                        // the same view name in both (Deviations D-53)
+    expect(manifest('deviations').reads!.truebatch_packing).toEqual(['deviation_note_v1']);        // packing_batch_v1 is not read (D-53)
+    expect(manifest('deviations').reads!.truebatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // stays (D-51)
+    for (const provider of ['truebatch', 'truebatch_packing'])
+      expect(manifest('deviations').reads![provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `deviations -> ${provider}`).toEqual([]);
+
+    const { config, secrets: s } = checkConfig(all, raw);
+    const env = productEnv(config, s!, 'deviations');
+    expect(env.TRUEBATCH_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/truebatch$/);
+    expect(env.TRUEBATCH_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/truebatch_packing$/);
+    expect(productEnv(config, s!, 'truebatch_packing')).not.toHaveProperty('DEVIATIONS_DATABASE_URL');   // a provider gets nothing of its reader
+    // Without the packing link, Deviations gets no packing URL (and keeps TrueBatch's).
+    const { truebatch_packing: _cut, ...tabletsOnly } = all.links.deviations;
+    const one = checkConfig({ ...all, links: { ...all.links, deviations: tabletsOnly } }, raw);
+    expect(productEnv(one.config, one.secrets!, 'deviations')).not.toHaveProperty('TRUEBATCH_PACKING_DATABASE_URL');
+    expect(productEnv(one.config, one.secrets!, 'deviations').TRUEBATCH_DATABASE_URL).toMatch(/@db:5432\/truebatch$/);
+    // Without the Packing licence, Deviations may not link to it.
+    expect(() => checkConfig({ ...all, licences: all.licences.filter((p) => p !== 'truebatch_packing'),
+      links: { truebatch: all.links.truebatch, deviations: all.links.deviations } }, raw))
+      .toThrow(/link deviations -> truebatch_packing: provider is not licensed/);
   });
 });
