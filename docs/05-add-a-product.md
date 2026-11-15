@@ -54,6 +54,11 @@ inactive and is revoked from everyone holding it. The control panel uses `reads`
 - A product kept in its own repo (the Logbook) adds `"source": {"repo", "commit"}` (full commit id) to its manifest.
   `deploy/bundle.sh` builds `medhanta/<product>:<commit>` from its `ops/Dockerfile` and copies its `db/migrations` to
   `db/<product>`, so `apply` runs them as `<product>_owner`. The repo is read with the Actions secret `PRODUCT_SOURCE_TOKEN`.
+  A second product from the same repo (TrueBatch Tablets Packing, D-29) names its Dockerfile in `source.dockerfile`;
+  a product whose migrations `db/migrate.ts` cannot run as they are names its own migrator in
+  `"migrate": {"command": ["node", "dist/packing/migrate.js"]}`: `apply` runs it once in its image as `<product>_owner`
+  (`MIGRATION_DATABASE_URL`), and `bundle.sh` copies no migrations for it. A `_` in a product name is written `-` in its
+  host name (`truebatch-packing.<domain>`).
   Its own extra settings, such as API keys, go in the secrets under `env.<product>`.
 
 ## 6. Configuration and secrets

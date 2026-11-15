@@ -23,14 +23,16 @@ for p in $(yq -r '.licences[]' "$config"); do
   auth=() && [ -n "${PRODUCT_SOURCE_TOKEN:-}" ] &&
     auth=(-c "http.extraHeader=Authorization: Basic $(printf 'x-access-token:%s' "$PRODUCT_SOURCE_TOKEN" | base64 -w0)")
   git -C "$src" "${auth[@]}" fetch -q --depth 1 "$repo" "$commit" && git -C "$src" checkout -q FETCH_HEAD
-  docker build -q -f "$src/ops/Dockerfile" -t "medhanta/$p:$commit" "$src" >/dev/null
+  # Its Dockerfile: ops/Dockerfile, or the manifest's source.dockerfile (a second product from the same repo).
+  docker build -q -f "$src/$(jq -r '.source.dockerfile // "ops/Dockerfile"' "$m")" -t "medhanta/$p:$commit" "$src" >/dev/null
   # A product with a worker container (Operations' ML worker) builds it from ml/Dockerfile as medhanta/<p>-ml.
   if [ -f "$src/ml/Dockerfile" ]; then
     docker build -q -t "medhanta/$p-ml:$commit" "$src/ml" >/dev/null
     products="$products medhanta/$p-ml:$commit"
   fi
-  # A product that migrates itself (manifest "migrate": "own", Batchwright) brings its migrations in its image.
-  if [ "$(jq -r '.migrate // empty' "$m")" != own ]; then rm -rf "$work/db/$p" && cp -r "$src/db/migrations" "$work/db/$p"; fi
+  # A product that migrates itself (manifest "migrate": "own" or {"command": [...]}: Batchwright, TrueBatch Tablets
+  # Packing) brings its migrations in its image.
+  if [ "$(jq -r 'has("migrate")' "$m")" = false ]; then rm -rf "$work/db/$p" && cp -r "$src/db/migrations" "$work/db/$p"; fi
   rm -rf "$src"
   products="$products medhanta/$p:$commit"
 done

@@ -1,0 +1,21 @@
+{
+  "product": "truebatch_packing",
+  "database": "truebatch_packing",
+  "permissions": [
+    {"code": "truebatch_packing.master.author", "label": "Write packing master record versions"},
+    {"code": "truebatch_packing.master.check", "label": "Check a packing master record version written by another person"},
+    {"code": "truebatch_packing.master.approve", "label": "Approve a checked packing master record version (QA)"},
+    {"code": "truebatch_packing.batch.issue", "label": "Issue a packing batch record from a released bulk batch"},
+    {"code": "truebatch_packing.batch.operate", "label": "Record and sign packing steps as performed"},
+    {"code": "truebatch_packing.batch.check", "label": "Check packing steps performed by another person (second person)"},
+    {"code": "truebatch_packing.batch.supervise", "label": "Production approval of a completed packing record"},
+    {"code": "truebatch_packing.qc.approve", "label": "QC approval of the finished packed product (tested and complies)"},
+    {"code": "truebatch_packing.qa.release", "label": "QA review and release of packed batches"},
+    {"code": "truebatch_packing.view", "label": "View packing records and packing master versions"}
+  ],
+  "signon": { "backchannel_logout": "/backchannel-logout" },
+  "publishes": ["packing_batch_v1"],
+  "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "truebatch": ["batch_fact_v1"], "mms": ["lot_v1", "lot_test_v1"], "logbook": ["equipment_status_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"] },
+  "source": { "repo": "https://github.com/maglesT/TrueBatch-Tablets", "commit": "48cda9ed4d5bbec672c12bce683a54364b553f5e", "dockerfile": "ops/packing.Dockerfile" },
+  "migrate": { "command": ["node", "dist/packing/migrate.js"] }
+}

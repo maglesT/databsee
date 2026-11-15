@@ -19,7 +19,8 @@ import { allProducts, checkConfig, manifest, outsideLogin, productLogin, readYam
 /** Starts the containers and fails unless they turn healthy. The Docker one is below; tests use a stand-in. */
 export interface Runtime {
   start(config: Config, secrets: Secrets): Promise<void>;
-  /** A product whose manifest says "migrate": "own": its image's one-shot "migrate" command, as the superuser. */
+  /** A product whose manifest has "migrate": its image's one-shot migrator (migrateRun: "own" as the superuser,
+   *  {command} as <product>_owner). */
   migrateOwn(product: string, config: Config, secrets: Secrets): Promise<void>;
 }
 
@@ -31,7 +32,7 @@ export async function applyConfig(next: Config, secrets: Secrets, runtime: Runti
     execFileSync(path.join(ROOT, 'db/server/init.sh'), products.map((m) => m.database), { stdio: 'inherit' });
     for (const db of ['master_data', 'identity']) await migrate(db);
     for (const m of products) {
-      if (m.migrate === 'own') await runtime.migrateOwn(m.product, next, secrets);
+      if (m.migrate) await runtime.migrateOwn(m.product, next, secrets);
       else await migrate(m.database);
     }
     await switchAndStart(next, secrets, runtime, next.reason);
@@ -190,8 +191,26 @@ export function productEnv(config: Config, secrets: Secrets, p: string): Record<
     ...Object.fromEntries(Object.keys(config.links[p] ?? {}).map((db) => [`${db.toUpperCase()}_DATABASE_URL`, url(db)])),
     OIDC_ISSUER: `https://${config.domain}/oidc`,
     OIDC_CLIENT_SECRET: secrets.oidc.clients[p] ?? '',
-    OIDC_REDIRECT_URI: `https://${p}.${config.domain}/cb`,
+    OIDC_REDIRECT_URI: `https://${productHost(p, config.domain)}/cb`,
   };
+}
+
+/** A product's host name: <product>.<domain>, with "_" written "-" (a host name allows no "_", and certificate
+ *  authorities refuse one: truebatch_packing is served at truebatch-packing.<domain>). */
+export const productHost = (p: string, domain: string) => `${p.replaceAll('_', '-')}.${domain}`;
+
+/** How apply runs a self-migrating product's migrator (manifest "migrate"), with `docker compose` and these settings.
+ *  "own": its image's "migrate" command as the superuser over verified TLS (MIGRATE_DATABASE_URL, Batchwright).
+ *  {command}: that command in its image as <database>_owner, the role every platform migration runs as: a superuser
+ *  session that takes the owner role at its start (MIGRATION_DATABASE_URL, TrueBatch Tablets Packing). */
+export function migrateRun(p: string, superuserPassword: string): { args: string[]; env: Record<string, string> } {
+  const m = manifest(p), db = m.database, pw = encodeURIComponent(superuserPassword);
+  if (m.migrate === 'own') return { args: ['--profile', p, 'run', '--rm', '-e', 'MIGRATE_DATABASE_URL', p, 'migrate'],
+    // Verified TLS to the database server (its certificate, deploy/compose.yml, is mounted at /tls-ca).
+    env: { MIGRATE_DATABASE_URL: `postgres://postgres:${pw}@db:5432/${db}?sslmode=verify-full&sslrootcert=/tls-ca/server.crt` } };
+  if (!m.migrate) throw new Error(`${p} has no "migrate" in its manifest: apply runs its migrations with db/migrate.ts`);
+  return { args: ['--profile', p, 'run', '--rm', '-e', 'MIGRATION_DATABASE_URL', p, ...m.migrate.command],
+    env: { MIGRATION_DATABASE_URL: `postgres://postgres:${pw}@db:5432/${db}?options=${encodeURIComponent(`-c role=${db}_owner`)}` } };
 }
 
 /** <PRODUCT>_COMMIT for compose: the image tag of each product kept in its own repo (D-29). */
@@ -215,7 +234,7 @@ export function externalPort(service: string): number {
 export function caddyfile(config: Config): string {
   const target = (service: string) => (config.proxy === 'external' ? `127.0.0.1:${externalPort(service)}` : `${service}:3000`);
   return [`${config.domain} {\n  reverse_proxy ${target('core')}\n}`,
-    ...config.licences.map((p) => `${p}.${config.domain} {\n  reverse_proxy ${target(p)}\n}`)].join('\n') + '\n';
+    ...config.licences.map((p) => `${productHost(p, config.domain)} {\n  reverse_proxy ${target(p)}\n}`)].join('\n') + '\n';
 }
 
 /** Docker Compose runtime: writes each service's settings, starts core, Caddy and the licensed products, removes
@@ -236,12 +255,9 @@ export const docker: Runtime = {
   async migrateOwn(p, config, secrets) {
     // The service's env file must exist for compose; the superuser URL is passed through the environment only.
     write(`${p}.env`, env(productEnv(config, secrets, p)));
-    const db = manifest(p).database;
-    execFileSync('docker', ['compose', ...composeFiles(config), '--profile', p, 'run', '--rm', '-e', 'MIGRATE_DATABASE_URL', p, 'migrate'], {
-      stdio: 'inherit',
-      env: { ...process.env, VERSION: config.version, ...imageTags(),
-        // Verified TLS to the database server (its certificate, deploy/compose.yml, is mounted at /tls-ca).
-        MIGRATE_DATABASE_URL: `postgres://postgres:${encodeURIComponent(secrets.logins.postgres ?? '')}@db:5432/${db}?sslmode=verify-full&sslrootcert=/tls-ca/server.crt` },
+    const run = migrateRun(p, secrets.logins.postgres ?? '');
+    execFileSync('docker', ['compose', ...composeFiles(config), ...run.args], {
+      stdio: 'inherit', env: { ...process.env, VERSION: config.version, ...imageTags(), ...run.env },
     });
   },
   async start(config, secrets) {
@@ -254,8 +270,8 @@ export const docker: Runtime = {
       OIDC_ISSUER: `https://${config.domain}/oidc`,
       OIDC_CLIENTS: JSON.stringify(config.licences.map((p) => {
         const backchannel = manifest(p).signon?.backchannel_logout;
-        return { client_id: p, client_secret: secrets.oidc.clients[p], redirect_uris: [`https://${p}.${config.domain}/cb`],
-          ...(backchannel ? { backchannel_logout_uri: `https://${p}.${config.domain}${backchannel}` } : {}) };
+        return { client_id: p, client_secret: secrets.oidc.clients[p], redirect_uris: [`https://${productHost(p, config.domain)}/cb`],
+          ...(backchannel ? { backchannel_logout_uri: `https://${productHost(p, config.domain)}${backchannel}` } : {}) };
       })),
       OIDC_JWKS: JSON.stringify(secrets.oidc.jwks),
       OIDC_COOKIE_KEYS: secrets.oidc.cookie_keys.join(','),

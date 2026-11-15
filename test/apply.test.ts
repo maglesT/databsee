@@ -5,7 +5,7 @@ import path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
-import { applyConfig, caddyfile, dbPortEnv, externalPort, imageTags, loadPermissions, productEnv, type Runtime } from '../deploy/apply.js';
+import { applyConfig, caddyfile, dbPortEnv, externalPort, imageTags, loadPermissions, migrateRun, productEnv, productHost, type Runtime } from '../deploy/apply.js';
 import { allProducts, checkConfig, checkManifest, manifest, ROOT, type Manifest } from '../deploy/config.js';
 import { enableLogin, sqlstate } from './db.js';
 import { makeEmployee, run } from './core.js';
@@ -618,5 +618,130 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
   it('PL-10 its image is pinned to a full commit', () => {
     expect(imageTags().TRUEBATCH_COMMIT).toBe(manifest('truebatch').source!.commit);
     expect(imageTags().TRUEBATCH_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
+
+describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D-29)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const tp = {
+    ...base, licences: ['hello', 'truebatch_packing'],
+    links: { hello: { master_data: ['equipment_v1'] }, truebatch_packing: { master_data: md } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_packing_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_packing: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Packing offers its 10 permission codes, all its own, QC approval among them', () => {
+    const codes = manifest('truebatch_packing').permissions.map((p) => p.code);
+    expect(codes).toHaveLength(10);
+    expect(codes.every((c) => c.startsWith('truebatch_packing.'))).toBe(true);
+    expect(codes).toContain('truebatch_packing.qc.approve');
+    // TrueBatch's codes stay TrueBatch's: no code of one product starts with the other's name and a dot.
+    expect(manifest('truebatch').permissions.some((p) => p.code.startsWith('truebatch_packing.'))).toBe(false);
+    expect(manifest('truebatch_packing').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
+  });
+
+  it('PL-08 Packing gets its own database and login, the master data of its link and sign-on at truebatch-packing.<domain>', () => {
+    const { config, secrets: s } = checkConfig(tp, raw);
+    const env = productEnv(config, s!, 'truebatch_packing');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_PACKING_DATABASE_URL']);
+    expect(env.TRUEBATCH_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_packing_app:.*@db:5432\/truebatch_packing$/);
+    expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_packing_app:.*@db:5432\/master_data$/);
+    // A host name has no "_" (certificate authorities refuse it): the product is served at truebatch-packing.<domain>.
+    expect(productHost('truebatch_packing', 'ci.example')).toBe('truebatch-packing.ci.example');
+    expect(productHost('truebatch', 'ci.example')).toBe('truebatch.ci.example');
+    expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-packing.ci.example/cb');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-packing.ci.example {\n  reverse_proxy 127.0.0.1:8111\n}');
+    expect(caddyfile(config)).toContain('truebatch-packing.ci.example {\n  reverse_proxy truebatch_packing:3000\n}');
+    expect(tp.links.truebatch_packing.master_data).toEqual(manifest('truebatch_packing').reads!.master_data);
+    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1']);
+    // It reads the released bulk batches of TrueBatch Tablets only while TrueBatch is licensed and linked.
+    expect(() => checkConfig({ ...tp, links: { ...tp.links, truebatch_packing: { ...tp.links.truebatch_packing, truebatch: ['batch_fact_v1'] } } }, raw))
+      .toThrow(/link truebatch_packing -> truebatch: provider is not licensed/);
+    expect(() => checkConfig({ ...tp, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_packing" is not licensed/);
+  });
+
+  it('PL-08 the Packing links: every view read is published by its provider; each provider URL comes only with its link', () => {
+    const reads = manifest('truebatch_packing').reads!;
+    expect(Object.keys(reads)).toEqual(['master_data', 'truebatch', 'mms', 'logbook', 'deviations', 'qms']);
+    expect(reads.truebatch).toEqual(['batch_fact_v1']);
+    for (const provider of ['truebatch', 'mms', 'logbook', 'deviations', 'qms'])
+      expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
+    const all = {
+      ...tp, licences: ['hello', 'truebatch_packing', 'truebatch', 'mms', 'logbook', 'deviations', 'qms'],
+      links: { ...tp.links, truebatch_packing: { master_data: md, truebatch: ['batch_fact_v1'], mms: ['lot_v1', 'lot_test_v1'], logbook: ['equipment_status_v1'],
+        deviations: ['deviation_v1'], qms: ['change_v1'] } },
+    };
+    const secretsAll = {
+      ...raw,
+      logins: { ...raw.logins, truebatch_app: PW, mms_app: PW, logbook_app: PW, deviations_app: PW, qms_app: PW },
+      oidc: { ...raw.oidc, clients: { ...raw.oidc.clients, truebatch: 'test-only-client-secret', mms: 'test-only-client-secret',
+        logbook: 'test-only-client-secret', deviations: 'test-only-client-secret', qms: 'test-only-client-secret' } },
+    };
+    const { config, secrets: s } = checkConfig(all, secretsAll);
+    const env = productEnv(config, s!, 'truebatch_packing');
+    for (const db of ['truebatch', 'mms', 'logbook', 'deviations', 'qms'])
+      expect(env[`${db.toUpperCase()}_DATABASE_URL`]).toMatch(new RegExp(`^postgres://truebatch_packing_app:.*@db:5432/${db}$`));
+    expect(productEnv(config, s!, 'truebatch')).not.toHaveProperty('TRUEBATCH_PACKING_DATABASE_URL');   // a provider gets nothing of its reader
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
+  });
+
+  it('PL-10 its image is built at the same pinned commit as TrueBatch, from the repo\'s ops/packing.Dockerfile', () => {
+    expect(imageTags().TRUEBATCH_PACKING_COMMIT).toBe(manifest('truebatch_packing').source!.commit);
+    expect(imageTags().TRUEBATCH_PACKING_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest('truebatch_packing').source!.repo).toBe(manifest('truebatch').source!.repo);
+    expect(manifest('truebatch_packing').source!.commit).toBe(manifest('truebatch').source!.commit);
+    expect(manifest('truebatch_packing').source!.dockerfile).toBe('ops/packing.Dockerfile');
+    expect(manifest('truebatch').source!.dockerfile).toBeUndefined();   // ops/Dockerfile
+    const compose = readFileSync(path.join(ROOT, 'deploy/compose.yml'), 'utf8');
+    expect(compose).toContain('image: medhanta/truebatch_packing:${TRUEBATCH_PACKING_COMMIT:-none}');
+    expect(readFileSync(path.join(ROOT, 'deploy/bundle.sh'), 'utf8')).toContain(`jq -r '.source.dockerfile // "ops/Dockerfile"'`);
+  });
+
+  it('PL-10 apply runs its own migrator (packing/migrate.ts) in its image as truebatch_packing_owner, not db/migrate.ts', async () => {
+    expect(manifest('truebatch_packing').migrate).toEqual({ command: ['node', 'dist/packing/migrate.js'] });
+    const run = migrateRun('truebatch_packing', 'pw/with:odd@chars');
+    expect(run.args).toEqual(['--profile', 'truebatch_packing', 'run', '--rm', '-e', 'MIGRATION_DATABASE_URL', 'truebatch_packing', 'node', 'dist/packing/migrate.js']);
+    expect(Object.keys(run.env)).toEqual(['MIGRATION_DATABASE_URL']);
+    expect(run.env.MIGRATION_DATABASE_URL).toBe('postgres://postgres:pw%2Fwith%3Aodd%40chars@db:5432/truebatch_packing?options=-c%20role%3Dtruebatch_packing_owner');
+    // Batchwright's "own" stays as it was: "migrate" as the superuser over verified TLS.
+    expect(migrateRun('ebmr', 'pw').args.slice(-2)).toEqual(['ebmr', 'migrate']);
+    expect(migrateRun('ebmr', 'pw').env.MIGRATE_DATABASE_URL).toMatch(/@db:5432\/ebmr\?sslmode=verify-full&sslrootcert=\/tls-ca\/server\.crt$/);
+    expect(() => migrateRun('truebatch', 'pw')).toThrow(/no "migrate"/);
+
+    migratedOwn.length = 0;
+    const { config, secrets: s } = checkConfig({ ...tp, change_ref: 'CC-TP1', reason: 'licence TrueBatch Tablets Packing' }, raw);
+    await applyConfig(config, s!, runtime());
+    expect(migratedOwn).toEqual(['truebatch_packing']);
+    // Its database exists (init.sh), and the platform's own migration table stays empty: the product migrates itself.
+    const c = su('truebatch_packing');
+    try {
+      expect(await c`select to_regclass('platform.migration') is null as none`).toEqual([{ none: true }]);
+    } finally { await c.end(); }
+    // The migrator's URL (here to the test server) gives a session as the database's owner, as db/migrate.ts uses.
+    const url = new URL(run.env.MIGRATION_DATABASE_URL!.replace('db:5432', `${process.env.PGHOST ?? '127.0.0.1'}:${process.env.PGPORT ?? '5432'}`));
+    url.password = encodeURIComponent(process.env.PGPASSWORD ?? '');
+    url.username = process.env.PGUSER ?? 'postgres';
+    const m = postgres(url.toString(), { max: 1, onnotice: () => {} });
+    try {
+      expect(await m`select current_user as role, current_database() as db`).toEqual([{ role: 'truebatch_packing_owner', db: 'truebatch_packing' }]);
+    } finally { await m.end(); }
+    expect(await canSignIn('truebatch_packing_app', 'truebatch_packing')).toBe('ok');
+    await applyConfig(A, secrets, runtime());
+    expect(await canSignIn('truebatch_packing_app', 'truebatch_packing')).not.toBe('ok');
+  });
+
+  it('PL-10 "migrate" is "own" or a command, and source.dockerfile a path inside the repo', () => {
+    const m = { ...manifest('truebatch_packing') };
+    expect(() => checkManifest({ ...m, migrate: { command: [] } }, 'truebatch_packing')).toThrow(/may only be "own" or/);
+    expect(() => checkManifest({ ...m, migrate: { command: [''] } }, 'truebatch_packing')).toThrow(/may only be "own" or/);
+    expect(() => checkManifest({ ...m, migrate: 'node migrate.js' as 'own' }, 'truebatch_packing')).toThrow(/may only be "own" or/);
+    expect(() => checkManifest({ ...m, source: undefined }, 'truebatch_packing')).toThrow(/for a product with a source/);
+    expect(() => checkManifest({ ...m, logins: ['truebatch_packing_report'] }, 'truebatch_packing')).toThrow(/as the superuser/);
+    for (const dockerfile of ['/etc/Dockerfile', '../other/Dockerfile', 'ops/../../x', 'ops/Docker file', ''])
+      expect(() => checkManifest({ ...m, source: { ...m.source!, dockerfile } }, 'truebatch_packing'), dockerfile).toThrow(/source.dockerfile/);
+    expect(checkManifest({ ...m, source: { ...m.source!, dockerfile: 'ops/Dockerfile' } }, 'truebatch_packing').source!.dockerfile).toBe('ops/Dockerfile');
   });
 });

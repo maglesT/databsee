@@ -177,6 +177,18 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  truebatch_packing:                 # TrueBatch Tablets Packing: same repo as truebatch, built from its ops/packing.Dockerfile (apps/truebatch_packing/manifest.json, D-29)
+    image: medhanta/truebatch_packing:${TRUEBATCH_PACKING_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [truebatch_packing]
+    command: ["node", "dist/packing/server/index.js"]   # apply.ts first runs its packing/migrate.ts as truebatch_packing_owner (manifest "migrate")
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/truebatch_packing.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped

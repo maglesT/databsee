@@ -11,7 +11,7 @@ Status: **approved by the owner 2 Nov 2026** ("do what's more simple"; decisions
 ## 2. Requirements (what Phase A delivers)
 | ID | Requirement |
 |---|---|
-| R1 | One PostgreSQL server per customer with 11 databases: `master_data`, `identity`, and one per product (logbook, materials, deviations, protocols, qms, operations, recruitment, ebmr, truebatch (D-27)). |
+| R1 | One PostgreSQL server per customer with 12 databases: `master_data`, `identity`, and one per product (logbook, materials, deviations, protocols, qms, operations, recruitment, ebmr, truebatch (D-27), truebatch_packing (D-29)). |
 | R2 | Master data (machines/instruments/rooms, materials/suppliers, products/codes, and the links between them) edited only in one small screen; every product reads it live through views. |
 | R3 | Identity: employees, single sign-on, permission register (employee, product, permission) with history. Deactivate once = out everywhere. |
 | R4 | Each product writes only its own database; reads others only through `report.*_v1` views it is granted. |
