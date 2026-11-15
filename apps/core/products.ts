@@ -11,6 +11,7 @@ export const PRODUCTS: Record<string, ProductInfo> = {
   recruitment: { name: 'Recruitment', tagline: 'Openings, candidates, tests, interviews and offers', initials: 'RC' },
   ops: { name: 'Operations', tagline: 'OEE, losses, process parameters and advice', initials: 'OP' },
   ebmr: { name: 'Batchwright', tagline: 'Electronic batch records for tablets', initials: 'BW' },
+  truebatch: { name: 'TrueBatch Tablets', tagline: 'Electronic batch records for tablets, dispensing to QA release of bulk', initials: 'TB' },
 };
 
 export const productInfo = (p: string): ProductInfo =>
