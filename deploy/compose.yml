@@ -165,6 +165,18 @@ services:
     volumes:
       - pgca:/tls-ca:ro
       - ebmr:/var/lib/ebmr
+  truebatch:                         # TrueBatch Tablets, built from its own repo at the commit in apps/truebatch/manifest.json (D-27)
+    image: medhanta/truebatch:${TRUEBATCH_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [truebatch]
+    command: ["node", "dist/server/index.js"]   # apply.ts runs its migrations as truebatch_owner
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/truebatch.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped

@@ -538,3 +538,42 @@ describe('Batchwright (ebmr), a product kept in its own repo that migrates itsel
     expect(imageTags().EBMR_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });
+
+describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
+  const tb = {
+    ...base, licences: ['hello', 'truebatch'],
+    links: { hello: { master_data: ['equipment_v1'] }, truebatch: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'] } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 TrueBatch offers its 10 permission codes, all its own', () => {
+    const codes = manifest('truebatch').permissions.map((p) => p.code);
+    expect(codes).toHaveLength(10);
+    expect(codes.every((c) => c.startsWith('truebatch.'))).toBe(true);
+    expect(manifest('truebatch').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
+  });
+
+  it('PL-08 TrueBatch gets its own database, the master data of its link and sign-on; Deviations, QMS, Logbook and MMS only once linked', () => {
+    const { config, secrets: s } = checkConfig(tb, raw);
+    const env = productEnv(config, s!, 'truebatch');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_DATABASE_URL']);
+    expect(env.TRUEBATCH_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_app:.*@db:5432\/truebatch$/);
+    expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_app:.*@db:5432\/master_data$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch.ci.example/cb');
+    expect(tb.links.truebatch.master_data).toEqual(manifest('truebatch').reads!.master_data);
+    expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms']);
+    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);
+    expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
+      .toThrow(/link truebatch -> deviations: provider is not licensed/);
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
+  });
+
+  it('PL-10 its image is pinned to a full commit', () => {
+    expect(imageTags().TRUEBATCH_COMMIT).toBe(manifest('truebatch').source!.commit);
+    expect(imageTags().TRUEBATCH_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+  });
+});
