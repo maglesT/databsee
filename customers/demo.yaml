@@ -8,7 +8,7 @@ security_contact: it-security@demo-pharma.example
 backup:
   path: medhanta-backups/demo-rehearsal # separate Drive folder, deleted with the demo
 change_ref: MED-GOLIVE-001
-reason: "Demo on v1.2.9: TrueBatch Tablets added; Batchwright switched off on the demo (owner, 15 November 2026)"
+reason: "Demo on v1.2.9 (tag v1.2.9): TrueBatch Tablets added; Batchwright switched off on the demo (owner, 15 November 2026)"
 proxy: external # the host's Caddy owns 80/443 (README "Behind the host's proxy")
 db_port: 5440 # 127.0.0.1:5432 is the standalone Batchwright PostgreSQL on this server (D-18)
 licences:
