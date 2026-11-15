@@ -25,7 +25,7 @@
     {"code": "mms.audit.review", "label": "Record audit-trail reviews"},
     {"code": "mms.settings.manage", "label": "Edit the site, MMS settings, MMS item settings and customers"}
   ],
-  "publishes": [],
+  "publishes": ["lot_v1", "lot_test_v1"],
   "reads": { "master_data": ["material_v1", "supplier_v1", "product_v1", "room_v1"] },
-  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "1166c43bbc6d4716fee0ce50d3eb00e7c19822d7" }
+  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "cafb0ecf1df0bfd80315c7d4372c57265c51cc56" }
 }

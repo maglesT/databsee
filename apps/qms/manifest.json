@@ -7,7 +7,7 @@
     {"code": "qms.ap.sign", "label": "Authorised-person steps (recalls, PQR review)"},
     {"code": "qms.audit.read", "label": "Read the audit trail and run the integrity check"}
   ],
-  "publishes": [],
+  "publishes": ["change_v1"],
   "reads": { "master_data": ["product_v1", "supplier_v1"], "deviations": ["capa_v1"] },
-  "source": { "repo": "https://github.com/maglesT/qmssyst", "commit": "20b05f6d00a7f2d0f38e96cc887ddb54920f15bc" }
+  "source": { "repo": "https://github.com/maglesT/qmssyst", "commit": "a34e5553b91917edb8db74fb46697599f94148d8" }
 }

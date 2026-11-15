@@ -247,6 +247,8 @@ describe('PL-08 the Logbook, a product kept in its own repo (D-29)', () => {
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/logbook_app:.*@db:5432\/logbook$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://logbook.ci.example/cb');
     expect(productEnv(config, s!, 'hello')).not.toHaveProperty('GEMINI_API_KEY');
+    // Item status for TrueBatch (Logbook D-45, D-28).
+    expect(manifest('logbook').publishes).toEqual(['equipment_v1', 'entry_v1', 'calibration_v1', 'logbook_sop_v1', 'overdue_v1', 'equipment_status_v1']);
   });
 
   it('PL-10 its image is pinned to a full commit; its extra settings do not stop a config that does not license it', () => {
@@ -280,6 +282,7 @@ describe('Material Management, a product kept in its own repo (MMS D-55)', () =>
     expect(env.MMS_DATABASE_URL).toMatch(/^postgres:\/\/mms_app:.*@db:5432\/mms$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://mms.ci.example/cb');
     expect(mms.links.mms.master_data).toEqual(manifest('mms').reads!.master_data);
+    expect(manifest('mms').publishes).toEqual(['lot_v1', 'lot_test_v1']);   // lots and QC numbers for TrueBatch (MMS D-56, D-28)
   });
 
   it('PL-10 its image is pinned to a full commit', () => {
@@ -311,6 +314,7 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
     expect(env.QMS_DATABASE_URL).toMatch(/^postgres:\/\/qms_app:.*@db:5432\/qms$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://qms.ci.example/cb');
     expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1'], deviations: ['capa_v1'] });
+    expect(manifest('qms').publishes).toEqual(['change_v1']);   // change controls for TrueBatch (QMS D-16, D-28)
     // Deviations is not licensed here, so the link cannot be switched on.
     expect(() => checkConfig({ ...qms, links: { ...qms.links, qms: { ...qms.links.qms, deviations: ['capa_v1'] } } }, raw)).toThrow(/provider is not licensed/);
   });
@@ -384,7 +388,9 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
     expect(env.EBMR_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/ebmr/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
-    expect(dev.links.deviations).toEqual(manifest('deviations').reads);
+    const { truebatch: fromTrueBatch, ...reads } = manifest('deviations').reads!;
+    expect(dev.links.deviations).toEqual(reads);
+    expect(fromTrueBatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch once licensed (Deviations D-51, D-28)
     expect(manifest('deviations').publishes).toEqual(['capa_v1', 'deviation_v1']);   // read by the QMS through a link (Deviations D-40)
   });
 
@@ -570,6 +576,43 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
+  });
+
+  it('PL-08 the TrueBatch links (D-28): every view read is published by its provider; each reader gets the provider\'s database only through its link', () => {
+    const pairs: [string, string][] = [['truebatch', 'deviations'], ['truebatch', 'qms'], ['truebatch', 'logbook'], ['truebatch', 'mms'], ['logbook', 'truebatch'], ['deviations', 'truebatch']];
+    for (const [reader, provider] of pairs) {
+      const views = manifest(reader).reads![provider]!;
+      expect(views.length, `${reader} -> ${provider}`).toBeGreaterThan(0);
+      expect(views.filter((v) => !manifest(provider).publishes.includes(v)), `${reader} -> ${provider}`).toEqual([]);
+    }
+    expect(manifest('logbook').reads!.truebatch).toEqual(['batch_fact_v1', 'equipment_use_v1']);
+    expect(manifest('deviations').reads!.truebatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);
+
+    const all = {
+      ...tb, licences: ['hello', 'truebatch', 'deviations', 'qms', 'logbook', 'mms'],
+      links: {
+        ...tb.links,
+        truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'], qms: ['change_v1'], logbook: ['equipment_status_v1'], mms: ['lot_v1', 'lot_test_v1'] },
+        logbook: { master_data: ['equipment_v1'], truebatch: ['batch_fact_v1', 'equipment_use_v1'] },
+        deviations: { truebatch: ['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1'] },
+      },
+    };
+    const secretsAll = {
+      ...raw,
+      logins: { ...raw.logins, deviations_app: PW, qms_app: PW, logbook_app: PW, mms_app: PW },
+      oidc: { ...raw.oidc, clients: { ...raw.oidc.clients, deviations: 'test-only-client-secret', qms: 'test-only-client-secret',
+        logbook: 'test-only-client-secret', mms: 'test-only-client-secret' } },
+    };
+    const { config, secrets: s } = checkConfig(all, secretsAll);
+    const env = productEnv(config, s!, 'truebatch');
+    for (const db of ['deviations', 'qms', 'logbook', 'mms'])
+      expect(env[`${db.toUpperCase()}_DATABASE_URL`]).toMatch(new RegExp(`^postgres://truebatch_app:.*@db:5432/${db}$`));
+    expect(productEnv(config, s!, 'logbook').TRUEBATCH_DATABASE_URL).toMatch(/^postgres:\/\/logbook_app:.*@db:5432\/truebatch$/);
+    expect(productEnv(config, s!, 'deviations').TRUEBATCH_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/truebatch$/);
+    expect(productEnv(config, s!, 'qms')).not.toHaveProperty('TRUEBATCH_DATABASE_URL');   // a provider gets nothing of its reader
+    // Without the TrueBatch licence, neither the Logbook nor Deviations may link to it.
+    const off = { ...all, licences: all.licences.filter((p) => p !== 'truebatch'), links: { logbook: all.links.logbook, deviations: all.links.deviations } };
+    expect(() => checkConfig(off, secretsAll)).toThrow(/link logbook -> truebatch: provider is not licensed; link deviations -> truebatch: provider is not licensed/);
   });
 
   it('PL-10 its image is pinned to a full commit', () => {
