@@ -19,5 +19,5 @@
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1", "material_use_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"], "logbook": ["equipment_status_v1"], "mms": ["lot_v1", "lot_test_v1"] },
-  "source": { "repo": "https://github.com/maglesT/truebatch-injectabless", "commit": "35c3fd788c8d8a8bfbc2d0b99eeef96547312274" }
+  "source": { "repo": "https://github.com/maglesT/truebatch-injectabless", "commit": "94177a6bf060e67de7d43eb34f63e52b46f0aa97" }
 }
