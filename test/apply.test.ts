@@ -884,7 +884,7 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
     expect(env.TRUEBATCH_INJECTABLES_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_injectables_app:.*@db:5432\/truebatch_injectables$/);
     expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_injectables_app:.*@db:5432\/master_data$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-injectables.ci.example/cb');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables.ci.example {\n  reverse_proxy 127.0.0.1:8112\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables.ci.example {\n  reverse_proxy 127.0.0.1:8113\n}');
     expect(caddyfile(config)).toContain('truebatch-injectables.ci.example {\n  reverse_proxy truebatch_injectables:3000\n}');
     expect(ti.links.truebatch_injectables.master_data).toEqual(manifest('truebatch_injectables').reads!.master_data);
     expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
