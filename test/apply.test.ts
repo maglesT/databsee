@@ -392,7 +392,7 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     expect(dev.links.deviations).toEqual(reads);
     expect(fromTrueBatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch once licensed (Deviations D-51, D-28)
     expect(fromPacking).toEqual(['deviation_note_v1']);   // TrueBatch Tablets Packing once licensed (Deviations D-53, D-31)
-    expect(fromInjectables).toEqual(['deviation_note_v1']);   // TrueBatch Injectables once licensed (Deviations D-54, D-45)
+    expect(fromInjectables).toEqual(['deviation_note_v1']);   // TrueBatch Injectables once licensed (Deviations D-54, D-48)
     expect(manifest('deviations').publishes).toEqual(['capa_v1', 'deviation_v1']);   // read by the QMS through a link (Deviations D-40)
   });
 
