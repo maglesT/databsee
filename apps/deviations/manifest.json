@@ -23,5 +23,5 @@
     "truebatch": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"],
     "truebatch_packing": ["deviation_note_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "97c97d5be4318cf080c589cf88272c62834997a1" }
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "72700bddfc1aae5c91f6577c58ec8dd80071faa9" }
 }
