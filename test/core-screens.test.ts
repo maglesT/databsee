@@ -92,7 +92,7 @@ describe('core screens', () => {
     await page.getByRole('link', { name: 'Rooms' }).click();
     await page.getByLabel('Code (never reused)').fill(`WR${run}`);
     await page.getByLabel('Name', { exact: true }).fill('Web room');
-    await page.getByLabel('Grade').fill('D');
+    await page.getByLabel('Grade').selectOption('D');
     await page.getByLabel('Reason').fill('initial load');
     await page.getByRole('button', { name: 'Add' }).click();
     await page.getByRole('link', { name: `WR${run}` }).waitFor();

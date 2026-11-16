@@ -15,6 +15,9 @@ const text = z.string().trim().max(200).optional();
 const hours = z.number({ invalid_type_error: 'Hours must be a whole number.' }).int('Hours must be a whole number.').min(1).max(24 * 365).optional();
 const days = z.number({ invalid_type_error: 'Days must be a whole number.' }).int('Days must be a whole number.').min(1).max(3650).optional();
 const months = z.number({ invalid_type_error: 'Months must be a whole number.' }).int('Months must be a whole number.').min(1).max(240).optional();
+// Owner 2026-11-16 (D-36): a room's grade is a pick list (EU GMP Annex 1 grades A to D, CNC = controlled not
+// classified); no grade means none. Products compare grades, so a typo ("b ") must not get in.
+export const GRADES = ['A', 'B', 'C', 'D', 'CNC'] as const;
 const care = { cleanHoldHours: hours, dirtyHoldHours: hours, pmFrequencyDays: days, calibrationFrequencyDays: days, requalificationFrequencyMonths: months };
 /** The system checks on each kind's own fields (A11 6 / SchM 20.6: no critical batch data is entered here). */
 export const FIELDS = {
@@ -22,7 +25,7 @@ export const FIELDS = {
   equipment: z.object({ type: text, make: text, model: text, serial: text, equipmentClass: z.enum(['process', 'engineering_system']).optional(), ...care }).strict(),
   instrument: z.object({ type: text, make: text, model: text, serial: text, needsCalibration: z.boolean().optional(), ...care }).strict(),
   // A room is operation-based (cleaned after use: dirty hold, clean hold) or frequency-based (cleaned every N hours).
-  room: z.object({ area: text, grade: text, cleaningBasis: z.enum(['operation', 'frequency']).optional(), cleaningFrequencyHours: hours,
+  room: z.object({ area: text, grade: z.enum(GRADES, { errorMap: () => ({ message: 'Grade must be A, B, C, D, CNC or empty.' }) }).optional(), cleaningBasis: z.enum(['operation', 'frequency']).optional(), cleaningFrequencyHours: hours,
     cleanHoldHours: hours, dirtyHoldHours: hours, pmFrequencyDays: days, requalificationFrequencyMonths: months }).strict()
     .refine((f) => f.cleaningBasis !== 'frequency' || f.cleaningFrequencyHours !== undefined, { message: 'A frequency-based room needs its cleaning frequency (hours).' })
     .refine((f) => f.cleaningFrequencyHours === undefined || f.cleaningBasis === 'frequency', { message: 'Only a frequency-based room has a cleaning frequency.' }),

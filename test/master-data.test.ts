@@ -57,6 +57,16 @@ describe('PL-06 audit trail of master data', () => {
     expect((await editor.call('POST', '/api/items', { kind: 'room', code: code('R9'), name: 'x', fields: { colour: 'red' }, reason: 'r' })).statusCode).toBe(400);
   });
 
+  it('PL-06 a room grade is picked from A, B, C, D, CNC or none; anything else is refused (D-36)', async () => {
+    const room = (grade: unknown) => editor.call('POST', '/api/items', { kind: 'room', code: code(`G${Math.random().toString(36).slice(2, 6)}`), name: 'x', fields: grade === undefined ? {} : { grade }, reason: 'r' });
+    for (const g of ['A', 'B', 'C', 'D', 'CNC', undefined]) expect((await room(g)).statusCode).toBe(200);
+    for (const g of ['b ', 'b', 'E', 'ISO 5', '']) {
+      const res = await room(g);
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toContain('Grade must be A, B, C, D, CNC or empty.');
+    }
+  });
+
   it('PL-06 the history exports as readable CSV, links included', async () => {
     const res = await editor.call('GET', '/api/export/master-data-history.csv');
     expect(res.body.split('\n')[0]).toBe('kind,code,version,name,fields,active,changed_by_name,changed_at,reason');

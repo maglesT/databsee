@@ -11,7 +11,7 @@ const KINDS: { kind: Kind; label: string }[] = [
   { kind: 'material', label: 'Materials' }, { kind: 'supplier', label: 'Suppliers' }, { kind: 'product', label: 'Products' },
 ];
 
-type Input = 'text' | 'check' | 'category' | 'number' | 'basis' | 'eqclass';
+type Input = 'text' | 'check' | 'category' | 'number' | 'basis' | 'eqclass' | 'grade';
 /** D-24: maintenance, cleaning and requalification parameters (empty = not applicable). */
 const CARE: [string, string, Input][] = [
   ['cleanHoldHours', 'Clean hold (hours)', 'number'], ['dirtyHoldHours', 'Dirty hold (hours)', 'number'],
@@ -22,7 +22,7 @@ const CARE: [string, string, Input][] = [
 const FIELDS: Record<Kind, [string, string, Input][]> = {
   equipment: [['equipmentClass', 'Category', 'eqclass'], ['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ...CARE],
   instrument: [['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ['needsCalibration', 'Needs calibration', 'check'], ...CARE],
-  room: [['area', 'Area', 'text'], ['grade', 'Grade', 'text'], ['cleaningBasis', 'Room cleaning', 'basis'], ['cleaningFrequencyHours', 'Cleaning every (hours, frequency-based rooms)', 'number'],
+  room: [['area', 'Area', 'text'], ['grade', 'Grade', 'grade'], ['cleaningBasis', 'Room cleaning', 'basis'], ['cleaningFrequencyHours', 'Cleaning every (hours, frequency-based rooms)', 'number'],
     ...CARE.filter(([n]) => n !== 'calibrationFrequencyDays')],
   material: [['category', 'Category', 'category'], ['unit', 'Unit', 'text']],
   supplier: [['address', 'Address', 'text']],
@@ -55,6 +55,10 @@ function FieldInputs({ kind, values = {} }: { kind: Kind; values?: Record<string
           <label key={name}><input type="checkbox" name={name} defaultChecked={Boolean(values[name])} style={{ display: 'inline', width: 'auto' }} /> {label}</label>
         ) : input === 'number' ? (
           <label key={name}>{label}<input name={name} type="number" min={1} step={1} inputMode="numeric" defaultValue={values[name] === undefined ? '' : String(values[name])} /></label>
+        ) : input === 'grade' ? (
+          <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? '')}>
+            <option value="">None</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="CNC">CNC (controlled not classified)</option>
+          </select></label>
         ) : input === 'basis' ? (
           <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? 'operation')}>
             <option value="operation">Operation-based (cleaned after use: dirty hold, clean hold)</option><option value="frequency">Frequency-based (cleaned on a schedule)</option>
