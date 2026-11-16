@@ -20,7 +20,9 @@ const CARE: [string, string, Input][] = [
 ];
 /** Each kind's own fields: [name, label, input]. */
 const FIELDS: Record<Kind, [string, string, Input][]> = {
-  equipment: [['equipmentClass', 'Category', 'eqclass'], ['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ...CARE],
+  equipment: [['equipmentClass', 'Category', 'eqclass'], ['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ...CARE,
+    // D-38: isolators and RABS, from their qualification.
+    ['decontaminationValidDays', 'Decontamination (VHP) valid for (days, isolators and RABS)', 'number'], ['gloveTestEveryDays', 'Glove test every (days, isolators and RABS)', 'number']],
   instrument: [['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ['needsCalibration', 'Needs calibration', 'check'], ...CARE],
   room: [['area', 'Area', 'text'], ['grade', 'Grade', 'grade'], ['cleaningBasis', 'Room cleaning', 'basis'], ['cleaningFrequencyHours', 'Cleaning every (hours, frequency-based rooms)', 'number'],
     ...CARE.filter(([n]) => n !== 'calibrationFrequencyDays')],

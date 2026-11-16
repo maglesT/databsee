@@ -22,7 +22,10 @@ const care = { cleanHoldHours: hours, dirtyHoldHours: hours, pmFrequencyDays: da
 /** The system checks on each kind's own fields (A11 6 / SchM 20.6: no critical batch data is entered here). */
 export const FIELDS = {
   // Owner 2026-11-14 (D-26): process equipment or an engineering (utility) system; products group them by it.
-  equipment: z.object({ type: text, make: text, model: text, serial: text, equipmentClass: z.enum(['process', 'engineering_system']).optional(), ...care }).strict(),
+  // D-38 (owner, 2026-11-16): an isolator's or RABS's validated sterile timings, from its qualification (days, empty = not
+  // applicable): how long a passed decontamination (VHP) stays valid, and how often every glove port is tested.
+  equipment: z.object({ type: text, make: text, model: text, serial: text, equipmentClass: z.enum(['process', 'engineering_system']).optional(), ...care,
+    decontaminationValidDays: days, gloveTestEveryDays: days }).strict(),
   instrument: z.object({ type: text, make: text, model: text, serial: text, needsCalibration: z.boolean().optional(), ...care }).strict(),
   // A room is operation-based (cleaned after use: dirty hold, clean hold) or frequency-based (cleaned every N hours).
   room: z.object({ area: text, grade: z.enum(GRADES, { errorMap: () => ({ message: 'Grade must be A, B, C, D, CNC or empty.' }) }).optional(), cleaningBasis: z.enum(['operation', 'frequency']).optional(), cleaningFrequencyHours: hours,

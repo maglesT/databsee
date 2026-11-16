@@ -123,6 +123,22 @@ describe('PL-08 maintenance, cleaning and requalification parameters are kept on
     expect((await bad('room', { cleaningBasis: 'frequency' })).json().error).toMatch(/needs its cleaning frequency/);
     expect((await bad('room', { cleaningFrequencyHours: 24 })).json().error).toMatch(/Only a frequency-based room/);
     expect((await bad('room', { calibrationFrequencyDays: 30 })).statusCode).toBe(400);   // rooms are not calibrated
+    expect((await bad('equipment', { decontaminationValidDays: 0 })).statusCode).toBe(400);
+    expect((await bad('equipment', { gloveTestEveryDays: 2.5 })).statusCode).toBe(400);
+    expect((await bad('room', { gloveTestEveryDays: 7 })).statusCode).toBe(400);   // only equipment has glove ports
+  });
+
+  it('PL-08 an isolator\'s decontamination validity and glove test interval are equipment fields, read through equipment_v1 (D-38)', async () => {
+    await add('equipment', code('ISO'), 'Filling isolator', { type: 'Isolator', decontaminationValidDays: 7, gloveTestEveryDays: 1 });
+    await add('equipment', code('MIX'), 'Mixer');
+    const su = postgres({ database: 'master_data', onnotice: () => {}, max: 1 });
+    await su`select platform.set_link('hello_app', array['equipment_v1'], true, 'CC-MD4', 'hello reads the sterile timings')`;
+    await enableLogin('hello_app');
+    const hello = postgres({ database: 'master_data', username: 'hello_app', password: 'test-only', onnotice: () => {}, max: 1 });
+    expect(await hello`select code, decontamination_valid_days, glove_test_every_days from report.equipment_v1 where code in (${code('ISO')}, ${code('MIX')}) order by code`)
+      .toEqual([{ code: code('ISO'), decontamination_valid_days: 7, glove_test_every_days: 1 }, { code: code('MIX'), decontamination_valid_days: null, glove_test_every_days: null }]);
+    await hello.end();
+    await su.end();
   });
 
   it('PL-08 a linked product reads them from the views; a change is a new version with its reason', async () => {
