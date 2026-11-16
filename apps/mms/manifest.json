@@ -27,5 +27,5 @@
   ],
   "publishes": ["lot_v1", "lot_test_v1"],
   "reads": { "master_data": ["material_v1", "supplier_v1", "product_v1", "room_v1"], "truebatch": ["material_use_v1"], "truebatch_packing": ["material_use_v1"] },
-  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "a02bca41e4418500c97bfd6b3e72a341a9935d66" }
+  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "021b42147167e03e2bf92a1fffea9069fb10bf31" }
 }
