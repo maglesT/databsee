@@ -855,3 +855,54 @@ describe('Release 1.6.0: Deviations files TrueBatch Tablets Packing\'s deviation
       .toThrow(/link deviations -> truebatch_packing: provider is not licensed/);
   });
 });
+
+describe('TrueBatch Injectables, its own product from its own repo (D-43)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const ti = {
+    ...base, licences: ['hello', 'truebatch_injectables'],
+    links: { hello: { master_data: ['equipment_v1'] }, truebatch_injectables: { master_data: md } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_injectables_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_injectables: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Injectables offers its 13 permission codes, all its own: QC approval, the demo skip, aseptic operator and visual inspector among them', () => {
+    const codes = manifest('truebatch_injectables').permissions.map((p) => p.code);
+    expect(codes).toHaveLength(13);
+    expect(codes.every((c) => c.startsWith('truebatch_injectables.'))).toBe(true);
+    for (const c of ['qc.approve', 'demo.skip', 'batch.aseptic', 'batch.inspect']) expect(codes).toContain(`truebatch_injectables.${c}`);
+    for (const p of ['truebatch', 'truebatch_packing']) expect(manifest(p).permissions.some((x) => x.code.startsWith('truebatch_injectables.'))).toBe(false);
+    expect(manifest('truebatch_injectables').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
+  });
+
+  it('PL-08 Injectables gets its own database and login, the master data of its link and sign-on at truebatch-injectables.<domain>', () => {
+    const { config, secrets: s } = checkConfig(ti, raw);
+    const env = productEnv(config, s!, 'truebatch_injectables');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_INJECTABLES_DATABASE_URL']);
+    expect(env.TRUEBATCH_INJECTABLES_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_injectables_app:.*@db:5432\/truebatch_injectables$/);
+    expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_injectables_app:.*@db:5432\/master_data$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-injectables.ci.example/cb');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables.ci.example {\n  reverse_proxy 127.0.0.1:8112\n}');
+    expect(caddyfile(config)).toContain('truebatch-injectables.ci.example {\n  reverse_proxy truebatch_injectables:3000\n}');
+    expect(ti.links.truebatch_injectables.master_data).toEqual(manifest('truebatch_injectables').reads!.master_data);
+    expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
+    expect(() => checkConfig({ ...ti, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_injectables" is not licensed/);
+  });
+
+  it('PL-08 every view Injectables reads is published by its provider', () => {
+    const reads = manifest('truebatch_injectables').reads!;
+    expect(Object.keys(reads)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms']);
+    for (const provider of ['deviations', 'qms', 'logbook', 'mms'])
+      expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
+  });
+
+  it('PL-10 its image is pinned to a full commit of its own repo, built from ops/Dockerfile, migrated by the platform', () => {
+    expect(imageTags().TRUEBATCH_INJECTABLES_COMMIT).toBe(manifest('truebatch_injectables').source!.commit);
+    expect(imageTags().TRUEBATCH_INJECTABLES_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest('truebatch_injectables').source!.repo).not.toBe(manifest('truebatch').source!.repo);
+    expect(manifest('truebatch_injectables').source!.dockerfile).toBeUndefined();
+    expect(manifest('truebatch_injectables').migrate).toBeUndefined();
+  });
+});

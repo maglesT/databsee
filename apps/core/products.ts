@@ -12,6 +12,7 @@ export const PRODUCTS: Record<string, ProductInfo> = {
   ops: { name: 'Operations', tagline: 'OEE, losses, process parameters and advice', initials: 'OP' },
   ebmr: { name: 'Batchwright', tagline: 'Electronic batch records for tablets', initials: 'BW' },
   truebatch: { name: 'TrueBatch Tablets', tagline: 'Electronic batch records for tablets, dispensing to QA release of bulk', initials: 'TB' },
+  truebatch_injectables: { name: 'TrueBatch Injectables', tagline: 'Electronic batch records for sterile injectables, dispensing to QA release of filled, inspected units', initials: 'TI' },
   truebatch_packing: { name: 'TrueBatch Tablets Packing', tagline: 'Packing batch records, released bulk tablets to QA release of the packed batch', initials: 'TP' },
 };
 
