@@ -17,6 +17,6 @@
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["packing_batch_v1", "equipment_use_v1", "material_use_v1", "deviation_note_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "truebatch": ["batch_fact_v1"], "mms": ["lot_v1", "lot_test_v1"], "logbook": ["equipment_status_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"] },
-  "source": { "repo": "https://github.com/maglesT/TrueBatch-Tablets", "commit": "fe4f5facb42b31a105c7187f533f031c40e9e7e8", "dockerfile": "ops/packing.Dockerfile" },
+  "source": { "repo": "https://github.com/maglesT/TrueBatch-Tablets", "commit": "956a3693b89463ed237e39f2d5239066fd5544fe", "dockerfile": "ops/packing.Dockerfile" },
   "migrate": { "command": ["node", "dist/packing/migrate.js"] }
 }
