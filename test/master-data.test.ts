@@ -157,12 +157,54 @@ describe('PL-08 maintenance, cleaning and requalification parameters are kept on
     const hello = postgres({ database: 'master_data', username: 'hello_app', password: 'test-only', onnotice: () => {}, max: 1 });
     expect(await hello`select code, kind from report.product_v1 where code in (${code('PB')}, ${code('PP')}, ${code('PN')}) order by code`)
       .toEqual([{ code: code('PB'), kind: 'pack' }, { code: code('PN'), kind: null }, { code: code('PP'), kind: 'pack' }]);
-    // PL-08: kind is the last column, so the view only grew.
+    // PL-08: kind was added after data_as_of, so the view only grew (antibiotic followed it, D-69).
     const cols = await su<{ column_name: string; data_type: string }[]>`select column_name, data_type from information_schema.columns
       where table_schema = 'report' and table_name = 'product_v1' order by ordinal_position`;
-    expect(cols.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'strength', 'dosage_form', 'read_at', 'data_as_of', 'kind']);
-    expect(cols.at(-1)!.data_type).toBe('text');
+    expect(cols.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'strength', 'dosage_form', 'read_at', 'data_as_of', 'kind', 'antibiotic']);
+    expect(cols.find((c) => c.column_name === 'kind')!.data_type).toBe('text');
     await su`select platform.set_link('hello_app', array['product_v1'], false, 'CC-MD4', 'cleanup')`;
+    await hello.end();
+    await su.end();
+  });
+
+  it('PL-08 an equipment\'s SIP validity and a product\'s antibiotic flag are optional fields, read through the views as last columns (D-69)', async () => {
+    const bad = (kind: string, fields: object) => editor.call('POST', '/api/items', { kind, code: code(`S${Math.random().toString(36).slice(2, 6)}`), name: 'x', fields, reason: 'r' });
+    const sip = await add('equipment', code('SIP'), 'Filling line tank', { type: 'Tank', sipValidDays: 3 });
+    await add('equipment', code('NOS'), 'Blender');
+    const ab = await add('product', code('AB'), 'Amoxicillin capsules 500 mg', { kind: 'bulk', antibiotic: true });
+    await add('product', code('AN'), 'Paracetamol tablets 650 mg', { antibiotic: false });
+    await add('product', code('AU'), 'Old product, not set');
+    expect((await bad('equipment', { sipValidDays: 0 })).statusCode).toBe(400);
+    expect((await bad('equipment', { sipValidDays: 1.5 })).statusCode).toBe(400);
+    expect((await bad('equipment', { sipValidDays: '3' })).statusCode).toBe(400);
+    expect((await bad('room', { sipValidDays: 3 })).statusCode).toBe(400);   // only equipment
+    for (const v of ['yes', 1, 'true']) {
+      const res = await editor.call('POST', '/api/items', { kind: 'product', code: code(`AX${Math.random().toString(36).slice(2, 6)}`), name: 'x', fields: { antibiotic: v }, reason: 'r' });
+      expect(res.statusCode).toBe(400);
+    }
+    expect((await bad('equipment', { antibiotic: true })).statusCode).toBe(400);   // only products
+    // PATCH replaces the whole fields object.
+    expect((await editor.call('PATCH', `/api/items/${sip}`, { fields: { type: 'Tank', sipValidDays: 5 }, reason: 'requalified' })).statusCode).toBe(200);
+    expect((await editor.call('PATCH', `/api/items/${ab}`, { fields: { kind: 'bulk', antibiotic: true, strength: '500 mg' }, reason: 'strength added' })).statusCode).toBe(200);
+    const su = postgres({ database: 'master_data', onnotice: () => {}, max: 1 });
+    await su`select platform.set_link('hello_app', array['equipment_v1', 'product_v1'], true, 'CC-MD4', 'hello reads SIP validity and antibiotic')`;
+    await enableLogin('hello_app');
+    const hello = postgres({ database: 'master_data', username: 'hello_app', password: 'test-only', onnotice: () => {}, max: 1 });
+    expect(await hello`select code, sip_valid_days from report.equipment_v1 where code in (${code('SIP')}, ${code('NOS')}) order by code`)
+      .toEqual([{ code: code('NOS'), sip_valid_days: null }, { code: code('SIP'), sip_valid_days: 5 }]);
+    expect(await hello`select code, antibiotic from report.product_v1 where code in (${code('AB')}, ${code('AN')}, ${code('AU')}) order by code`)
+      .toEqual([{ code: code('AB'), antibiotic: true }, { code: code('AN'), antibiotic: false }, { code: code('AU'), antibiotic: null }]);
+    const cols = async (view: string) => su<{ column_name: string; data_type: string }[]>`select column_name, data_type from information_schema.columns
+      where table_schema = 'report' and table_name = ${view} order by ordinal_position`;
+    const eq = await cols('equipment_v1');
+    expect(eq.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'type', 'make', 'model', 'serial', 'room_code', 'read_at', 'data_as_of',
+      'clean_hold_hours', 'dirty_hold_hours', 'pm_frequency_days', 'calibration_frequency_days', 'requalification_frequency_months', 'equipment_class',
+      'decontamination_valid_days', 'glove_test_every_days', 'sip_valid_days']);
+    expect(eq.at(-1)!.data_type).toBe('integer');
+    const pr = await cols('product_v1');
+    expect(pr.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'strength', 'dosage_form', 'read_at', 'data_as_of', 'kind', 'antibiotic']);
+    expect(pr.at(-1)!.data_type).toBe('boolean');
+    await su`select platform.set_link('hello_app', array['equipment_v1', 'product_v1'], false, 'CC-MD4', 'cleanup')`;
     await hello.end();
     await su.end();
   });

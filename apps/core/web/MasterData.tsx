@@ -22,13 +22,16 @@ const CARE: [string, string, Input][] = [
 const FIELDS: Record<Kind, [string, string, Input][]> = {
   equipment: [['equipmentClass', 'Category', 'eqclass'], ['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ...CARE,
     // D-38: isolators and RABS, from their qualification.
-    ['decontaminationValidDays', 'Decontamination (VHP) valid for (days, isolators and RABS)', 'number'], ['gloveTestEveryDays', 'Glove test every (days, isolators and RABS)', 'number']],
+    ['decontaminationValidDays', 'Decontamination (VHP) valid for (days, isolators and RABS)', 'number'], ['gloveTestEveryDays', 'Glove test every (days, isolators and RABS)', 'number'],
+    // D-69: from its qualification.
+    ['sipValidDays', 'SIP valid for (days)', 'number']],
   instrument: [['type', 'Type', 'text'], ['make', 'Make', 'text'], ['model', 'Model', 'text'], ['serial', 'Serial no.', 'text'], ['needsCalibration', 'Needs calibration', 'check'], ...CARE],
   room: [['area', 'Area', 'text'], ['grade', 'Grade', 'grade'], ['cleaningBasis', 'Room cleaning', 'basis'], ['cleaningFrequencyHours', 'Cleaning every (hours, frequency-based rooms)', 'number'],
     ...CARE.filter(([n]) => n !== 'calibrationFrequencyDays')],
   material: [['category', 'Category', 'category'], ['unit', 'Unit', 'text']],
   supplier: [['address', 'Address', 'text']],
-  product: [['kind', 'Product type', 'prodkind'], ['strength', 'Strength', 'text'], ['dosageForm', 'Dosage form', 'text']],
+  product: [['kind', 'Product type', 'prodkind'], ['strength', 'Strength', 'text'], ['dosageForm', 'Dosage form', 'text'],
+    ['antibiotic', 'Antibiotic (needs product-changeover cleaning)', 'check']],
 };
 
 /** D-64: a product is bulk (made in TrueBatch Tablets) or a finished pack (made in TrueBatch Tablets Packing). */

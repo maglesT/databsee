@@ -24,8 +24,9 @@ export const FIELDS = {
   // Owner 2026-11-14 (D-26): process equipment or an engineering (utility) system; products group them by it.
   // D-38 (owner, 2026-11-16): an isolator's or RABS's validated sterile timings, from its qualification (days, empty = not
   // applicable): how long a passed decontamination (VHP) stays valid, and how often every glove port is tested.
+  // D-69 (owner, 2026-11-17): and how long a passed SIP (steam in place) stays valid (days, empty = not applicable).
   equipment: z.object({ type: text, make: text, model: text, serial: text, equipmentClass: z.enum(['process', 'engineering_system']).optional(), ...care,
-    decontaminationValidDays: days, gloveTestEveryDays: days }).strict(),
+    decontaminationValidDays: days, gloveTestEveryDays: days, sipValidDays: days }).strict(),
   instrument: z.object({ type: text, make: text, model: text, serial: text, needsCalibration: z.boolean().optional(), ...care }).strict(),
   // A room is operation-based (cleaned after use: dirty hold, clean hold) or frequency-based (cleaned every N hours).
   room: z.object({ area: text, grade: z.enum(GRADES, { errorMap: () => ({ message: 'Grade must be A, B, C, D, CNC or empty.' }) }).optional(), cleaningBasis: z.enum(['operation', 'frequency']).optional(), cleaningFrequencyHours: hours,
@@ -36,7 +37,9 @@ export const FIELDS = {
   supplier: z.object({ address: text }).strict(),
   // D-64 (owner, 2026-11-17): a bulk product (made in TrueBatch Tablets, e.g. tablets) or a pack (finished pack, made in
   // TrueBatch Tablets Packing, e.g. blister 10 x 10), so the designers offer only the right ones. Empty means not set.
+  // D-69 (owner, 2026-11-17): antibiotic, the product needs product-changeover cleaning. Empty means not set.
   product: z.object({ strength: text, dosageForm: text,
+    antibiotic: z.boolean({ invalid_type_error: 'Antibiotic must be yes or no.' }).optional(),
     kind: z.enum(['bulk', 'pack'], { errorMap: () => ({ message: 'Product type must be bulk, pack or empty.' }) }).optional() }).strict(),
 };
 export type Kind = keyof typeof FIELDS;
