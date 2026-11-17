@@ -4,12 +4,17 @@ import { api } from './api.js';
 import { form, Link, useAction, when } from './ui.js';
 import { MasterData } from './MasterData.js';
 import { productInfo } from '../products.js';
+import { plantDate } from '../time.js';
 
 interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean }
 interface Person { id: string; login: string; fullName: string; email: string | null; active: boolean; lockedAt: string | null }
 interface Permission { product: string; code: string; label: string }
 interface Grant { product: string; code: string; grantedBy: string; grantedAt: string }
 interface MyApp { product: string; url: string }
+type LinkState = 'on' | 'off' | 'down';
+interface Hire { candidateRef: string; fullName: string; jobTitle: string | null; department: string | null; joiningDate: string | null; hiredAt: string | null }
+interface Training { skillCode: string; skillTitle: string; trainedOn: string; validUntil: string | null; qualified: boolean }
+interface LinkRow { reader: string; readerName: string; provider: string; providerName: string; view: string; state: LinkState; why: string; switchedOnAt: string | null; changeRef: string | null }
 interface Alert { id: string; message: string; at: string; emailedAt: string | null; emailError: string | null }
 
 export function App() {
@@ -35,13 +40,14 @@ export function App() {
       {name === 'people' && people && <People open={(id) => setPage({ name: 'person', id })} />}
       {page.name === 'person' && people && <PersonPage id={page.id} me={me} back={() => setPage({ name: 'people' })} />}
       {name === 'master-data' && md && <MasterData canEdit={can(me, 'core.masterdata.edit')} />}
+      {name === 'links' && people && <Links />}
     </Shell>
   );
 }
 
 const can = (me: Me, ...codes: string[]) => codes.some((c) => me.permissions.includes(c));
 
-type Page = { name: 'home' } | { name: 'apps' } | { name: 'people' } | { name: 'person'; id: string } | { name: 'master-data' };
+type Page = { name: 'home' } | { name: 'apps' } | { name: 'people' } | { name: 'person'; id: string } | { name: 'master-data' } | { name: 'links' };
 
 function Shell({ me, children, onSignOut, go, current, hasApps }: { me: Me; children: ReactNode; onSignOut: () => void; go: (p: Page) => void; current: string; hasApps: boolean }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -57,6 +63,7 @@ function Shell({ me, children, onSignOut, go, current, hasApps }: { me: Me; chil
           {!me.mustChange && hasApps && <Tab on={current === 'apps'} onClick={() => go({ name: 'apps' })}>Applications</Tab>}
           {!me.mustChange && can(me, 'core.people.manage') && <Tab on={current === 'people' || current === 'person'} onClick={() => go({ name: 'people' })}>People</Tab>}
           {!me.mustChange && can(me, 'core.masterdata.view', 'core.masterdata.edit') && <Tab on={current === 'master-data'} onClick={() => go({ name: 'master-data' })}>Master data</Tab>}
+          {!me.mustChange && can(me, 'core.people.manage') && <Tab on={current === 'links'} onClick={() => go({ name: 'links' })}>Links</Tab>}
         </nav>
         <span className="who">{me.fullName}
           <button className="plain" onClick={() => api('POST', '/api/logout').finally(onSignOut)}>Sign out</button></span>
@@ -86,7 +93,7 @@ function Applications({ me, apps, go, people, md }: { me: Me; apps: MyApp[]; go:
           const p = productInfo(a.product);
           return (
             <a className="app" key={a.product} href={a.url}>
-              <ProductIcon product={a.product} initials={p.initials} />
+              <ProductIcon product={a.product} initials={p.initials} logo={p.logo === true} />
               <b>{p.name}</b>
               <span>{p.tagline}</span>
               <em>Open →</em>
@@ -104,9 +111,10 @@ function Applications({ me, apps, go, people, md }: { me: Me; apps: MyApp[]; go:
   );
 }
 
-/** The product's logo (public/products/<product>.png) or, without one, its initials in Medhanta colours. */
-function ProductIcon({ product, initials }: { product: string; initials: string }) {
-  const [logo, setLogo] = useState(true);
+/** The product's logo (public/products/<product>.png, only for a product marked logo in products.ts) or its initials
+ *  in Medhanta colours: a product without a logo file is never requested (D-77). */
+function ProductIcon({ product, initials, logo: hasLogo }: { product: string; initials: string; logo: boolean }) {
+  const [logo, setLogo] = useState(hasLogo);
   return (
     <div className="icon" aria-hidden="true">
       {logo ? <img src={`/products/${product}.png`} alt="" onError={() => setLogo(false)} /> : initials}
@@ -157,8 +165,13 @@ function ChangePassword({ me, onDone }: { me: Me; onDone: () => void }) {
 function People({ open }: { open: (id: string) => void }) {
   const [people, setPeople] = useState<Person[]>([]);
   const [created, setCreated] = useState<{ login: string; temp: string } | null>(null);
+  const [hires, setHires] = useState<{ state: LinkState; hires: Hire[] }>({ state: 'off', hires: [] });
+  const [hire, setHire] = useState<Hire | null>(null);
   const a = useAction();
-  const load = useCallback(() => api<Person[]>('GET', '/api/employees').then(setPeople), []);
+  const load = useCallback(async () => {
+    await api<Person[]>('GET', '/api/employees').then(setPeople);
+    await api<{ state: LinkState; hires: Hire[] }>('GET', '/api/hires').then(setHires, () => setHires({ state: 'down', hires: [] }));
+  }, []);
   useEffect(() => { void load(); }, [load]);
   return (
     <>
@@ -188,18 +201,35 @@ function People({ open }: { open: (id: string) => void }) {
         const el = e.currentTarget;
         const f = form(e);
         void a.run(async () => {
-          const r = await api<{ id: string; temporaryPassword: string }>('POST', '/api/employees', { ...f, email: f.email || null });
+          const r = await api<{ id: string; temporaryPassword: string }>('POST', '/api/employees', { ...f, email: f.email || null, hireRef: hire?.candidateRef ?? null });
           setCreated({ login: f.login!, temp: r.temporaryPassword });
           el.reset();
+          setHire(null);
           await load();
         });
       }}>
         <h2>Add a person</h2>
+        {hires.state === 'on' && (
+          <label>From Recruitment: hired, not yet employees
+            <select value={hire?.candidateRef ?? ''} onChange={(e) => setHire(hires.hires.find((h) => h.candidateRef === e.target.value) ?? null)}>
+              <option value="">{hires.hires.length ? 'choose a hire, or type the person below' : 'no hires waiting'}</option>
+              {hires.hires.map((h) => (
+                <option key={h.candidateRef} value={h.candidateRef}>
+                  {h.fullName}: {[h.jobTitle, h.department].filter(Boolean).join(', ')}{h.joiningDate ? `, joins ${plantDate(h.joiningDate)}` : ''} ({h.candidateRef})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {hires.state === 'down' && <p className="muted">The link to Recruitment is down: type the person by hand.</p>}
         <label>Login ID (never reused)<input name="login" required /></label>
-        <label>Full name<input name="fullName" required /></label>
+        <label>Full name<input name="fullName" key={`n${hire?.candidateRef ?? ''}`} defaultValue={hire?.fullName ?? ''} required /></label>
         <label>Email<input name="email" type="email" /></label>
         <label>How was their identity checked?<input name="identityVerifiedHow" placeholder="e.g. company ID card seen" required /></label>
-        <label>Reason<input name="reason" placeholder="e.g. new joiner, HR ticket 123" required /></label>
+        <label>Reason<input name="reason" key={`r${hire?.candidateRef ?? ''}`} required placeholder="e.g. new joiner, HR ticket 123"
+          defaultValue={hire ? `New joiner from Recruitment ${hire.candidateRef}: ${[hire.jobTitle, hire.department].filter(Boolean).join(', ')}` : ''} /></label>
+        {hire ? <p className="muted">Name and job pulled from Recruitment ({hire.candidateRef}).</p>
+          : hires.state === 'on' && <p className="muted">Typed by hand.</p>}
         <a.Error />
         <button>Add</button>
         {created && <p className="note">Temporary password for {created.login}: <code>{created.temp}</code>. Give it to them in person; they must change it at first sign-in. It is not shown again.</p>}
@@ -289,10 +319,12 @@ function Permissions({ id, onChange }: { id: string; onChange: () => Promise<voi
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [reason, setReason] = useState('');
   const [fromId, setFromId] = useState('');
+  const [training, setTraining] = useState<{ state: LinkState; training: Training[] }>({ state: 'off', training: [] });
   const a = useAction();
   const load = useCallback(async () => setGrants(await api<Grant[]>('GET', `/api/employees/${id}/permissions`)), [id]);
   useEffect(() => {
     void load();
+    void api<{ state: LinkState; training: Training[] }>('GET', `/api/employees/${id}/training`).then(setTraining, () => setTraining({ state: 'down', training: [] }));
     void api<Permission[]>('GET', '/api/permissions').then(setCatalogue);
     void api<Person[]>('GET', '/api/employees').then(setPeople);
   }, [load]);
@@ -323,6 +355,21 @@ function Permissions({ id, onChange }: { id: string; onChange: () => Promise<voi
           </label>
         );
       })}
+      {training.state !== 'off' && (
+        <div className="training">
+          <h4>Training (from Recruitment, read only)</h4>
+          {training.state === 'down' ? <p className="muted">The link to Recruitment is down: training not shown.</p>
+            : training.training.length === 0 ? <p className="muted">No approved training records.</p>
+              : <table>
+                <thead><tr><th>Skill</th><th>Trained on</th><th>Valid until</th><th>Status</th></tr></thead>
+                <tbody>{training.training.map((t) => (
+                  <tr key={t.skillCode}><td><code>{t.skillCode}</code> {t.skillTitle}</td><td>{plantDate(t.trainedOn)}</td>
+                    <td>{t.validUntil ? plantDate(t.validUntil) : 'no end'}</td>
+                    <td>{t.qualified ? <span className="chip chip-ok">Qualified</span> : <span className="chip chip-off">Not qualified or expired</span>}</td></tr>
+                ))}</tbody>
+              </table>}
+        </div>
+      )}
       <label>Reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. new job role, HR ticket 123" /></label>
       <p className="row">
         <button onClick={() => save(`/api/employees/${id}/permissions`, { codes: [...ticked] })}>Save</button>
@@ -333,6 +380,38 @@ function Permissions({ id, onChange }: { id: string; onChange: () => Promise<voi
         <button className="plain" disabled={!fromId} onClick={() => save(`/api/employees/${id}/permissions/copy`, { fromId })}>Copy</button>
       </p>
       <a.Error />
+    </div>
+  );
+}
+
+/** D-79: every link the platform knows (customer config and the products' manifests), on / off / down, checked now. */
+function Links() {
+  const [r, setR] = useState<{ checkedAt: string; links: LinkRow[] } | null>(null);
+  const [error, setError] = useState('');
+  const load = useCallback(() => { setError(''); api<{ checkedAt: string; links: LinkRow[] }>('GET', '/api/links').then(setR, (e: Error) => setError(e.message)); }, []);
+  useEffect(() => { load(); }, [load]);
+  const chip = (s: LinkState) => <span className={`chip ${s === 'on' ? 'chip-ok' : s === 'down' ? 'chip-bad' : 'chip-off'}`}>{s}</span>;
+  return (
+    <div className="card">
+      <h2>Links</h2>
+      <p className="muted">Which application reads which data from which other one. On: switched on by the last apply and
+        working. Off: the reader could use it but it is not switched on. Down: switched on but not working now.
+        Links are switched in the customer config (control panel), not here.</p>
+      {error && <p className="error" role="alert">{error}</p>}
+      {r && <p className="row"><span className="muted">Checked {when(r.checkedAt)}</span><button className="plain" onClick={load}>Check again</button></p>}
+      {r && (
+        <table>
+          <thead><tr><th>Reader</th><th>Reads from</th><th>View</th><th>State</th><th>Switched on</th><th>Change reference</th></tr></thead>
+          <tbody>{r.links.length === 0 && <tr><td colSpan={6} className="muted">No links: none is switched on, and no licensed product can read another.</td></tr>}
+            {r.links.map((l) => (
+            <tr key={`${l.reader}|${l.provider}|${l.view}`}>
+              <td>{l.readerName}</td><td>{l.providerName}</td><td><code>{l.view}</code></td>
+              <td>{chip(l.state)}{l.why && <span className="muted"> {l.why}</span>}</td>
+              <td>{l.switchedOnAt ? when(l.switchedOnAt) : ''}</td><td>{l.changeRef ?? ''}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
     </div>
   );
 }

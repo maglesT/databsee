@@ -63,6 +63,20 @@ describe('PL-10 changes only through the config file, with change reference, tes
     expect(() => check({ ...base, licences: ['hello', 'unknown'] })).toThrow(/unknown product/);
   });
 
+  it('PL-08 D-75 core itself may read a licensed product\'s views (reader "core", login core_app), never its own databases', async () => {
+    const withCore = check({ ...base, change_ref: 'CC-K1', links: { ...base.links, core: { hello: ['note_v1'] } } }).config;
+    expect(() => check({ ...base, links: { core: { master_data: ['equipment_v1'] } } })).toThrow(/does not link to itself/);
+    expect(() => check({ ...base, links: { core: { logbook: ['entry_v1'] } } })).toThrow(/provider is not licensed/);
+    await applyConfig(withCore, secrets, runtime(), A);
+    const h = su('hello'), id = su('identity');
+    try {
+      expect(await h`select view_name from platform.current_link where consumer = 'core_app'`).toEqual([{ view_name: 'note_v1' }]);
+      expect(await id`select provider, view_name, change_ref from link_state where consumer = 'core_app'`).toEqual([{ provider: 'hello', view_name: 'note_v1', change_ref: 'CC-K1' }]);
+      await applyConfig(A, secrets, runtime(), withCore);
+      expect(await h`select view_name from platform.current_link where consumer = 'core_app'`).toEqual([]);
+    } finally { await h.end(); await id.end(); }
+  });
+
   it('PL-10 the proxy serves core and each licensed product: the platform caddy, or the host proxy on 127.0.0.1 ports', () => {
     expect(A.proxy).toBe('caddy');
     expect(caddyfile(A)).toBe('ci.example {\n  reverse_proxy core:3000\n}\nhello.ci.example {\n  reverse_proxy hello:3000\n}\n');

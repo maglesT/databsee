@@ -1,11 +1,13 @@
 import { useCallback, useState, type FormEvent, type ReactNode } from 'react';
+import { plantTime } from '../time.js';
 
 /** An in-app link (keyboard-usable, real link role). */
 export function Link({ onClick, children }: { onClick: () => void; children: ReactNode }) {
   return <a href="#" onClick={(e) => { e.preventDefault(); onClick(); }}>{children}</a>;
 }
 
-export const when = (t: string) => new Date(t).toLocaleString();
+/** Every date and time on the core screens, in plant time: "17 Nov 2026, 10:57 pm IST" (D-78). */
+export const when = (t: string | null | undefined) => plantTime(t);
 export const form = (e: FormEvent<HTMLFormElement>) => Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
 
 /** Runs an action and shows its error under the form. */

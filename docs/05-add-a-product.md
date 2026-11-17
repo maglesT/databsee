@@ -63,6 +63,7 @@ inactive and is revoked from everyone holding it. The control panel uses `reads`
 
 ## 6. Configuration and secrets
 - Customer config: add the product to `licences` and its links under `links`. The template is `customers/example.yaml`.
+- Core itself can read a product's views: reader `core` under `links` (login `core_app`, D-75). Core's possible reads are `CORE_READS` in `apps/core/products.ts`.
 - Secrets: a `<product>_app` password and an OIDC client secret. The template is `customers/example.secrets.template.yaml`.
 
 ## 7. Tests (CI fails without them: `scripts/check-traceability.py`)

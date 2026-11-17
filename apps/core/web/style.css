@@ -116,3 +116,6 @@ a:hover { color: var(--brand-dark); }
 .chip-ok { background: var(--ok-soft); color: var(--ok); }
 .chip-bad { background: var(--bad-soft); color: var(--bad); }
 .chip-off { background: #efedeb; color: var(--muted); }
+/* Training beside the permissions (D-76) */
+.training { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.training h4 { margin: 0 0 6px; font-size: 0.9rem; }
