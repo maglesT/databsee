@@ -34,7 +34,10 @@ export const FIELDS = {
     .refine((f) => f.cleaningFrequencyHours === undefined || f.cleaningBasis === 'frequency', { message: 'Only a frequency-based room has a cleaning frequency.' }),
   material: z.object({ category: z.enum(['starting', 'packaging', 'intermediate', 'other']), unit: z.string().trim().min(1, 'Unit is required.').max(20) }).strict(),
   supplier: z.object({ address: text }).strict(),
-  product: z.object({ strength: text, dosageForm: text }).strict(),
+  // D-64 (owner, 2026-11-17): a bulk product (made in TrueBatch Tablets, e.g. tablets) or a pack (finished pack, made in
+  // TrueBatch Tablets Packing, e.g. blister 10 x 10), so the designers offer only the right ones. Empty means not set.
+  product: z.object({ strength: text, dosageForm: text,
+    kind: z.enum(['bulk', 'pack'], { errorMap: () => ({ message: 'Product type must be bulk, pack or empty.' }) }).optional() }).strict(),
 };
 export type Kind = keyof typeof FIELDS;
 const kind = z.enum(Object.keys(FIELDS) as [Kind, ...Kind[]]);

@@ -327,24 +327,24 @@ items:
     PKG-LFT: {name: Patient leaflet, category: packaging, unit: nos, from: [SUP-08]}
     PKG-SHP: {name: Shipper carton 5 ply, category: packaging, unit: nos, from: [SUP-08]}
   product:
-    FG-RAB20: {name: Rabeprazole sodium gastro-resistant tablets 20 mg, strength: 20 mg, dosageForm: Gastro-resistant tablet,
+    FG-RAB20: {name: Rabeprazole sodium gastro-resistant tablets 20 mg, kind: bulk, strength: 20 mg, dosageForm: Gastro-resistant tablet,
       uses: [API-RAB, EXC-MAN, EXC-MGO, EXC-HPC, EXC-CPV, EXC-MGS, EXC-HPMC, EXC-MAC, EXC-TEC, EXC-TAL, EXC-IOX, PKG-ALU-CF, PKG-CTN-RAB, PKG-LFT, PKG-SHP]}
-    FG-LIB400: {name: Libtab film-coated tablets 400 mg, strength: 400 mg, dosageForm: Film-coated tablet,
+    FG-LIB400: {name: Libtab film-coated tablets 400 mg, kind: bulk, strength: 400 mg, dosageForm: Film-coated tablet,
       uses: [API-LIB, EXC-MCC101, EXC-STA, EXC-PVP, EXC-CCS, EXC-MGS, EXC-FCW, PKG-ALU-BL, PKG-PVDC, PKG-CTN-LIB, PKG-SHP]}
-    FG-LIB250: {name: Libtab tablets 250 mg, strength: 250 mg, dosageForm: Tablet,
+    FG-LIB250: {name: Libtab tablets 250 mg, kind: bulk, strength: 250 mg, dosageForm: Tablet,
       uses: [API-LIB, EXC-MCC102, EXC-DCP, EXC-CCS, EXC-SIO, EXC-MGS, PKG-ALU-ST, PKG-CTN-LIB, PKG-SHP]}
-    FG-PCM500: {name: Paracetamol tablets 500 mg, strength: 500 mg, dosageForm: Tablet,
+    FG-PCM500: {name: Paracetamol tablets 500 mg, kind: bulk, strength: 500 mg, dosageForm: Tablet,
       uses: [API-PCM, EXC-STA, EXC-PGS, EXC-PVP, EXC-SSG, EXC-TAL, EXC-MGS, PKG-ALU-ST, PKG-CTN-GEN, PKG-SHP]}
-    FG-MET500: {name: Metformin hydrochloride film-coated tablets 500 mg, strength: 500 mg, dosageForm: Film-coated tablet,
+    FG-MET500: {name: Metformin hydrochloride film-coated tablets 500 mg, kind: bulk, strength: 500 mg, dosageForm: Film-coated tablet,
       uses: [API-MET, EXC-PVP, EXC-MCC101, EXC-MGS, EXC-FCW, SOL-IPA, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
-    FG-ATV10: {name: Atorvastatin calcium film-coated tablets 10 mg, strength: 10 mg, dosageForm: Film-coated tablet,
+    FG-ATV10: {name: Atorvastatin calcium film-coated tablets 10 mg, kind: bulk, strength: 10 mg, dosageForm: Film-coated tablet,
       uses: [API-ATV, EXC-LAC, EXC-MCC102, EXC-CCS, EXC-HPC, EXC-MGS, EXC-FCW, PKG-ALU-CF, PKG-CTN-GEN, PKG-LFT, PKG-SHP]}
-    FG-AML5: {name: Amlodipine tablets 5 mg, strength: 5 mg, dosageForm: Tablet,
+    FG-AML5: {name: Amlodipine tablets 5 mg, kind: bulk, strength: 5 mg, dosageForm: Tablet,
       uses: [API-AML, EXC-MCC102, EXC-DCP, EXC-SSG, EXC-MGS, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
-    FG-CTZ10: {name: Cetirizine dihydrochloride film-coated tablets 10 mg, strength: 10 mg, dosageForm: Film-coated tablet,
+    FG-CTZ10: {name: Cetirizine dihydrochloride film-coated tablets 10 mg, kind: bulk, strength: 10 mg, dosageForm: Film-coated tablet,
       uses: [API-CTZ, EXC-LAC, EXC-MCC101, EXC-SIO, EXC-MGS, EXC-FCY, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
-    FG-OME20: {name: Omeprazole 20 mg capsules, strength: 20 mg, dosageForm: Hard gelatin capsule,
+    FG-OME20: {name: Omeprazole 20 mg capsules, kind: bulk, strength: 20 mg, dosageForm: Hard gelatin capsule,
       uses: [API-OME, EXC-MAN, EXC-HPMC, EXC-MAC, EXC-TEC, EXC-TAL, EXC-HGC, PKG-ALU-BL, PKG-PVC, PKG-CTN-GEN, PKG-SHP]}
-    FG-CEF1G: {name: Ceftriaxone 1 g powder for injection, strength: 1 g, dosageForm: Powder for injection,
+    FG-CEF1G: {name: Ceftriaxone 1 g powder for injection, kind: bulk, strength: 1 g, dosageForm: Powder for injection,
       uses: [API-CEF, PKG-CTN-GEN, PKG-LFT, PKG-SHP]}
     API-PCM: {name: Paracetamol (API), dosageForm: API}

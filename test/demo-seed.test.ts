@@ -71,6 +71,7 @@ describe('demo company seed (DEMO-ONLY)', () => {
     expect((await md`select code from report.supplier_v1 where not active`).map((r) => r.code)).toEqual(['SUP-10']);
     expect((await md`select unit from report.material_v1 where code = 'API-RAB'`)[0]!.unit).toBe('kg');
     expect((await md`select dosage_form from report.product_v1 where code = 'FG-RAB20'`)[0]!.dosage_form).toBe('Gastro-resistant tablet');
+    expect((await md`select kind from report.product_v1 where code = 'FG-PCM500'`)[0]!.kind).toBe('bulk');   // D-64
     expect((await md`select count(*)::int as n from report.item_link_v1 where from_code = 'FG-RAB20' and type = 'uses'`)[0]!.n).toBe(seed.items.product['FG-RAB20']!.uses!.length);
     // PL-06: every version and link event says who and why.
     expect((await md`select count(*)::int as n from item_version where changed_by_name <> ${BY} or reason = ''`)[0]!.n).toBe(0);
