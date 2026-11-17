@@ -337,14 +337,25 @@ export function buildApp(deps: Deps) {
 
   // D-75: "From Recruitment": hired candidates who are not employees yet (Recruitment's report.hire_v1), to pre-fill
   // "Add a person". Null-safe: state off (no link; the list is hidden) or down (typed by hand), never an error.
+  // D-82: a hire is also left out when an active person already has the same full name (case and spaces ignored) or
+  // the login made from that name (first.last); the email is pulled when hire_v1 gives one (read by name, so a
+  // hire_v1 without an email column still works).
   app.get('/api/hires', async (req) => {
     need(req, PEOPLE);
-    const r = await readLink(deps.links?.recruitment, (db) => db<{ candidateRef: string; fullName: string; jobTitle: string | null; department: string | null; joiningDate: string | null; hiredAt: Date | null }[]>`
-      select candidate_ref as "candidateRef", full_name as "fullName", job_title as "jobTitle", department,
-        joining_date::text as "joiningDate", hired_at as "hiredAt"
-      from report.hire_v1 order by hired_at desc nulls last, full_name`);
-    const added = new Set((await sql<{ hire_ref: string }[]>`select hire_ref from employee where hire_ref is not null`).map((x) => x.hire_ref));
-    return { state: r.state, hires: r.rows.filter((h) => !added.has(h.candidateRef)) };
+    const r = await readLink(deps.links?.recruitment, (db) => db<{ candidateRef: string; fullName: string; email: string | null; jobTitle: string | null; department: string | null; joiningDate: string | null; hiredAt: Date | null }[]>`
+      select h.candidate_ref as "candidateRef", h.full_name as "fullName", to_jsonb(h) ->> 'email' as email, h.job_title as "jobTitle",
+        h.department, h.joining_date::text as "joiningDate", h.hired_at as "hiredAt"
+      from report.hire_v1 h order by h.hired_at desc nulls last, h.full_name`);
+    const people = await sql<{ hire_ref: string | null; login: string; full_name: string; active: boolean }[]>`
+      select e.hire_ref, c.login, c.full_name, c.active from employee e join employee_current c on c.id = e.id`;
+    const added = new Set(people.map((p) => p.hire_ref));
+    const active = people.filter((p) => p.active);
+    const logins = new Set(active.map((p) => p.login));
+    const names = new Set(active.map((p) => sameName(p.full_name)));
+    return {
+      state: r.state,
+      hires: r.rows.filter((h) => !added.has(h.candidateRef) && !names.has(sameName(h.fullName)) && !logins.has(loginFromName(h.fullName))),
+    };
   });
 
   // D-76: the person's training from Recruitment (report.training_v1), shown beside the permissions. Read-only and
@@ -611,3 +622,7 @@ export async function createFirstAdmin(sql: Sql, login: string, fullName: string
   });
   return temp;
 }
+
+// D-82: names compared without case and extra spaces; the login a person's name gives (Sameer Kale -> sameer.kale).
+function sameName(name: string) { return `${name.trim().replace(/\s+/g, ' ').toLowerCase()}`; }
+function loginFromName(name: string) { return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, ''); }

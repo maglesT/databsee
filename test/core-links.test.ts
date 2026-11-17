@@ -23,15 +23,17 @@ beforeAll(async () => {
   await hello.query(`
     set role hello_owner;
     create table if not exists hire_probe (candidate_ref text primary key, full_name text, job_title text, department text, joining_date date, hired_at timestamptz);
+    alter table hire_probe add column if not exists email text;
+    drop view if exists report.hire_v1; -- a re-run starts from the hire_v1 without an email column (D-82 test adds it)
     create table if not exists training_probe (person_id uuid, person_login text, person_name text, skill_code text, skill_title text,
       trained_on date, valid_until date, qualified boolean, approved_at timestamptz);
-    create or replace view report.hire_v1 with (security_barrier) as select candidate_ref, full_name, job_title, department, joining_date, hired_at,
+    create view report.hire_v1 with (security_barrier) as select candidate_ref, full_name, job_title, department, joining_date, hired_at,
       now() as data_as_of from hire_probe;
     create or replace view report.training_v1 with (security_barrier) as select person_id, person_login, person_name, skill_code, skill_title,
       trained_on, valid_until, qualified, approved_at, now() as read_at, approved_at as data_as_of from training_probe;
     reset role;
     select platform.set_link('core_app', array['hire_v1', 'training_v1'], true, 'CC-CORE', 'core reads recruitment (test)');`);
-  await hello.query(`insert into hire_probe values ($1, 'Asha Rao', 'QA Officer', 'Quality Assurance', '2026-12-01', now())`, [ref]);
+  await hello.query(`insert into hire_probe values ($1, $2, 'QA Officer', 'Quality Assurance', '2026-12-01', now())`, [ref, `Asha Rao ${run}`]);
   rec = postgres({ database: 'hello', username: 'core_app', password: 'test-only', onnotice: () => {} });
   app = buildApp({ ...t.deps, links: { recruitment: rec } });
 });
@@ -51,8 +53,8 @@ describe('D-75 add a person from a Recruitment hire', () => {
     const a = await signIn(app, `hireadm${run}`);
     const list = (await a.call('GET', '/api/hires')).json();
     expect(list.state).toBe('on');
-    expect(list.hires).toContainEqual(expect.objectContaining({ candidateRef: ref, fullName: 'Asha Rao', jobTitle: 'QA Officer', joiningDate: '2026-12-01' }));
-    const body = { login: `asha${run}`, fullName: 'Asha Rao', identityVerifiedHow: 'ID card seen', reason: 'new joiner', hireRef: ref };
+    expect(list.hires).toContainEqual(expect.objectContaining({ candidateRef: ref, fullName: `Asha Rao ${run}`, jobTitle: 'QA Officer', joiningDate: '2026-12-01' }));
+    const body = { login: `asha${run}`, fullName: `Asha Rao ${run}`, identityVerifiedHow: 'ID card seen', reason: 'new joiner', hireRef: ref };
     expect((await a.call('POST', '/api/employees', body)).statusCode).toBe(200);
     const su = superuser();
     expect(await su`select hire_ref from employee where login = ${`asha${run}`}`).toEqual([{ hire_ref: ref }]);
@@ -60,6 +62,28 @@ describe('D-75 add a person from a Recruitment hire', () => {
     expect((await a.call('GET', '/api/hires')).json().hires.map((h: { candidateRef: string }) => h.candidateRef)).not.toContain(ref);
     expect((await a.call('POST', '/api/employees', { ...body, login: `asha2${run}` })).statusCode).toBe(409);
     expect((await a.call('POST', '/api/employees', { ...body, login: `nobody${run}`, hireRef: 'NO-SUCH' })).json().error).toBe('No such hire in Recruitment.');
+  });
+
+  it('PL-08 D-82 a hire who is already an active person (same name, or the login the name gives) is left out; the email is pulled', async () => {
+    await makeEmployee(`hireadm3${run}`, ['core.people.manage']);
+    const a = await signIn(app, `hireadm3${run}`);
+    const [byName, byLogin, keep] = [`NAME-${run}`, `LOGIN-${run}`, `KEEP-${run}`];
+    await hello.query(`insert into hire_probe (candidate_ref, full_name, job_title, department, hired_at, email) values
+      ($1, $4, 'Operator', 'Production', now(), null), ($2, $5, 'Operator', 'Production', now(), null),
+      ($3, $6, 'Chemist', 'QC', now(), 'nita@example.com')`,
+      [byName, byLogin, keep, `RAVI   shah ${run}`, `Meera Iyer ${run}`, `Nita Desai ${run}`]);
+    await a.call('POST', '/api/employees', { login: `rshah${run}`, fullName: `Ravi Shah ${run}`, identityVerifiedHow: 'ID', reason: 'typed by hand' });
+    await a.call('POST', '/api/employees', { login: `meera.iyer.${run}`, fullName: 'M. Iyer', identityVerifiedHow: 'ID', reason: 'typed by hand' });
+    let hires = (await a.call('GET', '/api/hires')).json().hires as { candidateRef: string; email: string | null }[];
+    expect(hires.map((h) => h.candidateRef)).not.toContain(byName);
+    expect(hires.map((h) => h.candidateRef)).not.toContain(byLogin);
+    expect(hires.find((h) => h.candidateRef === keep)).toMatchObject({ email: null }); // hire_v1 has no email column yet
+    await hello.query(`set role hello_owner;
+      create or replace view report.hire_v1 with (security_barrier) as select candidate_ref, full_name, job_title, department, joining_date, hired_at,
+        now() as data_as_of, email from hire_probe;
+      reset role;`);
+    hires = (await a.call('GET', '/api/hires')).json().hires;
+    expect(hires.find((h) => h.candidateRef === keep)).toMatchObject({ email: 'nita@example.com' });
   });
 
   it('PL-08 D-75 without a link the list is off (hidden) and a person is typed by hand; a hire reference is refused', async () => {
