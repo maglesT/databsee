@@ -17,5 +17,5 @@
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1", "material_use_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"], "logbook": ["equipment_status_v1"], "mms": ["lot_v1", "lot_test_v1"] },
-  "source": { "repo": "https://github.com/maglesT/TrueBatch-Tablets", "commit": "b9dd0d4957a42df26a515a144ac4c34d20ef143d" }
+  "source": { "repo": "https://github.com/maglesT/TrueBatch-Tablets", "commit": "507be25ac30f3a850821812d8bb44de946478d64" }
 }
