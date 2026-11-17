@@ -12,7 +12,7 @@ interface Permission { product: string; code: string; label: string }
 interface Grant { product: string; code: string; grantedBy: string; grantedAt: string }
 interface MyApp { product: string; url: string }
 type LinkState = 'on' | 'off' | 'down';
-interface Hire { candidateRef: string; fullName: string; jobTitle: string | null; department: string | null; joiningDate: string | null; hiredAt: string | null }
+interface Hire { candidateRef: string; fullName: string; email: string | null; jobTitle: string | null; department: string | null; joiningDate: string | null; hiredAt: string | null }
 interface Training { skillCode: string; skillTitle: string; trainedOn: string; validUntil: string | null; qualified: boolean }
 interface LinkRow { reader: string; readerName: string; provider: string; providerName: string; view: string; state: LinkState; why: string; switchedOnAt: string | null; changeRef: string | null }
 interface Alert { id: string; message: string; at: string; emailedAt: string | null; emailError: string | null }
@@ -224,7 +224,7 @@ function People({ open }: { open: (id: string) => void }) {
         {hires.state === 'down' && <p className="muted">The link to Recruitment is down: type the person by hand.</p>}
         <label>Login ID (never reused)<input name="login" required /></label>
         <label>Full name<input name="fullName" key={`n${hire?.candidateRef ?? ''}`} defaultValue={hire?.fullName ?? ''} required /></label>
-        <label>Email<input name="email" type="email" /></label>
+        <label>Email<input name="email" type="email" key={`e${hire?.candidateRef ?? ''}`} defaultValue={hire?.email ?? ''} /></label>
         <label>How was their identity checked?<input name="identityVerifiedHow" placeholder="e.g. company ID card seen" required /></label>
         <label>Reason<input name="reason" key={`r${hire?.candidateRef ?? ''}`} required placeholder="e.g. new joiner, HR ticket 123"
           defaultValue={hire ? `New joiner from Recruitment ${hire.candidateRef}: ${[hire.jobTitle, hire.department].filter(Boolean).join(', ')}` : ''} /></label>
