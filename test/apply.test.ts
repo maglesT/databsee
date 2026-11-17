@@ -828,8 +828,9 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
 
   it('PL-08 every view Injectables reads is published by its provider', () => {
     const reads = manifest('truebatch_injectables').reads!;
-    expect(Object.keys(reads)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms']);
-    for (const provider of ['deviations', 'qms', 'logbook', 'mms'])
+    // + qual (the line's media fill) and recruitment (training to sign, TI-32): D-74.
+    expect(Object.keys(reads)).toEqual(['qual', 'recruitment', 'master_data', 'deviations', 'qms', 'logbook', 'mms']);
+    for (const provider of ['qual', 'recruitment', 'deviations', 'qms', 'logbook', 'mms'])
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
   });
 
