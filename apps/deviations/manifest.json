@@ -21,7 +21,7 @@
     "ebmr": ["batch_fact_v1", "step_use_v1", "cpp_value_v1", "exception_v1", "alarm_v1", "batch_reference_v1",
              "equipment_use_v1", "ipc_result_v1", "process_actual_v1", "exception_detail_v1"],
     "truebatch": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"],
-    "truebatch_packing": ["deviation_note_v1"], "truebatch_injectables": ["deviation_note_v1"]
+    "truebatch_packing": ["deviation_note_v1"], "truebatch_injectables": ["deviation_note_v1"], "truebatch_injectables_packing": ["deviation_note_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "8de60fd7cc38133c819a2a42ca1bb37e9409e409" }
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "8c3309a7952230481e700ff9f41f6ecd1754b3fc" }
 }
