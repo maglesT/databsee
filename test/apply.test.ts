@@ -327,7 +327,7 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
     expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'QMS_DATABASE_URL']);
     expect(env.QMS_DATABASE_URL).toMatch(/^postgres:\/\/qms_app:.*@db:5432\/qms$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://qms.ci.example/cb');
-    expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1'], deviations: ['capa_v1'] });
+    expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1'], deviations: ['capa_v1', 'deviation_v1'] });   // QMS D-18: deviations linked
     expect(manifest('qms').publishes).toEqual(['change_v1']);   // change controls for TrueBatch (QMS D-16, D-28)
     // Deviations is not licensed here, so the link cannot be switched on.
     expect(() => checkConfig({ ...qms, links: { ...qms.links, qms: { ...qms.links.qms, deviations: ['capa_v1'] } } }, raw)).toThrow(/provider is not licensed/);
@@ -620,7 +620,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
   it('PL-08 the Packing links: every view read is published by its provider; each provider URL comes only with its link', () => {
     const reads = manifest('truebatch_packing').reads!;
     expect(Object.keys(reads)).toEqual(['master_data', 'truebatch', 'mms', 'logbook', 'deviations', 'qms', 'recruitment']);   // training_v1 (TB-23)
-    expect(reads.truebatch).toEqual(['batch_fact_v1']);
+    expect(reads.truebatch).toEqual(['batch_fact_v1', 'deviation_note_v1']);   // the bulk batch's open deviations block packing release (S24)
     for (const provider of ['truebatch', 'mms', 'logbook', 'deviations', 'qms'])
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
     const all = {

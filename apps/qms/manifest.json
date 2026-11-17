@@ -8,6 +8,6 @@
     {"code": "qms.audit.read", "label": "Read the audit trail and run the integrity check"}
   ],
   "publishes": ["change_v1"],
-  "reads": { "master_data": ["product_v1", "supplier_v1"], "deviations": ["capa_v1"] },
-  "source": { "repo": "https://github.com/maglesT/qmssyst", "commit": "9dd26471c62aab758c2c335303aad3d28b34c117" }
+  "reads": { "master_data": ["product_v1", "supplier_v1"], "deviations": ["capa_v1", "deviation_v1"] },
+  "source": { "repo": "https://github.com/maglesT/qmssyst", "commit": "d0ae394753a504fffa9e6be04d0057f7b1e37cc0" }
 }

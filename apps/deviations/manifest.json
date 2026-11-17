@@ -21,5 +21,5 @@
     "truebatch": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"],
     "truebatch_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_injectables_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "cf1b3b32983ec776a5d0c48d694a96fb9b076d73" }
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "64d1164d368051b277235de5e77e1998110b5ad8" }
 }

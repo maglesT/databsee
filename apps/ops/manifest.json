@@ -7,7 +7,7 @@
     {"code": "ops.entry.correct_any", "label": "Correct runs, stops and values entered by others"},
     {"code": "ops.import.run", "label": "Import CSV files"},
     {"code": "ops.masterdata.edit", "label": "Edit machine and product settings, ideal rates and planned hours"},
-    {"code": "ops.link.refresh", "label": "Refresh from the Logbook"},
+    {"code": "ops.link.refresh", "label": "Refresh the linked products now"},
     {"code": "ops.parameter.approve", "label": "Set approved parameter ranges"},
     {"code": "ops.golden.exclude", "label": "Exclude batches from the golden reference"},
     {"code": "ops.model.train", "label": "Train models and forecasts"},
@@ -17,7 +17,11 @@
   "publishes": [],
   "reads": {
     "master_data": ["equipment_v1", "product_v1"],
-    "logbook": ["equipment_v1", "entry_v1"]
+    "logbook": ["equipment_v1", "entry_v1"],
+    "truebatch": ["batch_fact_v1", "equipment_use_v1"],
+    "truebatch_packing": ["packing_batch_v1", "equipment_use_v1"],
+    "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1"],
+    "truebatch_injectables_packing": ["packing_batch_v1", "equipment_use_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/operations", "commit": "61d8cce2e1bf6186300c5d96f6cd37c6d3fff213" }
+  "source": { "repo": "https://github.com/maglesT/operations", "commit": "99d3ee63ec1caa699babf22fcfa39a9f7e752978" }
 }
