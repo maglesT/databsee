@@ -388,9 +388,9 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     const { truebatch: fromTrueBatch, truebatch_packing: fromPacking, truebatch_injectables: fromInjectables, truebatch_injectables_packing: fromInjectablesPacking, ...reads } = manifest('deviations').reads!;
     expect(dev.links.deviations).toEqual(reads);
     expect(fromTrueBatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch once licensed (Deviations D-51, D-28)
-    expect(fromPacking).toEqual(['deviation_note_v1']);   // TrueBatch Tablets Packing once licensed (Deviations D-53, D-31)
-    expect(fromInjectables).toEqual(['deviation_note_v1']);   // TrueBatch Injectables once licensed (Deviations D-54, D-48)
-    expect(fromInjectablesPacking).toEqual(['deviation_note_v1']);   // TrueBatch Injectables Packing once licensed (Deviations D-55, D-55)
+    expect(fromPacking).toEqual(['packing_batch_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch Tablets Packing once licensed (Deviations D-53, D-31; D-57 reads its batches and uses)
+    expect(fromInjectables).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch Injectables once licensed (Deviations D-54, D-48; D-57)
+    expect(fromInjectablesPacking).toEqual(['packing_batch_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch Injectables Packing once licensed (Deviations D-55; D-57)
     expect(manifest('deviations').publishes).toEqual(['capa_v1', 'deviation_v1']);   // read by the QMS through a link (Deviations D-40)
   });
 
@@ -419,9 +419,9 @@ describe('Recruitment, a product kept in its own repo (Recruitment D-74)', () =>
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, recruitment: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Recruitment offers its 12 permission codes, all its own', () => {
+  it('PL-01 Recruitment offers its 14 permission codes, all its own', () => {
     const codes = manifest('recruitment').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(12);
+    expect(codes).toHaveLength(14);   // + recruitment.training.record, recruitment.training.approve (Recruitment D-81)
     expect(codes.every((c) => c.startsWith('recruitment.'))).toBe(true);
   });
 
@@ -510,7 +510,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_app:.*@db:5432\/master_data$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch.ci.example/cb');
     expect(tb.links.truebatch.master_data).toEqual(manifest('truebatch').reads!.master_data);
-    expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms']);
+    expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment']);   // training_v1 (TB-23)
     expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
@@ -605,7 +605,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
 
   it('PL-08 the Packing links: every view read is published by its provider; each provider URL comes only with its link', () => {
     const reads = manifest('truebatch_packing').reads!;
-    expect(Object.keys(reads)).toEqual(['master_data', 'truebatch', 'mms', 'logbook', 'deviations', 'qms']);
+    expect(Object.keys(reads)).toEqual(['master_data', 'truebatch', 'mms', 'logbook', 'deviations', 'qms', 'recruitment']);   // training_v1 (TB-23)
     expect(reads.truebatch).toEqual(['batch_fact_v1']);
     for (const provider of ['truebatch', 'mms', 'logbook', 'deviations', 'qms'])
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
@@ -769,7 +769,7 @@ describe('Release 1.6.0: Deviations files TrueBatch Tablets Packing\'s deviation
   it('PL-08 Deviations reads Packing\'s deviation_note_v1, published by Packing with TrueBatch\'s name; the URL comes only with the link', () => {
     expect(manifest('truebatch_packing').publishes).toContain('deviation_note_v1');
     expect(manifest('truebatch').publishes).toContain('deviation_note_v1');                        // the same view name in both (Deviations D-53)
-    expect(manifest('deviations').reads!.truebatch_packing).toEqual(['deviation_note_v1']);        // packing_batch_v1 is not read (D-53)
+    expect(manifest('deviations').reads!.truebatch_packing).toEqual(['packing_batch_v1', 'equipment_use_v1', 'deviation_note_v1']);   // D-57 replaces D-53: its batches and uses are read
     expect(manifest('deviations').reads!.truebatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // stays (D-51)
     for (const provider of ['truebatch', 'truebatch_packing'])
       expect(manifest('deviations').reads![provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `deviations -> ${provider}`).toEqual([]);

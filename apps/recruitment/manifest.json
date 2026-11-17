@@ -13,9 +13,11 @@
     {"code": "recruitment.offer.manage", "label": "Create offers, GMP verification, hire, hand-over record"},
     {"code": "recruitment.request.manage", "label": "Data-protection requests, grievances, erasure list, contacts export"},
     {"code": "recruitment.settings.manage", "label": "Settings, privacy notice, departments, staff departments"},
-    {"code": "recruitment.accesslog.read", "label": "Access log and its review"}
+    {"code": "recruitment.accesslog.read", "label": "Access log and its review"},
+    {"code": "recruitment.training.record", "label": "Training: add training records and withdraw wrong ones"},
+    {"code": "recruitment.training.approve", "label": "Training: approve (sign) training records and withdraw wrong ones"}
   ],
-  "publishes": [],
+  "publishes": ["training_v1"],
   "reads": { "identity": ["employee_v1"] },
-  "source": { "repo": "https://github.com/maglesT/recruitemensyst", "commit": "ca5eb975e6f37a46ef49cd7decfd19fec0453dee" }
+  "source": { "repo": "https://github.com/maglesT/recruitemensyst", "commit": "62f1d8be42d0ec1e3c706b9b89de96c5895ceab3" }
 }

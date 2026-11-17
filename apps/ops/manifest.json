@@ -19,5 +19,5 @@
     "master_data": ["equipment_v1", "product_v1"],
     "logbook": ["equipment_v1", "entry_v1"]
   },
-  "source": { "repo": "https://github.com/maglesT/operations", "commit": "e2c4fd21a73592ae9efc5ce8e709207d46bbd8ed" }
+  "source": { "repo": "https://github.com/maglesT/operations", "commit": "61d8cce2e1bf6186300c5d96f6cd37c6d3fff213" }
 }
