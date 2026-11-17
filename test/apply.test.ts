@@ -771,9 +771,9 @@ describe('Release 1.5.0: what both TrueBatch products used, read by the Logbook 
 
   it('PL-08 the Logbook reads both products\' equipment_use_v1, MMS both products\' material_use_v1; each view is published; each URL comes only with its link', () => {
     expect(manifest('logbook').reads!.truebatch).toEqual(['batch_fact_v1', 'equipment_use_v1']);   // Logbook D-46
-    expect(manifest('logbook').reads!.truebatch_packing).toEqual(['equipment_use_v1']);           // Logbook D-47
+    expect(manifest('logbook').reads!.truebatch_packing).toEqual(['equipment_use_v1', 'packing_batch_v1']);   // Logbook D-47, D-61
     expect(manifest('mms').reads!.truebatch).toEqual(['material_use_v1']);                        // MMS D-57
-    expect(manifest('mms').reads!.truebatch_packing).toEqual(['material_use_v1']);                // MMS D-58
+    expect(manifest('mms').reads!.truebatch_packing).toEqual(['material_use_v1', 'packing_batch_v1']);   // MMS D-58, D-64
     for (const reader of ['logbook', 'mms'])
       for (const provider of ['truebatch', 'truebatch_packing'])
         expect(manifest(reader).reads![provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `${reader} -> ${provider}`).toEqual([]);

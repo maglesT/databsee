@@ -27,7 +27,9 @@ services:
       exec docker-entrypoint.sh \"$$@\"", "--"]
     command: ["postgres", "-c", "wal_level=replica", "-c", "archive_mode=on", "-c", "archive_timeout=300",
               "-c", "archive_command=test ! -f /archive/wal/%f && cp %p /archive/wal/%f.tmp && mv /archive/wal/%f.tmp /archive/wal/%f",
-              "-c", "ssl=on", "-c", "ssl_cert_file=/tls/server.crt", "-c", "ssl_key_file=/tls/server.key", "-c", "ssl_min_protocol_version=TLSv1.2"]
+              "-c", "ssl=on", "-c", "ssl_cert_file=/tls/server.crt", "-c", "ssl_key_file=/tls/server.key", "-c", "ssl_min_protocol_version=TLSv1.2",
+              # 13 products with several links each: 100 connections ran out on the demo (17 Nov 2026, D-59).
+              "-c", "max_connections=300"]
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser
     secrets: [pg_superuser]
