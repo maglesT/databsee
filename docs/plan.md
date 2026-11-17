@@ -6,12 +6,12 @@ Status: **approved by the owner 2 Nov 2026** ("do what's more simple"; decisions
 - Your agreed design of 2 Nov 2026 (relayed by the lead session).
 - Official texts, reused from Material Management `compliance/sources/` (same copies, same checker program):
   21 CFR 11 and 211 (eCFR 24 Sep 2026), EU GMP Annex 11 and Ch. 4, Revised Schedule M Part I (G.S.R. 922(E)) incl. section 20.
-- Existing view pattern I read: Logbook `0013_report_views.sql` (schema `report`, `*_v1` security-barrier views, `read_at` + `data_as_of` on every row, one NOLOGIN role per reader, no TEMPORARY for PUBLIC); Deviations `0010_capa_report_view.sql` (same); Batchwright `1210/1800` (row functions, `report.view_registry`). The platform reuses the Logbook form, which is the simplest.
+- Existing view pattern I read: Logbook `0013_report_views.sql` (schema `report`, `*_v1` security-barrier views, `read_at` + `data_as_of` on every row, one NOLOGIN role per reader, no TEMPORARY for PUBLIC); Deviations `0010_capa_report_view.sql` (same); Batchwright (retired since, D-72) `1210/1800` (row functions, `report.view_registry`). The platform reuses the Logbook form, which is the simplest.
 
 ## 2. Requirements (what Phase A delivers)
 | ID | Requirement |
 |---|---|
-| R1 | One PostgreSQL server per customer with 12 databases: `master_data`, `identity`, and one per product (logbook, materials, deviations, protocols, qms, operations, recruitment, ebmr, truebatch (D-27), truebatch_packing (D-29)). |
+| R1 | One PostgreSQL server per customer with 11 databases: `master_data`, `identity`, and one per product (logbook, materials, deviations, protocols, qms, operations, recruitment, truebatch (D-27), truebatch_packing (D-29)); Batchwright's `ebmr` was retired (D-72). |
 | R2 | Master data (machines/instruments/rooms, materials/suppliers, products/codes, and the links between them) edited only in one small screen; every product reads it live through views. |
 | R3 | Identity: employees, single sign-on, permission register (employee, product, permission) with history. Deactivate once = out everywhere. |
 | R4 | Each product writes only its own database; reads others only through `report.*_v1` views it is granted. |

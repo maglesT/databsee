@@ -359,18 +359,16 @@ describe('Qualification Protocols, a product kept in its own repo (prot D-21)', 
 
 describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', () => {
   const dev = {
-    ...base, licences: ['hello', 'logbook', 'ebmr', 'deviations'],
+    ...base, licences: ['hello', 'logbook', 'deviations'],
     links: {
       hello: { master_data: ['equipment_v1'] },
-      deviations: { identity: ['employee_v1'], logbook: ['equipment_v1', 'entry_v1', 'calibration_v1', 'logbook_sop_v1', 'overdue_v1'],
-        ebmr: ['batch_fact_v1', 'step_use_v1', 'cpp_value_v1', 'exception_v1', 'alarm_v1', 'batch_reference_v1', 'equipment_use_v1', 'ipc_result_v1', 'process_actual_v1', 'exception_detail_v1'] },   // Batchwright (Deviations D-48)
+      deviations: { identity: ['employee_v1'], logbook: ['equipment_v1', 'entry_v1', 'calibration_v1', 'logbook_sop_v1', 'overdue_v1'] },
     },
   };
   const raw = {
     ...rawSecrets,
-    logins: { ...rawSecrets.logins, logbook_app: PW, ebmr_app: PW, deviations_app: PW },
-    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, logbook: 'test-only-client-secret', ebmr: 'test-only-client-secret', deviations: 'test-only-client-secret' } },
-    env: { ebmr: { EBMR_AUTHN_PASSWORD: 'test-only-authn-password', EBMR_ANALYTICS_PASSWORD: 'test-only-analytics-password' } },
+    logins: { ...rawSecrets.logins, logbook_app: PW, deviations_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, logbook: 'test-only-client-secret', deviations: 'test-only-client-secret' } },
   };
 
   it('PL-01 Deviations offers its 11 permission codes, all its own', () => {
@@ -382,11 +380,10 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
   it('PL-08 Deviations gets its own database, the identity and Logbook databases of its links and sign-on, and reads only what its manifest lists', () => {
     const { config, secrets: s } = checkConfig(dev, raw);
     const env = productEnv(config, s!, 'deviations');
-    expect(Object.keys(env).sort()).toEqual(['DEVIATIONS_DATABASE_URL', 'EBMR_DATABASE_URL', 'IDENTITY_DATABASE_URL', 'LOGBOOK_DATABASE_URL',
+    expect(Object.keys(env).sort()).toEqual(['DEVIATIONS_DATABASE_URL', 'IDENTITY_DATABASE_URL', 'LOGBOOK_DATABASE_URL',
       'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
     expect(env.DEVIATIONS_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/deviations$/);
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
-    expect(env.EBMR_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/ebmr/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
     const { truebatch: fromTrueBatch, truebatch_packing: fromPacking, truebatch_injectables: fromInjectables, truebatch_injectables_packing: fromInjectablesPacking, ...reads } = manifest('deviations').reads!;
     expect(dev.links.deviations).toEqual(reads);
@@ -470,81 +467,19 @@ describe('Operations, a product kept in its own repo (Operations D-19)', () => {
       .toThrow(/link ops -> logbook: provider is not licensed/);
   });
 
-  it('PL-08 with Batchwright (ebmr) licensed, Operations reads its five views through EBMR_DATABASE_URL', () => {
-    const views = ['batch_fact_v1', 'step_use_v1', 'cpp_value_v1', 'process_actual_v1', 'ipc_result_v1'];
-    expect(manifest('ops').reads!.ebmr).toEqual(views);
-    expect(views.every((v) => manifest('ebmr').publishes.includes(v))).toBe(true);
-    const withEbmr = { ...ops, licences: [...ops.licences, 'ebmr'], links: { ...ops.links, ops: { ...ops.links.ops, ebmr: views } } };
-    const rawEbmr = { ...raw, logins: { ...raw.logins, ebmr_app: PW }, oidc: { ...raw.oidc, clients: { ...raw.oidc.clients, ebmr: 'test-only-client-secret' } } };
-    const { config, secrets: s } = checkConfig(withEbmr, rawEbmr);
-    expect(productEnv(config, s!, 'ops').EBMR_DATABASE_URL).toMatch(/^postgres:\/\/ops_app:.*@db:5432\/ebmr$/);
+  it('PL-08 with the Logbook licensed and linked, Operations reads its two views through LOGBOOK_DATABASE_URL', () => {
+    const views = ['equipment_v1', 'entry_v1'];
+    expect(manifest('ops').reads!.logbook).toEqual(views);
+    expect(views.every((v) => manifest('logbook').publishes.includes(v))).toBe(true);
+    const withLogbook = { ...ops, licences: [...ops.licences, 'logbook'], links: { ...ops.links, ops: { ...ops.links.ops, logbook: views } } };
+    const rawLogbook = { ...raw, logins: { ...raw.logins, logbook_app: PW }, oidc: { ...raw.oidc, clients: { ...raw.oidc.clients, logbook: 'test-only-client-secret' } } };
+    const { config, secrets: s } = checkConfig(withLogbook, rawLogbook);
+    expect(productEnv(config, s!, 'ops').LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/ops_app:.*@db:5432\/logbook$/);
   });
 
   it('PL-10 its image is pinned to a full commit', () => {
     expect(imageTags().OPS_COMMIT).toBe(manifest('ops').source!.commit);
     expect(imageTags().OPS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
-  });
-});
-
-describe('Batchwright (ebmr), a product kept in its own repo that migrates itself (Batchwright Phase B plan, decisions 1-3)', () => {
-  const bw = { ...base, licences: ['hello', 'ebmr'],
-    links: { hello: { master_data: ['equipment_v1'] }, ebmr: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'] } } };
-  const raw = {
-    ...rawSecrets,
-    logins: { ...rawSecrets.logins, ebmr_app: PW },
-    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, ebmr: 'test-only-client-secret' } },
-    env: { ebmr: { EBMR_AUTHN_PASSWORD: 'test-only-authn-password', EBMR_ANALYTICS_PASSWORD: 'test-only-analytics-password' } },
-  };
-
-  it('PL-01 Batchwright offers its 140 permission codes, all its own, grouped by their first part', () => {
-    const codes = manifest('ebmr').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(140);
-    expect(codes.every((c) => c.startsWith('ebmr.'))).toBe(true);
-    expect(codes).toEqual([...codes].sort());   // related codes sit together on the tick list
-  });
-
-  it('PL-08 Batchwright gets its own database, the master data of its link, sign-on and its own logins; it publishes the views Deviations reads', () => {
-    const { config, secrets: s } = checkConfig(bw, raw);
-    const env = productEnv(config, s!, 'ebmr');
-    expect(Object.keys(env).sort()).toEqual(['EBMR_ANALYTICS_PASSWORD', 'EBMR_AUTHN_PASSWORD', 'EBMR_DATABASE_URL', 'MASTER_DATA_DATABASE_URL',
-      'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
-    expect(env.EBMR_DATABASE_URL).toMatch(/^postgres:\/\/ebmr_app:.*@db:5432\/ebmr$/);
-    expect(env.OIDC_REDIRECT_URI).toBe('https://ebmr.ci.example/cb');
-    expect(bw.links.ebmr).toEqual({ master_data: manifest('ebmr').reads!.master_data });
-    // Batch deviations: Batchwright reads Deviations' deviation_v1 when the site links them (owner, 8 Nov 2026).
-    expect(manifest('ebmr').reads!.deviations).toEqual(['deviation_v1']);
-    expect(manifest('ebmr').publishes).toEqual(['batch_fact_v1', 'step_use_v1', 'cpp_value_v1', 'exception_v1', 'alarm_v1', 'batch_reference_v1',
-      'equipment_use_v1', 'ipc_result_v1', 'process_actual_v1', 'exception_detail_v1']);
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain(`ebmr.ci.example {\n  reverse_proxy 127.0.0.1:${externalPort('ebmr')}\n}`);
-  });
-
-  it('PL-10 apply runs the migrator of a product whose manifest says "migrate": "own", and db/migrate.ts for the others; licence off switches its further logins off', async () => {
-    migratedOwn.length = 0;
-    const { config, secrets: s } = checkConfig({ ...bw, change_ref: 'CC-BW1', reason: 'licence Batchwright' }, raw);
-    await applyConfig(config, s!, runtime());
-    expect(migratedOwn).toEqual(['ebmr']);
-    const c = su('ebmr');
-    try {
-      // Its database exists (init.sh), and the platform's own migration table stays empty: the product migrates itself.
-      expect(await c`select to_regclass('platform.migration') is null as none`).toEqual([{ none: true }]);
-    } finally { await c.end(); }
-    // Licence off: its further logins are off too (here ebmr_authn, standing in for what its migrator would create).
-    const su0 = su('postgres');
-    try {
-      await su0.unsafe(`do $$ begin if not exists (select from pg_roles where rolname = 'ebmr_authn') then create role ebmr_authn; end if; end $$`);
-      await su0.unsafe(`alter role ebmr_authn login password 'test-only-authn-password'`);
-      await applyConfig(A, secrets, runtime());
-      expect(await su0`select rolcanlogin from pg_roles where rolname = 'ebmr_authn'`).toEqual([{ rolcanlogin: false }]);
-    } finally { await su0.end(); }
-  });
-
-  it('PL-10 "migrate" is only "own", and only for a product built from its own repo', () => {
-    const m = { ...manifest('ebmr') };
-    expect(() => checkManifest({ ...m, migrate: 'self' as 'own' }, 'ebmr')).toThrow(/may only be "own"/);
-    expect(() => checkManifest({ ...m, source: undefined }, 'ebmr')).toThrow(/may only be "own"/);
-    expect(() => checkManifest({ ...m, logins: ['ebmr_app'] }, 'ebmr')).toThrow(/extra login/);
-    expect(() => checkManifest({ ...m, logins: ['core_app'] }, 'ebmr')).toThrow(/extra login/);
-    expect(imageTags().EBMR_COMMIT).toMatch(/^[0-9a-f]{40}$/);
   });
 });
 
@@ -711,9 +646,6 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     expect(run.args).toEqual(['--profile', 'truebatch_packing', 'run', '--rm', '-e', 'MIGRATION_DATABASE_URL', 'truebatch_packing', 'node', 'dist/packing/migrate.js']);
     expect(Object.keys(run.env)).toEqual(['MIGRATION_DATABASE_URL']);
     expect(run.env.MIGRATION_DATABASE_URL).toBe('postgres://postgres:pw%2Fwith%3Aodd%40chars@db:5432/truebatch_packing?options=-c%20role%3Dtruebatch_packing_owner');
-    // Batchwright's "own" stays as it was: "migrate" as the superuser over verified TLS.
-    expect(migrateRun('ebmr', 'pw').args.slice(-2)).toEqual(['ebmr', 'migrate']);
-    expect(migrateRun('ebmr', 'pw').env.MIGRATE_DATABASE_URL).toMatch(/@db:5432\/ebmr\?sslmode=verify-full&sslrootcert=\/tls-ca\/server\.crt$/);
     expect(() => migrateRun('truebatch', 'pw')).toThrow(/no "migrate"/);
 
     migratedOwn.length = 0;
@@ -738,13 +670,14 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     expect(await canSignIn('truebatch_packing_app', 'truebatch_packing')).not.toBe('ok');
   });
 
-  it('PL-10 "migrate" is "own" or a command, and source.dockerfile a path inside the repo', () => {
+  it('PL-10 "migrate" is a command, and source.dockerfile a path inside the repo', () => {
     const m = { ...manifest('truebatch_packing') };
-    expect(() => checkManifest({ ...m, migrate: { command: [] } }, 'truebatch_packing')).toThrow(/may only be "own" or/);
-    expect(() => checkManifest({ ...m, migrate: { command: [''] } }, 'truebatch_packing')).toThrow(/may only be "own" or/);
-    expect(() => checkManifest({ ...m, migrate: 'node migrate.js' as 'own' }, 'truebatch_packing')).toThrow(/may only be "own" or/);
+    const notACommand = (v: unknown) => v as { command: string[] };
+    expect(() => checkManifest({ ...m, migrate: { command: [] } }, 'truebatch_packing')).toThrow(/may only be \{"command"/);
+    expect(() => checkManifest({ ...m, migrate: { command: [''] } }, 'truebatch_packing')).toThrow(/may only be \{"command"/);
+    expect(() => checkManifest({ ...m, migrate: notACommand('node migrate.js') }, 'truebatch_packing')).toThrow(/may only be \{"command"/);
+    expect(() => checkManifest({ ...m, migrate: notACommand('own') }, 'truebatch_packing')).toThrow(/may only be \{"command"/);   // Batchwright's "own" was retired with it (D-72)
     expect(() => checkManifest({ ...m, source: undefined }, 'truebatch_packing')).toThrow(/for a product with a source/);
-    expect(() => checkManifest({ ...m, logins: ['truebatch_packing_report'] }, 'truebatch_packing')).toThrow(/as the superuser/);
     for (const dockerfile of ['/etc/Dockerfile', '../other/Dockerfile', 'ops/../../x', 'ops/Docker file', ''])
       expect(() => checkManifest({ ...m, source: { ...m.source!, dockerfile } }, 'truebatch_packing'), dockerfile).toThrow(/source.dockerfile/);
     expect(checkManifest({ ...m, source: { ...m.source!, dockerfile: 'ops/Dockerfile' } }, 'truebatch_packing').source!.dockerfile).toBe('ops/Dockerfile');

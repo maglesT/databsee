@@ -1,7 +1,7 @@
 # Add a product to the platform (recipe)
 
 The `hello` product (`apps/hello`, `db/hello`, `test/hello.test.ts`) is the worked example of every step. Phase B
-products (Logbook, Material Management, then Batchwright) follow this recipe: rewire only, no new features (D-11).
+products (Logbook, Material Management, then Batchwright, since retired: D-72) follow this recipe: rewire only, no new features (D-11).
 Each step names the rule it serves. A product is done when its tests, named by rule ID, pass in CI.
 
 ## 1. Manifest: `apps/<product>/manifest.json`
@@ -71,3 +71,26 @@ At least:
 - PL-07: values kept as at signing.
 - PL-08: no raw-table read; "connection off" after a cut; inactive or unknown item refused at write.
 - PL-13: for any data-moving migration.
+
+## 8. Removing a product completely
+Licence off (D-21) keeps everything: data, logins (off), codes and grants (dormant). Removing a product for good
+(Batchwright, D-72) is a release plus a manual step on each installation. Nothing here runs by itself.
+1. Release: delete `apps/<product>/`, its service and volume in `deploy/compose.yml` (its host port in
+   `deploy/compose.external.yml` is never reused), its reads in other manifests, its entry in `apps/core/products.ts`,
+   its codes in `deploy/demo.seed.yaml`, and a row in `docs/decisions.md`. Customer configs stop licensing and linking
+   it, and its secrets entries (`<product>_app`, OIDC client, `env.<product>`) are removed.
+2. Before the manual step, on the installation: a base backup (`deploy/backup.sh base`) and a dump of the product's
+   database kept off the server (`docker exec medhanta-db-1 pg_dump -U postgres -Fc <db> > <db>-final.dump`).
+3. Then, as the database superuser (`docker exec -it medhanta-db-1 psql -U postgres`), after a change reference:
+   - Stop and remove its container if one is left: `docker rm -f medhanta-<product>-1`.
+   - Drop its database: `drop database <db> with (force);`
+   - Drop its roles: `<db>_owner`, `<db>_app` and any further logins it made (list them with `select rolname from
+     pg_roles where rolname like '<db>\_%'` and leave out another product's roles, such as `truebatch_packing_*` when
+     removing `truebatch`). For each one, in each remaining database `reassign owned by <role> to postgres; drop owned by <role>;`
+     (this removes the role's read grants on other products' views), then `drop role <role>;`.
+   - End its dormant permission codes and grants in `identity` the way apply ends a removed code (history is kept,
+     never deleted): one `permission_grant` row with `granted = false` per current grant of the product, then one
+     `permission_event` row with `active = false` per code, `by_name` the person doing it and the change reference
+     in `reason`.
+   - Remove its volume: `docker volume rm medhanta_<product>`.
+4. Record it in the customer's change log (`customers/<name>.changes.md`).

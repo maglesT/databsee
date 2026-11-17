@@ -57,14 +57,10 @@ export interface Manifest {
   // A product kept in its own repo: built into medhanta/<product>:<commit> (D-29) from ops/Dockerfile, or from the
   // dockerfile named here (two products built from one repo: TrueBatch Tablets Packing's ops/packing.Dockerfile, 1.4.0).
   source?: { repo: string; commit: string; dockerfile?: string };
-  // "own": the product migrates its database itself, as a superuser, with its image's "migrate" command (Batchwright:
-  // extra roles and DDL-audit event triggers that <product>_owner cannot create). apply.ts runs it instead of db/migrate.ts.
   // { command }: the product's own migrator, run once in its image with this command as <product>_owner (MIGRATION_DATABASE_URL),
-  // for a database built from another product's migrations (TrueBatch Tablets Packing's packing/migrate.ts, 1.4.0).
-  migrate?: 'own' | { command: string[] };
-  // Further database logins a self-migrating product creates (Batchwright: ebmr_authn, ebmr_analytics, ...). Its own
-  // migrator sets them; apply switches them off with the product's licence, as it does <product>_app.
-  logins?: string[];
+  // instead of db/migrate.ts, for a database built from another product's migrations (TrueBatch Tablets Packing's
+  // packing/migrate.ts, 1.4.0).
+  migrate?: { command: string[] };
   // The product's own sign-on endpoints. backchannel_logout: the path where core tells it that the person signed out
   // at core (OIDC Back-Channel Logout 1.0), so its session ends at once rather than at its next renewal (PL-01).
   signon?: { backchannel_logout?: string };
@@ -90,12 +86,8 @@ export function checkManifest(m: Manifest, product: string, where = product): Ma
     throw new Error(`${where}: source.dockerfile must be a path inside its repo, such as ops/Dockerfile`);
   const command = typeof m.migrate === 'object' && m.migrate !== null ? m.migrate.command : undefined;
   const commandOk = Array.isArray(command) && command.length > 0 && command.every((a) => typeof a === 'string' && a.length > 0);
-  if (m.migrate !== undefined && ((m.migrate !== 'own' && !commandOk) || !m.source))
-    throw new Error(`${where}: "migrate" may only be "own" or {"command": [...]}, for a product with a source`);
-  for (const l of m.logins ?? [])
-    if (!new RegExp(`^${product}_[a-z0-9_]+$`).test(l) || l === `${product}_app` || l === `${product}_owner`)
-      throw new Error(`${where}: extra login "${l}" must be ${product}_<name>, not ${product}_app or ${product}_owner`);
-  if (m.logins && m.migrate !== 'own') throw new Error(`${where}: extra logins belong to a product that migrates itself as the superuser ("migrate": "own")`);
+  if (m.migrate !== undefined && (!commandOk || !m.source))
+    throw new Error(`${where}: "migrate" may only be {"command": [...]}, for a product with a source`);
   if (m.signon?.backchannel_logout !== undefined && !/^\/[a-z0-9/_-]*$/.test(m.signon.backchannel_logout))
     throw new Error(`${where}: signon.backchannel_logout must be a path such as /backchannel-logout`);
   if (!Array.isArray(m.permissions) || m.permissions.length === 0) throw new Error(`${where}: needs a list of permissions`);

@@ -73,7 +73,7 @@ Local test database in this container (gone with it): `su postgres -c "/usr/lib/
 
 ## Next
 - Phase B (D-11, with the lead): rewire only. Logbook first (machines), then Material Management (materials), and
-  Batchwright last, after its refocus is merged. Follow `docs/05-add-a-product.md`. Each product needs the write-time
+  Batchwright last, after its refocus is merged (Batchwright was retired instead, 17 Nov 2026: D-72). Follow `docs/05-add-a-product.md`. Each product needs the write-time
   active-item test (PL-08), "connection off", sign-on through core, and its data moved with PL-13 checks.
 - Phase B2 (Material Management, product `mms`): plan approved (MMS repo `docs/06-platform-move-plan.md`, its D-55).
   B2-1: `apps/mms/manifest.json` (22 codes, reads material/supplier/product/room `_v1`, pinned MMS commit), compose

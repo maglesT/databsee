@@ -56,4 +56,4 @@ Each item below is the smallest form found for its rule:
 
 ## Verdict
 Nothing in Phase A is there without a rule or an operational need behind it. The three items above are small and can
-wait for Phase C hardening. Phase B (rewire Logbook, then Material Management, then Batchwright) can start on this base.
+wait for Phase C hardening. Phase B (rewire Logbook, then Material Management, then Batchwright, since retired: D-72) can start on this base.

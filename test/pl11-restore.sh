@@ -12,7 +12,7 @@ export PGHOST=$work PGPORT=${PL11_PORT:-55499} PGUSER=postgres ARCHIVE=$work/arc
 unset PGPASSWORD PGDATABASE
 start() { "$bin/pg_ctl" -D "$work/$1" -w -l "$work/$1.log" -o "-p $PGPORT -k $work -c listen_addresses=''" start >/dev/null; }
 sql() { psql -X -q -At -v ON_ERROR_STOP=1 -d "$1" -c "$2"; }
-dbs="master_data identity logbook materials deviations protocols qms operations recruitment ebmr"
+dbs="master_data identity logbook materials deviations protocols qms operations recruitment truebatch"
 
 "$bin/initdb" -D "$work/live" -U postgres -A trust >/dev/null
 mkdir -p "$ARCHIVE/wal" "$ARCHIVE/base"
