@@ -141,6 +141,32 @@ describe('PL-08 maintenance, cleaning and requalification parameters are kept on
     await su.end();
   });
 
+  it('PL-08 a product is bulk or pack (optional), read through product_v1 as kind (D-64)', async () => {
+    const bulk = await add('product', code('PB'), 'Paracetamol tablets 500 mg', { kind: 'bulk', strength: '500 mg', dosageForm: 'Tablet' });
+    await add('product', code('PP'), 'Paracetamol tablets 500 mg blister 10 x 10', { kind: 'pack' });
+    await add('product', code('PN'), 'Old product, not set');
+    for (const k of ['Bulk', 'finished', '']) {
+      const res = await editor.call('POST', '/api/items', { kind: 'product', code: code(`PX${Math.random().toString(36).slice(2, 6)}`), name: 'x', fields: { kind: k }, reason: 'r' });
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toContain('Product type must be bulk, pack or empty.');
+    }
+    expect((await editor.call('PATCH', `/api/items/${bulk}`, { fields: { kind: 'pack', strength: '500 mg' }, reason: 'set by mistake, corrected' })).statusCode).toBe(200);
+    const su = postgres({ database: 'master_data', onnotice: () => {}, max: 1 });
+    await su`select platform.set_link('hello_app', array['product_v1'], true, 'CC-MD4', 'hello reads the product type')`;
+    await enableLogin('hello_app');
+    const hello = postgres({ database: 'master_data', username: 'hello_app', password: 'test-only', onnotice: () => {}, max: 1 });
+    expect(await hello`select code, kind from report.product_v1 where code in (${code('PB')}, ${code('PP')}, ${code('PN')}) order by code`)
+      .toEqual([{ code: code('PB'), kind: 'pack' }, { code: code('PN'), kind: null }, { code: code('PP'), kind: 'pack' }]);
+    // PL-08: kind is the last column, so the view only grew.
+    const cols = await su<{ column_name: string; data_type: string }[]>`select column_name, data_type from information_schema.columns
+      where table_schema = 'report' and table_name = 'product_v1' order by ordinal_position`;
+    expect(cols.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'strength', 'dosage_form', 'read_at', 'data_as_of', 'kind']);
+    expect(cols.at(-1)!.data_type).toBe('text');
+    await su`select platform.set_link('hello_app', array['product_v1'], false, 'CC-MD4', 'cleanup')`;
+    await hello.end();
+    await su.end();
+  });
+
   it('PL-08 a linked product reads them from the views; a change is a new version with its reason', async () => {
     const press = await add('equipment', code('FP'), 'Rotary press', { cleanHoldHours: 72, dirtyHoldHours: 8, pmFrequencyDays: 90, calibrationFrequencyDays: 180, requalificationFrequencyMonths: 24 });
     const bal = await add('instrument', code('IB'), 'Balance', { needsCalibration: true, calibrationFrequencyDays: 30, requalificationFrequencyMonths: 12 });

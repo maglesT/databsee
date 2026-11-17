@@ -11,7 +11,7 @@ const KINDS: { kind: Kind; label: string }[] = [
   { kind: 'material', label: 'Materials' }, { kind: 'supplier', label: 'Suppliers' }, { kind: 'product', label: 'Products' },
 ];
 
-type Input = 'text' | 'check' | 'category' | 'number' | 'basis' | 'eqclass' | 'grade';
+type Input = 'text' | 'check' | 'category' | 'number' | 'basis' | 'eqclass' | 'grade' | 'prodkind';
 /** D-24: maintenance, cleaning and requalification parameters (empty = not applicable). */
 const CARE: [string, string, Input][] = [
   ['cleanHoldHours', 'Clean hold (hours)', 'number'], ['dirtyHoldHours', 'Dirty hold (hours)', 'number'],
@@ -28,8 +28,11 @@ const FIELDS: Record<Kind, [string, string, Input][]> = {
     ...CARE.filter(([n]) => n !== 'calibrationFrequencyDays')],
   material: [['category', 'Category', 'category'], ['unit', 'Unit', 'text']],
   supplier: [['address', 'Address', 'text']],
-  product: [['strength', 'Strength', 'text'], ['dosageForm', 'Dosage form', 'text']],
+  product: [['kind', 'Product type', 'prodkind'], ['strength', 'Strength', 'text'], ['dosageForm', 'Dosage form', 'text']],
 };
+
+/** D-64: a product is bulk (made in TrueBatch Tablets) or a finished pack (made in TrueBatch Tablets Packing). */
+const PRODUCT_KIND: Record<string, string> = { bulk: 'Bulk product', pack: 'Pack (finished pack)' };
 
 /** The link an item of this kind can have: [type, target kind, label]. */
 const LINK: Partial<Record<Kind, [string, Kind, string]>> = {
@@ -60,6 +63,10 @@ function FieldInputs({ kind, values = {} }: { kind: Kind; values?: Record<string
         ) : input === 'grade' ? (
           <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? '')}>
             <option value="">None</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="CNC">CNC (controlled not classified)</option>
+          </select></label>
+        ) : input === 'prodkind' ? (
+          <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? '')}>
+            <option value="">Not set</option>{Object.entries(PRODUCT_KIND).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
           </select></label>
         ) : input === 'basis' ? (
           <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? 'operation')}>
@@ -181,7 +188,7 @@ function ItemPage({ id, canEdit, back }: { id: string; canEdit: boolean; back: (
             </p>
           </form>
         ) : (
-          <table><tbody>{FIELDS[it.kind].map(([n, l]) => <tr key={n}><th>{l}</th><td>{String(it.fields[n] ?? '')}</td></tr>)}</tbody></table>
+          <table><tbody>{FIELDS[it.kind].map(([n, l, input]) => <tr key={n}><th>{l}</th><td>{input === 'prodkind' ? PRODUCT_KIND[String(it.fields[n])] ?? '' : String(it.fields[n] ?? '')}</td></tr>)}</tbody></table>
         )}
         <a.Error />
       </div>
