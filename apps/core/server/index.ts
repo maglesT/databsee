@@ -26,6 +26,8 @@ if (process.argv[2] === 'create-first-admin') {
     webRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../dist/core-web'),
     oidc: config.oidc,
     md,
+    // Core's own links (D-74): small pools that close when idle; a link that is off or down is handled per read.
+    links: Object.fromEntries(Object.entries(config.linkUrls).map(([db, url]) => [db, postgres(url, { max: 2, idle_timeout: 60, onnotice: () => {} })])),
   });
   // Expired sign-on state (codes, sessions, tokens) is technical, not a record: remove it hourly.
   setInterval(() => void sql`delete from oidc_payload where expires_at < now() - interval '1 hour'`.catch(() => {}), 3600_000).unref();

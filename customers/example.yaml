@@ -18,6 +18,7 @@ reason: First installation
 # db_port: 5440                  # host port of the platform database (127.0.0.1 only) if another PostgreSQL owns 5432 (D-18)
 licences: [hello]                 # licensed products; all others are off (login off, containers stopped)
 links:                            # product -> provider database -> published views it reads
+  # core: { recruitment: [hire_v1, training_v1] }   # core itself (D-74): "From Recruitment" hires and training beside permissions
   # logbook: { master_data: [equipment_v1, instrument_v1, room_v1, product_v1], qual: [qualification_v1, protocol_v1], deviations: [deviation_v1], truebatch: [batch_fact_v1, equipment_use_v1], truebatch_packing: [equipment_use_v1] }   # Pharma Logbook (D-29; qual, deviations, truebatch, truebatch_packing once licensed)
   # mms: { master_data: [material_v1, supplier_v1, product_v1, room_v1], truebatch: [material_use_v1], truebatch_packing: [material_use_v1] }   # Material Management (D-30; truebatch, truebatch_packing once licensed)
   # qms: { master_data: [product_v1, supplier_v1], deviations: [capa_v1] }   # QMS (deviations once Deviations is licensed)

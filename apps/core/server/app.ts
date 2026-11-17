@@ -13,6 +13,8 @@ import { hashPassword, passwordProblem, temporaryPassword, verifyPassword } from
 import { buildProvider, endSignOn, SIGN_ON_COOKIE, SIGN_ON_TTL_S, signOnAccount, signOnCookie, startSignOn, cookieSignature, type OidcSettings } from './oidc.js';
 import { registerMasterData } from './master-data.js';
 import { productInfo } from '../products.js';
+import { plantTime } from '../time.js';
+import { linkReport, readLink } from './links.js';
 
 export interface Deps {
   sql: Sql;
@@ -22,6 +24,7 @@ export interface Deps {
   webRoot?: string;             // built screens (vite build); omitted in API-only tests
   oidc?: OidcSettings;          // single sign-on for the products (slice A3)
   md?: Sql;                     // master_data database as core_app (slice A4)
+  links?: Record<string, Sql>;  // core's own links (customer config links.core): provider database -> pool as core_app (D-74)
 }
 
 interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean }
@@ -310,12 +313,19 @@ export function buildApp(deps: Deps) {
       login: z.string().trim().toLowerCase(), fullName: z.string().trim().min(1, 'Full name is required.'),
       email: z.string().trim().email().nullable().optional(),
       identityVerifiedHow: z.string().trim().min(1, 'State how the identity was verified.'), reason,
+      hireRef: z.string().trim().min(1).nullable().optional(),
     }).parse(req.body);
+    // D-74, PL-08: a person picked from Recruitment's hires keeps the hire's reference; the hire must be there now.
+    if (b.hireRef) {
+      const r = await readLink(deps.links?.recruitment, (db) => db`select 1 from report.hire_v1 where candidate_ref = ${b.hireRef!}`);
+      if (r.state !== 'on') throw new HttpError(400, `The link to Recruitment is ${r.state}: add the person typed by hand, without the hire.`);
+      if (!r.rows.length) throw new HttpError(400, 'No such hire in Recruitment.');
+    }
     const temp = temporaryPassword();
     const hash = await hashPassword(temp);
     const id = await sql.begin(async (tx) => {
-      const [e] = await tx<{ id: string }[]>`insert into employee (login, identity_verified_by, identity_verified_how)
-        values (${b.login}, ${me.fullName}, ${b.identityVerifiedHow}) returning id`;
+      const [e] = await tx<{ id: string }[]>`insert into employee (login, identity_verified_by, identity_verified_how, hire_ref)
+        values (${b.login}, ${me.fullName}, ${b.identityVerifiedHow}, ${b.hireRef ?? null}) returning id`;
       await tx`insert into employee_version (employee_id, version, full_name, email, active, changed_by, changed_by_name, reason)
         values (${e!.id}, 1, ${b.fullName}, ${b.email ?? null}, true, ${me.id}, ${me.fullName}, ${b.reason})`;
       await tx`insert into credential (employee_id, password_hash, must_change) values (${e!.id}, ${hash}, true)`;
@@ -323,6 +333,37 @@ export function buildApp(deps: Deps) {
       return e!.id;
     });
     return { id, temporaryPassword: temp };
+  });
+
+  // D-74: "From Recruitment": hired candidates who are not employees yet (Recruitment's report.hire_v1), to pre-fill
+  // "Add a person". Null-safe: state off (no link; the list is hidden) or down (typed by hand), never an error.
+  app.get('/api/hires', async (req) => {
+    need(req, PEOPLE);
+    const r = await readLink(deps.links?.recruitment, (db) => db<{ candidateRef: string; fullName: string; jobTitle: string | null; department: string | null; joiningDate: string | null; hiredAt: Date | null }[]>`
+      select candidate_ref as "candidateRef", full_name as "fullName", job_title as "jobTitle", department,
+        joining_date::text as "joiningDate", hired_at as "hiredAt"
+      from report.hire_v1 order by hired_at desc nulls last, full_name`);
+    const added = new Set((await sql<{ hire_ref: string }[]>`select hire_ref from employee where hire_ref is not null`).map((x) => x.hire_ref));
+    return { state: r.state, hires: r.rows.filter((h) => !added.has(h.candidateRef)) };
+  });
+
+  // D-75: the person's training from Recruitment (report.training_v1), shown beside the permissions. Read-only and
+  // null-safe; it never blocks a grant.
+  app.get('/api/employees/:id/training', async (req) => {
+    need(req, PEOPLE);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const r = await readLink(deps.links?.recruitment, (db) => db<{ skillCode: string; skillTitle: string; trainedOn: string; validUntil: string | null; qualified: boolean }[]>`
+      select skill_code as "skillCode", skill_title as "skillTitle", trained_on::text as "trainedOn",
+        valid_until::text as "validUntil", qualified
+      from report.training_v1 where person_id = ${id} order by qualified desc, skill_code`);
+    return { state: r.state, training: r.rows };
+  });
+
+  // D-78: the Links screen: every link the platform knows, on / off / down, checked now.
+  app.get('/api/links', async (req) => {
+    need(req, PEOPLE);
+    const licensed = (deps.oidc?.clients ?? []).map((c) => c.client_id);
+    return linkReport(sql, licensed, deps.links ?? {});
   });
 
   // PL-06: a change is a new version with a reason. Deactivation ends every sign-on (PL-01).
@@ -460,18 +501,18 @@ export function buildApp(deps: Deps) {
       order by e.login, g.product, g.code`;
     const links = await sql<{ provider: string; consumer: string; view_name: string; switched_on_at: Date | null; change_ref: string | null }[]>`
       select provider, consumer, view_name, switched_on_at, change_ref from link_state order by consumer, provider, view_name`;
-    const when = (d: Date | null) => (d ? d.toISOString().slice(0, 16).replace('T', ' ') : 'never');
+    const when = (d: Date | null) => (d ? plantTime(d) : 'never');
     const table = (head: string[], rows: unknown[][]) => `<table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${
       rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</table>`;
     reply.type('text/html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Access review report</title>
 <style>body{font:13px/1.4 system-ui,sans-serif;margin:24px;color:#1d2433}h1{font-size:20px}h2{font-size:15px;margin-top:24px}
 table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding:4px 6px;text-align:left}.muted{color:#667085}
 @media print{button{display:none}}</style></head><body>
-<h1>Access review report</h1><p class="muted">Printed ${esc(when(new Date()))} UTC from the permission register. Reviewed by: ______________ Date: ________ Signature: ______________</p>
+<h1>Access review report</h1><p class="muted">Printed ${esc(when(new Date()))} from the permission register. Reviewed by: ______________ Date: ________ Signature: ______________</p>
 <button onclick="print()">Print</button>
-<h2>Active permissions (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Permission', 'Label', 'Granted by', 'Granted (UTC)', 'Last sign-in with password to product (UTC)'],
+<h2>Active permissions (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Permission', 'Label', 'Granted by', 'Granted', 'Last sign-in with password to product'],
       grants.map((g) => [g.login, g.full_name, g.active ? 'yes' : 'NO', g.product, g.code, g.label ?? '', g.granted_by, when(g.granted_at), when(g.last_signon)]))}
-<h2>Links and outside logins that are on, as recorded by the last apply (${links.length})</h2>${table(['Reader', 'Reads database', 'View', 'Switched on (UTC)', 'Change reference'],
+<h2>Links and outside logins that are on, as recorded by the last apply (${links.length})</h2>${table(['Reader', 'Reads database', 'View', 'Switched on', 'Change reference'],
       links.map((l) => [l.consumer, l.provider, l.view_name, when(l.switched_on_at), l.change_ref]))}
 <p class="muted">Revoked permissions and switched-off links are not listed; their history is in the grant history export and each database's link log.</p>
 </body></html>`);

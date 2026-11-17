@@ -31,7 +31,7 @@ const configSchema = z.object({
   proxy: z.enum(['caddy', 'external']).default('caddy'), // external: the host's own proxy owns 80/443 (compose.external.yml)
   db_port: z.number().int().min(1024).max(65535).default(5432), // host port of the database server, 127.0.0.1 only (D-18)
   licences: z.array(name).default([]),
-  links: reads.default({}),                             // product -> provider database -> views
+  links: reads.default({}),                             // product (or core, D-74) -> provider database -> views
   outside_logins: reads.default({}),                    // outside system -> provider database -> views
 }).strict();
 export type Config = z.infer<typeof configSchema>;
@@ -117,11 +117,15 @@ export function checkConfig(raw: unknown, rawSecrets?: unknown): { config: Confi
   if (!config.offline && !(config.host && config.host_key)) problems.push('an online site needs host and host_key');
   const licensed = new Set(config.licences);
   const providers = new Set(['master_data', 'identity', ...config.licences.map((p) => manifest(p).database)]);
+  // Reader "core" (D-74): core itself, always present, reading a product's views as core_app (its own databases are
+  // master_data and identity, so it never links to those).
   for (const [reader, map] of Object.entries(config.links)) {
-    if (!licensed.has(reader)) problems.push(`link reader "${reader}" is not licensed`);
+    const core = reader === 'core';
+    if (!core && !licensed.has(reader)) problems.push(`link reader "${reader}" is not licensed`);
     for (const provider of Object.keys(map)) {
       if (!providers.has(provider)) problems.push(`link ${reader} -> ${provider}: provider is not licensed`);
-      if (provider === manifest(reader).database) problems.push(`link ${reader} -> ${provider}: a product does not link to itself`);
+      if (core ? provider === 'master_data' || provider === 'identity' : provider === manifest(reader).database)
+        problems.push(`link ${reader} -> ${provider}: a product does not link to itself`);
     }
   }
   for (const [reader, map] of Object.entries(config.outside_logins))

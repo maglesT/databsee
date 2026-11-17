@@ -7,6 +7,7 @@ export const POLICY = {
 };
 
 import type { OidcSettings } from './oidc.js';
+import { CORE_READS } from '../products.js';
 
 export interface Config {
   identityUrl: string;            // postgres URL of the identity database as core_app
@@ -16,6 +17,7 @@ export interface Config {
   mailFrom: string;
   secureCookies: boolean;
   oidc: OidcSettings | undefined;   // single sign-on; off when OIDC_ISSUER is unset
+  linkUrls: Record<string, string>; // core's own links (D-74): provider database -> URL as core_app, <DB>_DATABASE_URL from apply
 }
 
 export function configFromEnv(): Config {
@@ -38,5 +40,9 @@ export function configFromEnv(): Config {
           cookieKeys: (process.env.OIDC_COOKIE_KEYS ?? '').split(',').filter(Boolean),
         }
       : undefined,
+    linkUrls: Object.fromEntries(Object.keys(CORE_READS).flatMap((db) => {
+      const url = process.env[`${db.toUpperCase()}_DATABASE_URL`];
+      return url ? [[db, url]] : [];
+    })),
   };
 }

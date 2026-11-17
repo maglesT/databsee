@@ -252,6 +252,8 @@ export const docker: Runtime = {
     write('core.env', env({
       IDENTITY_DATABASE_URL: url('core_app', 'identity'),
       MASTER_DATA_DATABASE_URL: url('core_app', 'master_data'),
+      // Core's own links (D-74): e.g. RECRUITMENT_DATABASE_URL for "From Recruitment" and training beside permissions.
+      ...Object.fromEntries(Object.keys(config.links.core ?? {}).map((db) => [`${db.toUpperCase()}_DATABASE_URL`, url('core_app', db)])),
       SECURITY_CONTACT_EMAIL: config.security_contact,
       ...(secrets.smtp_url ? { SMTP_URL: secrets.smtp_url } : {}),
       OIDC_ISSUER: `https://${config.domain}/oidc`,
