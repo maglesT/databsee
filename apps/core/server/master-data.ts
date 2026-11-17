@@ -8,7 +8,7 @@ import { csv, HttpError } from './app.js';
 type Need = (req: FastifyRequest, codes: string[]) => { id: string; fullName: string };
 
 const text = z.string().trim().max(200).optional();
-// D-24: the maintenance and cleaning parameters of an item, kept once here for every product (Logbook, Batchwright,
+// D-24: the maintenance and cleaning parameters of an item, kept once here for every product (Logbook, TrueBatch,
 // Qualification): hold times in hours, frequencies in days (calibration, preventive maintenance) or hours (cleaning of a
 // frequency-based room), months (requalification). Whole numbers; empty means "not applicable". Due dates are never stored: products work them
 // out from the last time the activity was done and these values.

@@ -19,8 +19,7 @@ import { allProducts, checkConfig, manifest, outsideLogin, productLogin, readYam
 /** Starts the containers and fails unless they turn healthy. The Docker one is below; tests use a stand-in. */
 export interface Runtime {
   start(config: Config, secrets: Secrets): Promise<void>;
-  /** A product whose manifest has "migrate": its image's one-shot migrator (migrateRun: "own" as the superuser,
-   *  {command} as <product>_owner). */
+  /** A product whose manifest has "migrate": its image's one-shot migrator (migrateRun, as <product>_owner). */
   migrateOwn(product: string, config: Config, secrets: Secrets): Promise<void>;
 }
 
@@ -73,14 +72,6 @@ async function switchAndStart(config: Config, secrets: Secrets, runtime: Runtime
         await su`select pg_terminate_backend(pid) from pg_stat_activity where usename = ${rolname}`;
       } else if (pw === undefined) await ddl(su`select format('alter role %I login', ${rolname}::text) as ddl`); // rollback: keep its password
       else await ddl(su`select format('alter role %I login password %L', ${rolname}::text, ${pw}::text) as ddl`);
-    }
-    // A self-migrating product's further logins (manifest "logins"): off and disconnected with its licence; while it is
-    // licensed its own migrator sets them.
-    for (const p of allProducts().filter((p) => !config.licences.includes(p))) {
-      for (const l of manifest(p).logins ?? []) {
-        await ddl(su`select format('alter role %I nologin', ${l}::text) as ddl where exists (select from pg_roles where rolname = ${l})`);
-        await su`select pg_terminate_backend(pid) from pg_stat_activity where usename = ${l}`;
-      }
     }
 
     // Links: wanted[db][login] = views; switch only the differences.
@@ -199,15 +190,11 @@ export function productEnv(config: Config, secrets: Secrets, p: string): Record<
  *  authorities refuse one: truebatch_packing is served at truebatch-packing.<domain>). */
 export const productHost = (p: string, domain: string) => `${p.replaceAll('_', '-')}.${domain}`;
 
-/** How apply runs a self-migrating product's migrator (manifest "migrate"), with `docker compose` and these settings.
- *  "own": its image's "migrate" command as the superuser over verified TLS (MIGRATE_DATABASE_URL, Batchwright).
- *  {command}: that command in its image as <database>_owner, the role every platform migration runs as: a superuser
+/** How apply runs a self-migrating product's migrator (manifest "migrate": {command}), with `docker compose` and these
+ *  settings: that command in its image as <database>_owner, the role every platform migration runs as: a superuser
  *  session that takes the owner role at its start (MIGRATION_DATABASE_URL, TrueBatch Tablets Packing). */
 export function migrateRun(p: string, superuserPassword: string): { args: string[]; env: Record<string, string> } {
   const m = manifest(p), db = m.database, pw = encodeURIComponent(superuserPassword);
-  if (m.migrate === 'own') return { args: ['--profile', p, 'run', '--rm', '-e', 'MIGRATE_DATABASE_URL', p, 'migrate'],
-    // Verified TLS to the database server (its certificate, deploy/compose.yml, is mounted at /tls-ca).
-    env: { MIGRATE_DATABASE_URL: `postgres://postgres:${pw}@db:5432/${db}?sslmode=verify-full&sslrootcert=/tls-ca/server.crt` } };
   if (!m.migrate) throw new Error(`${p} has no "migrate" in its manifest: apply runs its migrations with db/migrate.ts`);
   return { args: ['--profile', p, 'run', '--rm', '-e', 'MIGRATION_DATABASE_URL', p, ...m.migrate.command],
     env: { MIGRATION_DATABASE_URL: `postgres://postgres:${pw}@db:5432/${db}?options=${encodeURIComponent(`-c role=${db}_owner`)}` } };

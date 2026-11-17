@@ -7,8 +7,8 @@
     {"code": "ops.entry.correct_any", "label": "Correct runs, stops and values entered by others"},
     {"code": "ops.import.run", "label": "Import CSV files"},
     {"code": "ops.masterdata.edit", "label": "Edit machine and product settings, ideal rates and planned hours"},
-    {"code": "ops.link.refresh", "label": "Refresh from the Logbook and Batchwright"},
-    {"code": "ops.parameter.approve", "label": "Set approved parameter ranges and see batch-record limits"},
+    {"code": "ops.link.refresh", "label": "Refresh from the Logbook"},
+    {"code": "ops.parameter.approve", "label": "Set approved parameter ranges"},
     {"code": "ops.golden.exclude", "label": "Exclude batches from the golden reference"},
     {"code": "ops.model.train", "label": "Train models and forecasts"},
     {"code": "ops.audit.read", "label": "Read the audit trail"},
@@ -17,8 +17,7 @@
   "publishes": [],
   "reads": {
     "master_data": ["equipment_v1", "product_v1"],
-    "logbook": ["equipment_v1", "entry_v1"],
-    "ebmr": ["batch_fact_v1", "step_use_v1", "cpp_value_v1", "process_actual_v1", "ipc_result_v1"]
+    "logbook": ["equipment_v1", "entry_v1"]
   },
   "source": { "repo": "https://github.com/maglesT/operations", "commit": "e2c4fd21a73592ae9efc5ce8e709207d46bbd8ed" }
 }
