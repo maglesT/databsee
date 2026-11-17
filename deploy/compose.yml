@@ -201,6 +201,18 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  truebatch_injectables_packing:     # TrueBatch Injectables Packing: same repo as truebatch_injectables, built from its ops/packing.Dockerfile (D-53)
+    image: medhanta/truebatch_injectables_packing:${TRUEBATCH_INJECTABLES_PACKING_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [truebatch_injectables_packing]
+    command: ["node", "dist/packing/server/index.js"]   # apply.ts first runs its packing/migrate.ts as truebatch_injectables_packing_owner (manifest "migrate")
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/truebatch_injectables_packing.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped

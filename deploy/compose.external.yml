@@ -16,3 +16,4 @@ services:
   truebatch: { ports: ["127.0.0.1:8110:3000"] }
   truebatch_packing: { ports: ["127.0.0.1:8111:3000"] }
   truebatch_injectables: { ports: ["127.0.0.1:8113:3000"] }
+  truebatch_injectables_packing: { ports: ["127.0.0.1:8114:3000"] }

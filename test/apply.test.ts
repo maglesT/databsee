@@ -907,3 +907,46 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
     expect(manifest('truebatch_injectables').migrate).toBeUndefined();
   });
 });
+
+describe('TrueBatch Injectables Packing, a second product from the Injectables repo (D-53)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const tip = {
+    ...base, licences: ['hello', 'truebatch_injectables_packing'],
+    links: { hello: { master_data: ['equipment_v1'] }, truebatch_injectables_packing: { master_data: md } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_injectables_packing_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_injectables_packing: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Injectables Packing offers its 11 permission codes, all its own', () => {
+    const codes = manifest('truebatch_injectables_packing').permissions.map((p) => p.code);
+    expect(codes).toHaveLength(11);
+    expect(codes.every((c) => c.startsWith('truebatch_injectables_packing.'))).toBe(true);
+    expect(codes).toContain('truebatch_injectables_packing.qc.approve');
+    // Injectables' codes stay Injectables': none starts with the packing product's name and a dot.
+    expect(manifest('truebatch_injectables').permissions.some((p) => p.code.startsWith('truebatch_injectables_packing.'))).toBe(false);
+  });
+
+  it('PL-08 Injectables Packing gets its own database and login and sign-on at truebatch-injectables-packing.<domain>; it reads Injectables only while linked', () => {
+    const { config, secrets: s } = checkConfig(tip, raw);
+    const env = productEnv(config, s!, 'truebatch_injectables_packing');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_INJECTABLES_PACKING_DATABASE_URL']);
+    expect(env.TRUEBATCH_INJECTABLES_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_injectables_packing_app:.*@db:5432\/truebatch_injectables_packing$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-injectables-packing.ci.example/cb');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables-packing.ci.example {\n  reverse_proxy 127.0.0.1:8114\n}');
+    const reads = manifest('truebatch_injectables_packing').reads!;
+    expect(reads.truebatch_injectables).toEqual(['batch_fact_v1']);
+    for (const provider of ['truebatch_injectables', 'mms', 'logbook', 'deviations', 'qms'])
+      expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
+    expect(() => checkConfig({ ...tip, links: { ...tip.links, truebatch_injectables_packing: { ...tip.links.truebatch_injectables_packing, truebatch_injectables: ['batch_fact_v1'] } } }, raw))
+      .toThrow(/link truebatch_injectables_packing -> truebatch_injectables: provider is not licensed/);
+  });
+
+  it('PL-10 its image is built at the same pinned commit as Injectables, from the repo\'s ops/packing.Dockerfile, with its own migrator', () => {
+    expect(imageTags().TRUEBATCH_INJECTABLES_PACKING_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest('truebatch_injectables_packing').source).toEqual({ ...manifest('truebatch_injectables').source, dockerfile: 'ops/packing.Dockerfile' });
+    expect(manifest('truebatch_injectables_packing').migrate).toEqual({ command: ['node', 'dist/packing/migrate.js'] });
+  });
+});
