@@ -1032,9 +1032,9 @@ describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, lims: 'test-only-client-secret', truebatch: 'test-only-client-secret' } },
   };
 
-  it('PL-01 LIMS offers its 10 permission codes, all its own, with back-channel logout', () => {
+  it('PL-01 LIMS offers its 11 permission codes, all its own, with back-channel logout', () => {
     const codes = manifest('lims').permissions.map((x) => x.code);
-    expect(codes).toHaveLength(10);
+    expect(codes).toHaveLength(11);
     expect(codes.every((c) => c.startsWith('lims.'))).toBe(true);
     expect(codes).toEqual(expect.arrayContaining(['lims.qc.approve', 'lims.analysis.review', 'lims.sample.register', 'lims.demo.skip']));
     expect(manifest('lims').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
@@ -1048,12 +1048,12 @@ describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
     expect(env.OIDC_REDIRECT_URI).toBe('https://lims.ci.example/cb');
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('lims.ci.example {\n  reverse_proxy 127.0.0.1:8120\n}');
     expect(caddyfile(config)).toContain('lims.ci.example {\n  reverse_proxy lims:3000\n}');
-    expect(manifest('lims').publishes).toEqual(['coa_v1', 'result_v1']);
+    expect(manifest('lims').publishes).toEqual(['coa_v1', 'result_v1', 'oos_v1', 'instrument_use_v1']);
   });
 
   it('PL-08 every view LIMS reads is published by its provider', () => {
     const reads = manifest('lims').reads!;
-    expect(Object.keys(reads).sort()).toEqual(['deviations', 'logbook', 'master_data', 'mms', 'qms', 'recruitment', 'truebatch']);
+    expect(Object.keys(reads).sort()).toEqual(['deviations', 'logbook', 'master_data', 'mms', 'qms', 'qual', 'recruitment', 'truebatch']);
     for (const provider of Object.keys(reads).filter((x) => x !== 'master_data'))
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `lims -> ${provider}`).toEqual([]);
   });
