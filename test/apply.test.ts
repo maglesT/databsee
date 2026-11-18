@@ -1016,3 +1016,48 @@ describe('TrueBatch Capsules and TrueBatch Capsules Packing, two products from t
     expect(manifest('truebatch_capsules_packing').migrate).toEqual({ command: ['node', 'dist/packing/migrate.js'] });
   });
 });
+
+describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const lc = {
+    ...base, licences: ['hello', 'lims', 'truebatch'],
+    links: { hello: { master_data: ['equipment_v1'] }, lims: { master_data: md, truebatch: ['batch_fact_v1'] }, truebatch: { master_data: md } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, lims_app: PW, truebatch_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, lims: 'test-only-client-secret', truebatch: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 LIMS offers its 10 permission codes, all its own, with back-channel logout', () => {
+    const codes = manifest('lims').permissions.map((x) => x.code);
+    expect(codes).toHaveLength(10);
+    expect(codes.every((c) => c.startsWith('lims.'))).toBe(true);
+    expect(codes).toEqual(expect.arrayContaining(['lims.qc.approve', 'lims.analysis.review', 'lims.sample.register', 'lims.demo.skip']));
+    expect(manifest('lims').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
+  });
+
+  it('PL-08 LIMS gets its own database, login and sign-on at lims.<domain>, on host port 8120 behind an outside proxy; it reads TrueBatch\'s batches while linked', () => {
+    const { config, secrets: s } = checkConfig(lc, raw);
+    const env = productEnv(config, s!, 'lims');
+    expect(Object.keys(env).sort()).toEqual(['LIMS_DATABASE_URL', 'MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_DATABASE_URL']);
+    expect(env.LIMS_DATABASE_URL).toMatch(/^postgres:\/\/lims_app:.*@db:5432\/lims$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://lims.ci.example/cb');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('lims.ci.example {\n  reverse_proxy 127.0.0.1:8120\n}');
+    expect(caddyfile(config)).toContain('lims.ci.example {\n  reverse_proxy lims:3000\n}');
+    expect(manifest('lims').publishes).toEqual(['coa_v1', 'result_v1']);
+  });
+
+  it('PL-08 every view LIMS reads is published by its provider', () => {
+    const reads = manifest('lims').reads!;
+    expect(Object.keys(reads).sort()).toEqual(['deviations', 'logbook', 'master_data', 'mms', 'qms', 'recruitment', 'truebatch']);
+    for (const provider of Object.keys(reads).filter((x) => x !== 'master_data'))
+      expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `lims -> ${provider}`).toEqual([]);
+  });
+
+  it('PL-10 the LIMS image is pinned to a full commit of its repo, migrated by the default migrator', () => {
+    expect(imageTags().LIMS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest('lims').source!.repo).toBe('https://github.com/maglesT/medhanta-lims');
+    expect(manifest('lims').migrate).toBeUndefined();
+  });
+});

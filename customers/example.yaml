@@ -33,6 +33,7 @@ links:                            # product -> provider database -> published vi
   # truebatch_injectables_packing: { master_data: [equipment_v1, instrument_v1, room_v1, material_v1, product_v1], truebatch_injectables: [batch_fact_v1], mms: [lot_v1, lot_test_v1], logbook: [equipment_status_v1], deviations: [deviation_v1], qms: [change_v1] }   # TrueBatch Injectables Packing at https://truebatch-injectables-packing.<domain>
   # truebatch_capsules: { master_data: [equipment_v1, instrument_v1, room_v1, material_v1, product_v1], deviations: [deviation_v1], qms: [change_v1], logbook: [equipment_status_v1], mms: [lot_v1, lot_test_v1], recruitment: [training_v1] }   # TrueBatch Capsules at https://truebatch-capsules.<domain>
   # truebatch_capsules_packing: { master_data: [equipment_v1, instrument_v1, room_v1, material_v1, product_v1], truebatch_capsules: [batch_fact_v1, deviation_note_v1], mms: [lot_v1, lot_test_v1], logbook: [equipment_status_v1], deviations: [deviation_v1], qms: [change_v1], recruitment: [training_v1] }   # TrueBatch Capsules Packing at https://truebatch-capsules-packing.<domain>
+  # lims: { master_data: [equipment_v1, instrument_v1, room_v1, material_v1, product_v1], deviations: [deviation_v1], qms: [change_v1], logbook: [equipment_status_v1], mms: [lot_v1, lot_test_v1], recruitment: [training_v1], truebatch: [batch_fact_v1] }   # Medhanta LIMS at https://lims.<domain>
   hello:
     master_data: [equipment_v1]
 outside_logins: {}                # outside system -> provider database -> views, e.g. sap: {materials: [material_v1]}
