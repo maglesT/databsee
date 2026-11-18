@@ -1,14 +1,14 @@
 # Demo company (DEMO-ONLY, docs/demo-company.md): rehearsal of the go-live on the owner's server, test address only.
 # Removed completely after the rehearsal (owner's go-live plan, Phase 1); nothing of it goes into the real install.
 customer: demo
-version: 1.22.1 # (1.22.1: TrueBatch Capsules Packing, packing material unit kept on its steps; 1.22.0: Medhanta LIMS step 5, instrument data capture) (1.21.2: TrueBatch API fix round, intermediate molecular weight on the stage screen, QMS "none" product, Tablets round 31; 1.21.1: TrueBatch Capsules fix round, soft gel machines, good output in batch_fact_v1, Tablets rounds 29 and 31; 1.21.0: Medhanta LIMS step 4, OOS and OOT, lab inventory, instruments) platform release (1.20.0: Logbook, MMS, Deviations and OEE read TrueBatch Capsules, Oral Liquids and API; TrueBatch rounds 29-31; 1.19.1: Medhanta LIMS fix, specification limit with no unit; platform release (1.19.0: TrueBatch Liquids and Liquids Packing on the platform; 1.18.0: Medhanta LIMS, the QC laboratory system, on the platform; 1.17.2: QMS documents in force, controlled copies, PQR fill, risk management; Qualification cleaning limits)
+version: 1.22.2 # (1.22.2: Injectables ports of Tablets rounds 29, 31, 32; 1.22.1: TrueBatch Capsules Packing, packing material unit kept on its steps; 1.22.0: Medhanta LIMS step 5, instrument data capture) (1.21.2: TrueBatch API fix round, intermediate molecular weight on the stage screen, QMS "none" product, Tablets round 31; 1.21.1: TrueBatch Capsules fix round, soft gel machines, good output in batch_fact_v1, Tablets rounds 29 and 31; 1.21.0: Medhanta LIMS step 4, OOS and OOT, lab inventory, instruments) platform release (1.20.0: Logbook, MMS, Deviations and OEE read TrueBatch Capsules, Oral Liquids and API; TrueBatch rounds 29-31; 1.19.1: Medhanta LIMS fix, specification limit with no unit; platform release (1.19.0: TrueBatch Liquids and Liquids Packing on the platform; 1.18.0: Medhanta LIMS, the QC laboratory system, on the platform; 1.17.2: QMS documents in force, controlled copies, PQR fill, risk management; Qualification cleaning limits)
 domain: demo.187-126-126-5.sslip.io # test name, NOT the go-live one
 offline: true # signed bundle downloaded from the apply run and applied by hand (no SSH from GitHub)
 security_contact: it-security@demo-pharma.example
 backup:
   path: medhanta-backups/demo-rehearsal # separate Drive folder, deleted with the demo
 change_ref: MED-GOLIVE-001
-reason: "Demo on v1.22.1: TrueBatch Capsules and Capsules Packing 9bb214e (a packing material's unit kept on its issue and reconciliation steps, and checked); no link change"
+reason: "Demo on v1.22.2: TrueBatch Injectables and Injectables Packing 233e697 (Tablets rounds 29, 31, 32: no batch quantity where a per-unit value, concentration or tolerance is needed; packing material unit kept on its steps)"
 proxy: external # the host's Caddy owns 80/443 (README "Behind the host's proxy")
 db_port: 5440 # 127.0.0.1:5432 was taken by another PostgreSQL on this server when it was set up (D-18)
 licences:
