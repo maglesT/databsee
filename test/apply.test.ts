@@ -1048,7 +1048,7 @@ describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
     expect(env.OIDC_REDIRECT_URI).toBe('https://lims.ci.example/cb');
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('lims.ci.example {\n  reverse_proxy 127.0.0.1:8120\n}');
     expect(caddyfile(config)).toContain('lims.ci.example {\n  reverse_proxy lims:3000\n}');
-    expect(manifest('lims').publishes).toEqual(['coa_v1', 'result_v1', 'oos_v1', 'instrument_use_v1']);
+    expect(manifest('lims').publishes).toEqual(['coa_v1', 'result_v1', 'oos_v1', 'instrument_use_v1', 'stability_v1', 'em_v1']);
   });
 
   it('PL-08 every view LIMS reads is published by its provider', () => {
