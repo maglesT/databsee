@@ -857,6 +857,58 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
   });
 });
 
+describe('TrueBatch API, its own product from its own repo (D-88)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const ta = {
+    ...base, licences: ['hello', 'truebatch_api'],
+    links: { hello: { master_data: ['equipment_v1'] }, truebatch_api: { master_data: md } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_api_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_api: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 TrueBatch API offers its 11 permission codes, all its own: QC approval and the demo skip among them', () => {
+    const codes = manifest('truebatch_api').permissions.map((p) => p.code);
+    expect(codes).toHaveLength(11);
+    expect(codes.every((c) => c.startsWith('truebatch_api.'))).toBe(true);
+    for (const c of ['qc.approve', 'qa.release', 'demo.skip']) expect(codes).toContain(`truebatch_api.${c}`);
+    for (const p of ['truebatch', 'truebatch_packing', 'truebatch_injectables']) expect(manifest(p).permissions.some((x) => x.code.startsWith('truebatch_api.'))).toBe(false);
+    expect(manifest('truebatch_api').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
+  });
+
+  it('PL-08 TrueBatch API gets its own database and login, the master data of its link and sign-on at truebatch-api.<domain>', () => {
+    const { config, secrets: s } = checkConfig(ta, raw);
+    const env = productEnv(config, s!, 'truebatch_api');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_API_DATABASE_URL']);
+    expect(env.TRUEBATCH_API_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_api_app:.*@db:5432\/truebatch_api$/);
+    expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_api_app:.*@db:5432\/master_data$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-api.ci.example/cb');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-api.ci.example {\n  reverse_proxy 127.0.0.1:8119\n}');
+    expect(caddyfile(config)).toContain('truebatch-api.ci.example {\n  reverse_proxy truebatch_api:3000\n}');
+    expect(ta.links.truebatch_api.master_data).toEqual(manifest('truebatch_api').reads!.master_data);
+    // The four views TrueBatch Tablets publishes, and the lots that go to stores for MMS (output_lot_v1).
+    expect(manifest('truebatch_api').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'output_lot_v1']);
+    expect(() => checkConfig({ ...ta, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_api" is not licensed/);
+  });
+
+  it('PL-08 every view TrueBatch API reads is published by its provider', () => {
+    const reads = manifest('truebatch_api').reads!;
+    expect(Object.keys(reads)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment']);
+    for (const provider of ['deviations', 'qms', 'logbook', 'mms', 'recruitment'])
+      expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
+  });
+
+  it('PL-10 its image is pinned to a full commit of its own repo, built from ops/Dockerfile, migrated by the platform', () => {
+    expect(imageTags().TRUEBATCH_API_COMMIT).toBe(manifest('truebatch_api').source!.commit);
+    expect(imageTags().TRUEBATCH_API_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest('truebatch_api').source!.repo).not.toBe(manifest('truebatch').source!.repo);
+    expect(manifest('truebatch_api').source!.dockerfile).toBeUndefined();
+    expect(manifest('truebatch_api').migrate).toBeUndefined();
+  });
+});
+
 describe('TrueBatch Injectables Packing, a second product from the Injectables repo (D-53)', () => {
   const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
   const tip = {
