@@ -240,6 +240,30 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  truebatch_liquids:  # TrueBatch Liquids, built from its own repo at the commit in apps/truebatch_liquids/manifest.json (D-92)
+    image: medhanta/truebatch_liquids:${TRUEBATCH_LIQUIDS_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [truebatch_liquids]
+    command: ["node", "dist/server/index.js"]   # apply.ts first runs its migrations as truebatch_liquids_owner
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/truebatch_liquids.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+  truebatch_liquids_packing: # TrueBatch Liquids Packing: same repo as truebatch_liquids, built from its ops/packing.Dockerfile (D-92)
+    image: medhanta/truebatch_liquids_packing:${TRUEBATCH_LIQUIDS_PACKING_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [truebatch_liquids_packing]
+    command: ["node", "dist/packing/server/index.js"]   # apply.ts first runs its migrations as truebatch_liquids_packing_owner (manifest "migrate")
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/truebatch_liquids_packing.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped

@@ -21,3 +21,5 @@ services:
   truebatch_capsules: { ports: ["127.0.0.1:8115:3000"] }
   truebatch_capsules_packing: { ports: ["127.0.0.1:8116:3000"] }
   lims: { ports: ["127.0.0.1:8120:3000"] }
+  truebatch_liquids: { ports: ["127.0.0.1:8117:3000"] }
+  truebatch_liquids_packing: { ports: ["127.0.0.1:8118:3000"] }

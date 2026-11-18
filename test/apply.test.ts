@@ -1061,3 +1061,64 @@ describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
     expect(manifest('lims').migrate).toBeUndefined();
   });
 });
+
+describe('TrueBatch Liquids and TrueBatch Liquids Packing, two products from the Liquids repo (D-92)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const tl = {
+    ...base, licences: ['hello', 'truebatch_liquids', 'truebatch_liquids_packing'],
+    links: { hello: { master_data: ['equipment_v1'] }, truebatch_liquids: { master_data: md }, truebatch_liquids_packing: { master_data: md, truebatch_liquids: ['batch_fact_v1', 'deviation_note_v1'] } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_liquids_app: PW, truebatch_liquids_packing_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_liquids: 'test-only-client-secret', truebatch_liquids_packing: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Liquids and Liquids Packing offer 11 permission codes each, all their own', () => {
+    for (const p of ['truebatch_liquids', 'truebatch_liquids_packing']) {
+      const codes = manifest(p).permissions.map((x) => x.code);
+      expect(codes).toHaveLength(11);
+      expect(codes.every((c) => c.startsWith(`${p}.`)), p).toBe(true);
+      for (const c of ['qc.approve', 'qa.release', 'demo.skip']) expect(codes).toContain(`${p}.${c}`);
+      expect(manifest(p).signon).toEqual({ backchannel_logout: '/backchannel-logout' });
+    }
+    for (const other of ['truebatch', 'truebatch_packing', 'truebatch_injectables', 'truebatch_injectables_packing'])
+      expect(manifest(other).permissions.some((x) => x.code.startsWith('truebatch_liquids')), other).toBe(false);
+  });
+
+  it('PL-08 each gets its own database, login and sign-on at truebatch-liquids(-packing).<domain>, behind the host proxy on 8117 and 8118', () => {
+    const { config, secrets: s } = checkConfig(tl, raw);
+    const env = productEnv(config, s!, 'truebatch_liquids');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_LIQUIDS_DATABASE_URL']);
+    expect(env.TRUEBATCH_LIQUIDS_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_liquids_app:.*@db:5432\/truebatch_liquids$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-liquids.ci.example/cb');
+    const pk = productEnv(config, s!, 'truebatch_liquids_packing');
+    expect(pk.TRUEBATCH_LIQUIDS_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_liquids_packing_app:.*@db:5432\/truebatch_liquids_packing$/);
+    // Packing reads the bulk batches of Liquids with its own login (TRUEBATCH_LIQUIDS_DATABASE_URL in its env, a read link).
+    expect(pk.TRUEBATCH_LIQUIDS_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_liquids_packing_app:.*@db:5432\/truebatch_liquids$/);
+    expect(pk.OIDC_REDIRECT_URI).toBe('https://truebatch-liquids-packing.ci.example/cb');
+    const caddy = caddyfile({ ...config, proxy: 'external' });
+    expect(caddy).toContain('truebatch-liquids.ci.example {\n  reverse_proxy 127.0.0.1:8117\n}');
+    expect(caddy).toContain('truebatch-liquids-packing.ci.example {\n  reverse_proxy 127.0.0.1:8118\n}');
+    expect(() => checkConfig({ ...tl, licences: ['hello', 'truebatch_liquids_packing'] }, raw)).toThrow(/link truebatch_liquids_packing -> truebatch_liquids: provider is not licensed|link reader "truebatch_liquids" is not licensed/);
+  });
+
+  it('PL-08 every view Liquids and Liquids Packing read is published by its provider', () => {
+    const reads = manifest('truebatch_liquids').reads!;
+    expect(Object.keys(reads)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment']);
+    for (const p of ['truebatch_liquids', 'truebatch_liquids_packing']) {
+      const r = manifest(p).reads!;
+      for (const provider of Object.keys(r).filter((x) => x !== 'master_data')) expect(r[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `${p} -> ${provider}`).toEqual([]);
+    }
+    expect(manifest('truebatch_liquids_packing').reads!.truebatch_liquids).toEqual(['batch_fact_v1', 'deviation_note_v1']);
+  });
+
+  it('PL-10 both images are pinned to one full commit of the Liquids repo; packing from its ops/packing.Dockerfile with its own migrator', () => {
+    expect(imageTags().TRUEBATCH_LIQUIDS_COMMIT).toBe(manifest('truebatch_liquids').source!.commit);
+    expect(imageTags().TRUEBATCH_LIQUIDS_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest('truebatch_liquids').source!.repo).toBe('https://github.com/maglesT/truebatch-oral-liquids');
+    expect(manifest('truebatch_liquids').migrate).toBeUndefined();
+    expect(manifest('truebatch_liquids_packing').source).toEqual({ ...manifest('truebatch_liquids').source, dockerfile: 'ops/packing.Dockerfile' });
+    expect(manifest('truebatch_liquids_packing').migrate).toEqual({ command: ['node', 'dist/packing/migrate.js'] });
+  });
+});
