@@ -17,6 +17,6 @@
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["packing_batch_v1", "equipment_use_v1", "material_use_v1", "deviation_note_v1"],
   "reads": {"recruitment": ["training_v1"],  "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "truebatch_injectables": ["batch_fact_v1"], "mms": ["lot_v1", "lot_test_v1"], "logbook": ["equipment_status_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"] },
-  "source": { "repo": "https://github.com/maglesT/truebatch-injectabless", "commit": "039e19c8046a6c1ba19fd071a7dd1b85c1efff8e", "dockerfile": "ops/packing.Dockerfile" },
+  "source": { "repo": "https://github.com/maglesT/truebatch-injectabless", "commit": "d0ca46f26601f1dfa1a0ce65268c632ed3f6f71a", "dockerfile": "ops/packing.Dockerfile" },
   "migrate": { "command": ["node", "dist/packing/migrate.js"] }
 }
