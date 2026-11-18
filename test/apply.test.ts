@@ -401,12 +401,15 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     expect(env.DEVIATIONS_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/deviations$/);
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
-    const { truebatch: fromTrueBatch, truebatch_packing: fromPacking, truebatch_injectables: fromInjectables, truebatch_injectables_packing: fromInjectablesPacking, ...reads } = manifest('deviations').reads!;
+    const { truebatch: fromTrueBatch, truebatch_packing: fromPacking, truebatch_injectables: fromInjectables, truebatch_injectables_packing: fromInjectablesPacking,
+      truebatch_capsules: fromCapsules, truebatch_capsules_packing: fromCapsulesPacking, truebatch_liquids: fromLiquids, truebatch_liquids_packing: fromLiquidsPacking, truebatch_api: fromApi, ...reads } = manifest('deviations').reads!;
     expect(dev.links.deviations).toEqual(reads);
     expect(fromTrueBatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch once licensed (Deviations D-51, D-28)
     expect(fromPacking).toEqual(['packing_batch_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch Tablets Packing once licensed (Deviations D-53, D-31; D-57 reads its batches and uses)
     expect(fromInjectables).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch Injectables once licensed (Deviations D-54, D-48; D-57)
     expect(fromInjectablesPacking).toEqual(['packing_batch_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch Injectables Packing once licensed (Deviations D-55; D-57)
+    for (const r of [fromCapsules, fromLiquids, fromApi]) expect(r).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // Capsules, Oral Liquids, API once licensed (Deviations D-59)
+    for (const r of [fromCapsulesPacking, fromLiquidsPacking]) expect(r).toEqual(['packing_batch_v1', 'equipment_use_v1', 'deviation_note_v1']);   // their packing products (Deviations D-59)
     expect(manifest('deviations').publishes).toEqual(['capa_v1', 'deviation_v1']);   // read by the QMS through a link (Deviations D-40)
   });
 
