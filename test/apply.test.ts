@@ -327,8 +327,10 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
     expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'QMS_DATABASE_URL']);
     expect(env.QMS_DATABASE_URL).toMatch(/^postgres:\/\/qms_app:.*@db:5432\/qms$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://qms.ci.example/cb');
-    expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1'], deviations: ['capa_v1', 'deviation_v1'] });   // QMS D-18: deviations linked
-    expect(manifest('qms').publishes).toEqual(['change_v1']);   // change controls for TrueBatch (QMS D-16, D-28)
+    expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1'], deviations: ['capa_v1', 'deviation_v1'],   // QMS D-18: deviations linked
+      truebatch: ['batch_fact_v1'], truebatch_packing: ['packing_batch_v1'], truebatch_injectables: ['batch_fact_v1'],   // QMS D-19: PQR filled from the platform
+      truebatch_injectables_packing: ['packing_batch_v1'], truebatch_api: ['batch_fact_v1'], qual: ['qualification_v1'] });
+    expect(manifest('qms').publishes).toEqual(['change_v1', 'document_v1', 'risk_v1']);   // change controls for TrueBatch (QMS D-16, D-28); documents in force (QMS D-19), risk register (QMS D-20)
     // Deviations is not licensed here, so the link cannot be switched on.
     expect(() => checkConfig({ ...qms, links: { ...qms.links, qms: { ...qms.links.qms, deviations: ['capa_v1'] } } }, raw)).toThrow(/provider is not licensed/);
   });
@@ -342,7 +344,7 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
 describe('Qualification Protocols, a product kept in its own repo (prot D-21)', () => {
   const qual = {
     ...base, licences: ['hello', 'qual'],
-    links: { hello: { master_data: ['equipment_v1'] }, qual: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1'] } },
+    links: { hello: { master_data: ['equipment_v1'] }, qual: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1', 'product_v1'] } },   // prot D-28: products for the cleaning matrix
   };
   const raw = {
     ...rawSecrets,
