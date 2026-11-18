@@ -204,6 +204,30 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  truebatch_capsules:     # TrueBatch Capsules, built from its own repo at the commit in apps/truebatch_capsules/manifest.json (D-89)
+    image: medhanta/truebatch_capsules:${TRUEBATCH_CAPSULES_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [truebatch_capsules]
+    command: ["node", "dist/server/index.js"]   # apply.ts runs its migrations as truebatch_capsules_owner
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/truebatch_capsules.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+  truebatch_capsules_packing: # TrueBatch Capsules Packing: same repo as truebatch_capsules, built from its ops/packing.Dockerfile (D-89)
+    image: medhanta/truebatch_capsules_packing:${TRUEBATCH_CAPSULES_PACKING_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [truebatch_capsules_packing]
+    command: ["node", "dist/packing/server/index.js"]   # apply.ts first runs its packing/migrate.ts as truebatch_capsules_packing_owner (manifest "migrate")
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/truebatch_capsules_packing.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   caddy:
     image: caddy:2.10.2
     restart: unless-stopped

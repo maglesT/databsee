@@ -951,3 +951,66 @@ describe('TrueBatch Injectables Packing, a second product from the Injectables r
     expect(manifest('truebatch_injectables_packing').migrate).toEqual({ command: ['node', 'dist/packing/migrate.js'] });
   });
 });
+
+describe('TrueBatch Capsules and TrueBatch Capsules Packing, two products from the Capsules repo (D-89)', () => {
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const tc = {
+    ...base, licences: ['hello', 'truebatch_capsules', 'truebatch_capsules_packing'],
+    links: { hello: { master_data: ['equipment_v1'] }, truebatch_capsules: { master_data: md }, truebatch_capsules_packing: { master_data: md } },
+  };
+  const raw = {
+    ...rawSecrets,
+    logins: { ...rawSecrets.logins, truebatch_capsules_app: PW, truebatch_capsules_packing_app: PW },
+    oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_capsules: 'test-only-client-secret', truebatch_capsules_packing: 'test-only-client-secret' } },
+  };
+
+  it('PL-01 Capsules offers its 11 permission codes and Capsules Packing its 11, each all its own', () => {
+    for (const p of ['truebatch_capsules', 'truebatch_capsules_packing']) {
+      const codes = manifest(p).permissions.map((x) => x.code);
+      expect(codes, p).toHaveLength(11);
+      expect(codes.every((c) => c.startsWith(`${p}.`)), p).toBe(true);
+      expect(codes, p).toContain(`${p}.qc.approve`);
+      expect(manifest(p).signon).toEqual({ backchannel_logout: '/backchannel-logout' });
+    }
+    expect(manifest('truebatch_capsules').permissions.some((x) => x.code.startsWith('truebatch_capsules_packing.'))).toBe(false);
+    for (const p of ['truebatch', 'truebatch_packing', 'truebatch_injectables']) expect(manifest(p).permissions.some((x) => x.code.startsWith('truebatch_capsules'))).toBe(false);
+  });
+
+  it('PL-08 each gets its own database and login and sign-on at truebatch-capsules(-packing).<domain>, on host ports 8115 and 8116 behind an outside proxy', () => {
+    const { config, secrets: s } = checkConfig(tc, raw);
+    const env = productEnv(config, s!, 'truebatch_capsules');
+    expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_CAPSULES_DATABASE_URL']);
+    expect(env.TRUEBATCH_CAPSULES_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_capsules_app:.*@db:5432\/truebatch_capsules$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-capsules.ci.example/cb');
+    const penv = productEnv(config, s!, 'truebatch_capsules_packing');
+    expect(penv.TRUEBATCH_CAPSULES_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_capsules_packing_app:.*@db:5432\/truebatch_capsules_packing$/);
+    expect(penv.OIDC_REDIRECT_URI).toBe('https://truebatch-capsules-packing.ci.example/cb');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules.ci.example {\n  reverse_proxy 127.0.0.1:8115\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules-packing.ci.example {\n  reverse_proxy 127.0.0.1:8116\n}');
+    expect(caddyfile(config)).toContain('truebatch-capsules.ci.example {\n  reverse_proxy truebatch_capsules:3000\n}');
+    expect(manifest('truebatch_capsules').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
+    expect(manifest('truebatch_capsules_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1']);
+    expect(() => checkConfig({ ...tc, licences: ['hello', 'truebatch_capsules_packing'], links: { hello: tc.links.hello, truebatch_capsules_packing: { master_data: md } } }, raw)).not.toThrow();
+    expect(() => checkConfig({ ...tc, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_capsules" is not licensed/);
+  });
+
+  it('PL-08 every view Capsules and Capsules Packing read is published by its provider; Packing reads Capsules\' bulk batches and deviation notes', () => {
+    const reads = manifest('truebatch_capsules').reads!;
+    expect(reads).toEqual(manifest('truebatch').reads);
+    const preads = manifest('truebatch_capsules_packing').reads!;
+    expect(preads.truebatch_capsules).toEqual(['batch_fact_v1', 'deviation_note_v1']);
+    for (const [r, p] of [[reads, 'truebatch_capsules'], [preads, 'truebatch_capsules_packing']] as const)
+      for (const provider of Object.keys(r).filter((x) => x !== 'master_data'))
+        expect(r[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `${p} -> ${provider}`).toEqual([]);
+  });
+
+  it('PL-10 both images are pinned to the same full commit of the Capsules repo; Packing from ops/packing.Dockerfile with its own migrator', () => {
+    expect(imageTags().TRUEBATCH_CAPSULES_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(imageTags().TRUEBATCH_CAPSULES_PACKING_COMMIT).toBe(imageTags().TRUEBATCH_CAPSULES_COMMIT);
+    expect(manifest('truebatch_capsules').source!.repo).toBe('https://github.com/maglesT/truebatch-capsules');
+    expect(manifest('truebatch_capsules').source!.dockerfile).toBeUndefined();
+    expect(manifest('truebatch_capsules').migrate).toBeUndefined();
+    expect(manifest('truebatch_capsules_packing').source).toEqual({ ...manifest('truebatch_capsules').source, dockerfile: 'ops/packing.Dockerfile' });
+    expect(manifest('truebatch_capsules_packing').migrate).toEqual({ command: ['node', 'dist/packing/migrate.js'] });
+  });
+});
