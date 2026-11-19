@@ -262,7 +262,7 @@ describe('PL-08 the Logbook, a product kept in its own repo (D-29)', () => {
     expect(env.OIDC_REDIRECT_URI).toBe('https://logbook.ci.example/cb');
     expect(productEnv(config, s!, 'hello')).not.toHaveProperty('GEMINI_API_KEY');
     // Item status for TrueBatch (Logbook D-45, D-28).
-    expect(manifest('logbook').publishes).toEqual(['equipment_v1', 'entry_v1', 'calibration_v1', 'logbook_sop_v1', 'overdue_v1', 'equipment_status_v1']);
+    expect(manifest('logbook').publishes).toEqual(['equipment_v1', 'entry_v1', 'calibration_v1', 'logbook_sop_v1', 'overdue_v1', 'equipment_status_v1', 'reliability_v1']);
   });
 
   it('PL-10 its image is pinned to a full commit; its extra settings do not stop a config that does not license it', () => {
@@ -490,8 +490,8 @@ describe('Operations, a product kept in its own repo (Operations D-19)', () => {
       .toThrow(/link ops -> logbook: provider is not licensed/);
   });
 
-  it('PL-08 with the Logbook licensed and linked, Operations reads its two views through LOGBOOK_DATABASE_URL', () => {
-    const views = ['equipment_v1', 'entry_v1'];
+  it('PL-08 with the Logbook licensed and linked, Operations reads its views (MTBF/MTTR: reliability_v1, Ops D-27) through LOGBOOK_DATABASE_URL', () => {
+    const views = ['equipment_v1', 'entry_v1', 'reliability_v1'];
     expect(manifest('ops').reads!.logbook).toEqual(views);
     expect(views.every((v) => manifest('logbook').publishes.includes(v))).toBe(true);
     const withLogbook = { ...ops, licences: [...ops.licences, 'logbook'], links: { ...ops.links, ops: { ...ops.links.ops, logbook: views } } };
