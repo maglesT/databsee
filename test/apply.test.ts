@@ -332,7 +332,7 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
       truebatch_injectables_packing: ['packing_batch_v1', 'material_use_v1'], truebatch_api: ['batch_fact_v1', 'material_use_v1'], qual: ['qualification_v1'],
       truebatch_capsules: ['batch_fact_v1', 'material_use_v1'], truebatch_liquids: ['batch_fact_v1', 'material_use_v1'], truebatch_capsules_packing: ['packing_batch_v1', 'material_use_v1'],   // D-109 readers round 2
       truebatch_liquids_packing: ['packing_batch_v1', 'material_use_v1'], lims: ['oos_v1', 'stability_v1', 'trend_v1'], mms: ['lot_v1'] });   // D-110: PQR starting materials (QMS D-22)
-    expect(manifest('qms').publishes).toEqual(['change_v1', 'document_v1', 'risk_v1', 'supplier_approval_v1']);   // change controls for TrueBatch (QMS D-16, D-28); documents in force (QMS D-19), risk register (QMS D-20)
+    expect(manifest('qms').publishes).toEqual(['change_v1', 'document_v1', 'risk_v1', 'supplier_approval_v1', 'capa_v1']);   // change controls for TrueBatch (QMS D-16, D-28); documents in force (QMS D-19), risk register (QMS D-20); CAPAs (QMS D-23)
     // Deviations is not licensed here, so the link cannot be switched on.
     expect(() => checkConfig({ ...qms, links: { ...qms.links, qms: { ...qms.links.qms, deviations: ['capa_v1'] } } }, raw)).toThrow(/provider is not licensed/);
   });
@@ -404,7 +404,8 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
     const { truebatch: fromTrueBatch, truebatch_packing: fromPacking, truebatch_injectables: fromInjectables, truebatch_injectables_packing: fromInjectablesPacking,
-      truebatch_capsules: fromCapsules, truebatch_capsules_packing: fromCapsulesPacking, truebatch_liquids: fromLiquids, truebatch_liquids_packing: fromLiquidsPacking, truebatch_api: fromApi, lims: fromLims, ...reads } = manifest('deviations').reads!;
+      truebatch_capsules: fromCapsules, truebatch_capsules_packing: fromCapsulesPacking, truebatch_liquids: fromLiquids, truebatch_liquids_packing: fromLiquidsPacking, truebatch_api: fromApi, lims: fromLims, qms: fromQms, ...reads } = manifest('deviations').reads!;
+    expect(fromQms).toEqual(['capa_v1']);   // QMS owns CAPA while linked (Deviations D-63, QMS D-23)
     expect(fromLims).toEqual(['oos_v1']);   // OOS phase II picked from LIMS once licensed (Deviations D-60, D-109)
     expect(dev.links.deviations).toEqual(reads);
     expect(fromTrueBatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch once licensed (Deviations D-51, D-28)
