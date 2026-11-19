@@ -844,7 +844,7 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables.ci.example {\n  reverse_proxy 127.0.0.1:8113\n}');
     expect(caddyfile(config)).toContain('truebatch-injectables.ci.example {\n  reverse_proxy truebatch_injectables:3000\n}');
     expect(ti.links.truebatch_injectables.master_data).toEqual(manifest('truebatch_injectables').reads!.master_data);
-    expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1']);
+    expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'steriliser_cycle_v1']);   // D-114 cycles for the Logbook
     expect(() => checkConfig({ ...ti, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_injectables" is not licensed/);
   });
 
