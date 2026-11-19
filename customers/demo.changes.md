@@ -107,3 +107,4 @@ Server: 187.126.126.5 (Hostinger KVM 8, Ubuntu 24.04.5), shared with the standal
 | 2026-11-19 | Platform release v1.26.5 (D-117): LIMS daf909b (migration 0029: result_v1 test code empty for requests before round 45, so Injectables can pick IPR2600001), Liquids + Packing 616b6c0 (round 45 test codes, migration 0022). |
 | 2026-11-19 | Platform release v1.26.6 (D-118): QMS owns CAPA. QMS 67eab6a (capa_v1, deviation picked; migration 0013), Deviations 48d0d68 (no new local CAPA while QMS linked; shows QMS CAPAs). |
 | 2026-11-19 | Platform release v1.26.7 (D-119): Injectables + Packing 6ecd648 (an EM alert does not hold QC approval; only action excursions need a deviation number). Applied together with v1.26.6. |
+| 2026-11-19 | Platform release v1.26.8 (D-120): MMS 714ab43 (QA sends a lot back to QC; basis from the CoA; migration 0019), QMS b032d21 (CAPA link from Deviations survives sign-in). |
