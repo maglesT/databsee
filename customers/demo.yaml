@@ -1,14 +1,14 @@
 # Demo company (DEMO-ONLY, docs/demo-company.md): rehearsal of the go-live on the owner's server, test address only.
 # Removed completely after the rehearsal (owner's go-live plan, Phase 1); nothing of it goes into the real install.
 customer: demo
-version: 1.24.4 # (1.24.4: Oral Liquids shipper count published, holding tank room warning; 1.24.3: Oral Liquids master reviews show every change (round 38), make-up by kind; 1.24.2: optional minimum times are waits again (round 39); 1.24.1: master reviews show every change, stop checks on unset limits refused, LIMS review and CoA fixes; 1.24.0: fix rounds of all TrueBatch products, LIMS step 8; 1.23.0: Medhanta LIMS steps 6 and 7, stability, micro, EM and water) (1.22.4: TrueBatch API fix round 2, QA hold release, formula lines by kind, packing units; 1.22.3: TrueBatch Capsules, QA releases a QA hold on the step screen; 1.22.2: Injectables ports of Tablets rounds 29, 31, 32; 1.22.1: TrueBatch Capsules Packing, packing material unit kept on its steps; 1.22.0: Medhanta LIMS step 5, instrument data capture) (1.21.2: TrueBatch API fix round, intermediate molecular weight on the stage screen, QMS "none" product, Tablets round 31; 1.21.1: TrueBatch Capsules fix round, soft gel machines, good output in batch_fact_v1, Tablets rounds 29 and 31; 1.21.0: Medhanta LIMS step 4, OOS and OOT, lab inventory, instruments) platform release (1.20.0: Logbook, MMS, Deviations and OEE read TrueBatch Capsules, Oral Liquids and API; TrueBatch rounds 29-31; 1.19.1: Medhanta LIMS fix, specification limit with no unit; platform release (1.19.0: TrueBatch Liquids and Liquids Packing on the platform; 1.18.0: Medhanta LIMS, the QC laboratory system, on the platform; 1.17.2: QMS documents in force, controlled copies, PQR fill, risk management; Qualification cleaning limits)
+version: 1.25.0 # (1.25.0: readers round 2, products read LIMS CoAs, results, OOS, stability, trends and instrument use; MMS receives API lots; 1.24.4: Oral Liquids shipper count published, holding tank room warning; 1.24.3: Oral Liquids master reviews show every change (round 38), make-up by kind; 1.24.2: optional minimum times are waits again (round 39); 1.24.1: master reviews show every change, stop checks on unset limits refused, LIMS review and CoA fixes; 1.24.0: fix rounds of all TrueBatch products, LIMS step 8; 1.23.0: Medhanta LIMS steps 6 and 7, stability, micro, EM and water) (1.22.4: TrueBatch API fix round 2, QA hold release, formula lines by kind, packing units; 1.22.3: TrueBatch Capsules, QA releases a QA hold on the step screen; 1.22.2: Injectables ports of Tablets rounds 29, 31, 32; 1.22.1: TrueBatch Capsules Packing, packing material unit kept on its steps; 1.22.0: Medhanta LIMS step 5, instrument data capture) (1.21.2: TrueBatch API fix round, intermediate molecular weight on the stage screen, QMS "none" product, Tablets round 31; 1.21.1: TrueBatch Capsules fix round, soft gel machines, good output in batch_fact_v1, Tablets rounds 29 and 31; 1.21.0: Medhanta LIMS step 4, OOS and OOT, lab inventory, instruments) platform release (1.20.0: Logbook, MMS, Deviations and OEE read TrueBatch Capsules, Oral Liquids and API; TrueBatch rounds 29-31; 1.19.1: Medhanta LIMS fix, specification limit with no unit; platform release (1.19.0: TrueBatch Liquids and Liquids Packing on the platform; 1.18.0: Medhanta LIMS, the QC laboratory system, on the platform; 1.17.2: QMS documents in force, controlled copies, PQR fill, risk management; Qualification cleaning limits)
 domain: demo.187-126-126-5.sslip.io # test name, NOT the go-live one
 offline: true # signed bundle downloaded from the apply run and applied by hand (no SSH from GitHub)
 security_contact: it-security@demo-pharma.example
 backup:
   path: medhanta-backups/demo-rehearsal # separate Drive folder, deleted with the demo
 change_ref: MED-GOLIVE-001
-reason: "Demo on v1.24.4: Oral Liquids 41ebd6e (Phase F: shipper count, holding tank room check)"
+reason: "Demo on v1.25.0: readers round 2 (LIMS links into TrueBatch, MMS, Deviations, QMS, Logbook; API lots into MMS; lab instruments in Qualification)"
 proxy: external # the host's Caddy owns 80/443 (README "Behind the host's proxy")
 db_port: 5440 # 127.0.0.1:5432 was taken by another PostgreSQL on this server when it was set up (D-18)
 licences:
@@ -70,6 +70,8 @@ links:
     truebatch_api:
       - batch_fact_v1
       - equipment_use_v1
+    lims:
+      - instrument_use_v1
   mms:
     master_data:
       - material_v1
@@ -98,10 +100,15 @@ links:
       - packing_batch_v1
     truebatch_api:
       - material_use_v1
+      - output_lot_v1
+    lims:
+      - coa_v1
+      - result_v1
   qms:
     master_data:
       - product_v1
       - supplier_v1
+      - material_v1
     deviations:
       - capa_v1
       - deviation_v1
@@ -117,6 +124,18 @@ links:
       - batch_fact_v1
     qual:
       - qualification_v1
+    truebatch_capsules:
+      - batch_fact_v1
+    truebatch_liquids:
+      - batch_fact_v1
+    truebatch_capsules_packing:
+      - packing_batch_v1
+    truebatch_liquids_packing:
+      - packing_batch_v1
+    lims:
+      - oos_v1
+      - stability_v1
+      - trend_v1
   qual:
     master_data:
       - equipment_v1
@@ -172,6 +191,8 @@ links:
       - batch_fact_v1
       - equipment_use_v1
       - deviation_note_v1
+    lims:
+      - oos_v1
   ops:
     master_data:
       - equipment_v1
@@ -227,6 +248,9 @@ links:
       - lot_test_v1
     recruitment:
       - training_v1
+    lims:
+      - coa_v1
+      - result_v1
   truebatch_packing:
     master_data:
       - equipment_v1
@@ -248,6 +272,9 @@ links:
       - change_v1
     recruitment:
       - training_v1
+    lims:
+      - coa_v1
+      - result_v1
   truebatch_injectables:
     master_data:
       - equipment_v1
@@ -268,6 +295,9 @@ links:
       - training_v1
     qual:
       - protocol_v1
+    lims:
+      - coa_v1
+      - result_v1
   truebatch_injectables_packing:
     master_data:
       - equipment_v1
@@ -288,6 +318,9 @@ links:
       - change_v1
     recruitment:
       - training_v1
+    lims:
+      - coa_v1
+      - result_v1
   truebatch_liquids:
     master_data:
       - equipment_v1
@@ -306,6 +339,9 @@ links:
       - lot_test_v1
     recruitment:
       - training_v1
+    lims:
+      - coa_v1
+      - result_v1
   truebatch_liquids_packing:
     master_data:
       - equipment_v1
@@ -327,6 +363,9 @@ links:
       - change_v1
     recruitment:
       - training_v1
+    lims:
+      - coa_v1
+      - result_v1
   truebatch_api:
     master_data:
       - equipment_v1
@@ -345,6 +384,8 @@ links:
       - lot_test_v1
     recruitment:
       - training_v1
+    lims:
+      - coa_v1
   truebatch_capsules:
     master_data:
       - equipment_v1
@@ -363,6 +404,9 @@ links:
       - change_v1
     recruitment:
       - training_v1
+    lims:
+      - coa_v1
+      - result_v1
   truebatch_capsules_packing:
     master_data:
       - equipment_v1
@@ -384,6 +428,9 @@ links:
       - change_v1
     recruitment:
       - training_v1
+    lims:
+      - coa_v1
+      - result_v1
   core:
     recruitment:
       - hire_v1
