@@ -27,5 +27,5 @@
   ],
   "publishes": ["lot_v1", "lot_test_v1"],
   "reads": { "master_data": ["material_v1", "supplier_v1", "product_v1", "room_v1"], "truebatch": ["material_use_v1", "batch_fact_v1"], "truebatch_packing": ["material_use_v1", "packing_batch_v1"], "truebatch_injectables": ["material_use_v1", "batch_fact_v1"], "truebatch_injectables_packing": ["material_use_v1", "packing_batch_v1"], "truebatch_capsules": ["material_use_v1", "batch_fact_v1"], "truebatch_capsules_packing": ["material_use_v1", "packing_batch_v1"], "truebatch_liquids": ["material_use_v1", "batch_fact_v1"], "truebatch_liquids_packing": ["material_use_v1", "packing_batch_v1"], "truebatch_api": ["material_use_v1", "output_lot_v1", "batch_fact_v1"], "lims": ["coa_v1", "result_v1", "sample_v1"], "qms": ["supplier_approval_v1"] },
-  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "446820daa03eca2f07ed103983b3a82ffc1eeff4" }
+  "source": { "repo": "https://github.com/maglesT/mater-managemen-syst", "commit": "714ab43a9405f6de1d26adc758879f503f9dfe46" }
 }
