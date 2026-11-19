@@ -105,3 +105,4 @@ Server: 187.126.126.5 (Hostinger KVM 8, Ubuntu 24.04.5), shared with the standal
 | 2026-11-19 | Platform release v1.26.3 (D-115): MMS 446820d (sampling read from LIMS sample_v1; stock count after TrueBatch use), round 45 in-process test codes in Tablets ec3a548, Capsules 42b3057, API d483ab5, Injectables 37997de, LIMS 09e9058 (migration 0028); TrueBatch API reads LIMS result_v1. |
 | 2026-11-19 | Platform release v1.26.4 (D-116): LIMS 2fbdf59 (units mOsm/kg, Osm/kg, mg/L, µg/L; no migration). Applied together with v1.26.3. |
 | 2026-11-19 | Platform release v1.26.5 (D-117): LIMS daf909b (migration 0029: result_v1 test code empty for requests before round 45, so Injectables can pick IPR2600001), Liquids + Packing 616b6c0 (round 45 test codes, migration 0022). |
+| 2026-11-19 | Platform release v1.26.6 (D-118): QMS owns CAPA. QMS 67eab6a (capa_v1, deviation picked; migration 0013), Deviations 48d0d68 (no new local CAPA while QMS linked; shows QMS CAPAs). |
