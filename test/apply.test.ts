@@ -327,10 +327,12 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
     expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'QMS_DATABASE_URL']);
     expect(env.QMS_DATABASE_URL).toMatch(/^postgres:\/\/qms_app:.*@db:5432\/qms$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://qms.ci.example/cb');
-    expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1'], deviations: ['capa_v1', 'deviation_v1'],   // QMS D-18: deviations linked
+    expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1', 'material_v1'], deviations: ['capa_v1', 'deviation_v1'],   // QMS D-18: deviations linked; D-21 materials of supplier approvals
       truebatch: ['batch_fact_v1'], truebatch_packing: ['packing_batch_v1'], truebatch_injectables: ['batch_fact_v1'],   // QMS D-19: PQR filled from the platform
-      truebatch_injectables_packing: ['packing_batch_v1'], truebatch_api: ['batch_fact_v1'], qual: ['qualification_v1'] });
-    expect(manifest('qms').publishes).toEqual(['change_v1', 'document_v1', 'risk_v1']);   // change controls for TrueBatch (QMS D-16, D-28); documents in force (QMS D-19), risk register (QMS D-20)
+      truebatch_injectables_packing: ['packing_batch_v1'], truebatch_api: ['batch_fact_v1'], qual: ['qualification_v1'],
+      truebatch_capsules: ['batch_fact_v1'], truebatch_liquids: ['batch_fact_v1'], truebatch_capsules_packing: ['packing_batch_v1'],   // D-109 readers round 2
+      truebatch_liquids_packing: ['packing_batch_v1'], lims: ['oos_v1', 'stability_v1', 'trend_v1'] });
+    expect(manifest('qms').publishes).toEqual(['change_v1', 'document_v1', 'risk_v1', 'supplier_approval_v1']);   // change controls for TrueBatch (QMS D-16, D-28); documents in force (QMS D-19), risk register (QMS D-20)
     // Deviations is not licensed here, so the link cannot be switched on.
     expect(() => checkConfig({ ...qms, links: { ...qms.links, qms: { ...qms.links.qms, deviations: ['capa_v1'] } } }, raw)).toThrow(/provider is not licensed/);
   });
@@ -402,7 +404,8 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
     const { truebatch: fromTrueBatch, truebatch_packing: fromPacking, truebatch_injectables: fromInjectables, truebatch_injectables_packing: fromInjectablesPacking,
-      truebatch_capsules: fromCapsules, truebatch_capsules_packing: fromCapsulesPacking, truebatch_liquids: fromLiquids, truebatch_liquids_packing: fromLiquidsPacking, truebatch_api: fromApi, ...reads } = manifest('deviations').reads!;
+      truebatch_capsules: fromCapsules, truebatch_capsules_packing: fromCapsulesPacking, truebatch_liquids: fromLiquids, truebatch_liquids_packing: fromLiquidsPacking, truebatch_api: fromApi, lims: fromLims, ...reads } = manifest('deviations').reads!;
+    expect(fromLims).toEqual(['oos_v1']);   // OOS phase II picked from LIMS once licensed (Deviations D-60, D-109)
     expect(dev.links.deviations).toEqual(reads);
     expect(fromTrueBatch).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch once licensed (Deviations D-51, D-28)
     expect(fromPacking).toEqual(['packing_batch_v1', 'equipment_use_v1', 'deviation_note_v1']);   // TrueBatch Tablets Packing once licensed (Deviations D-53, D-31; D-57 reads its batches and uses)
@@ -529,7 +532,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_app:.*@db:5432\/master_data$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch.ci.example/cb');
     expect(tb.links.truebatch.master_data).toEqual(manifest('truebatch').reads!.master_data);
-    expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment']);   // training_v1 (TB-23)
+    expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment', 'lims']);   // lims: CoAs and results (round 40, D-109)   // training_v1 (TB-23)
     expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
@@ -624,7 +627,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
 
   it('PL-08 the Packing links: every view read is published by its provider; each provider URL comes only with its link', () => {
     const reads = manifest('truebatch_packing').reads!;
-    expect(Object.keys(reads)).toEqual(['master_data', 'truebatch', 'mms', 'logbook', 'deviations', 'qms', 'recruitment']);   // training_v1 (TB-23)
+    expect(Object.keys(reads)).toEqual(['master_data', 'truebatch', 'mms', 'logbook', 'deviations', 'qms', 'recruitment', 'lims']);   // training_v1 (TB-23)
     expect(reads.truebatch).toEqual(['batch_fact_v1', 'deviation_note_v1']);   // the bulk batch's open deviations block packing release (S24)
     for (const provider of ['truebatch', 'mms', 'logbook', 'deviations', 'qms'])
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
@@ -848,7 +851,7 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
   it('PL-08 every view Injectables reads is published by its provider', () => {
     const reads = manifest('truebatch_injectables').reads!;
     // + qual (the line's media fill) and recruitment (training to sign, TI-32): D-74.
-    expect(Object.keys(reads)).toEqual(['qual', 'recruitment', 'master_data', 'deviations', 'qms', 'logbook', 'mms']);
+    expect(Object.keys(reads)).toEqual(['qual', 'recruitment', 'master_data', 'deviations', 'qms', 'logbook', 'mms', 'lims']);
     for (const provider of ['qual', 'recruitment', 'deviations', 'qms', 'logbook', 'mms'])
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
   });
@@ -900,7 +903,7 @@ describe('TrueBatch API, its own product from its own repo (D-88)', () => {
 
   it('PL-08 every view TrueBatch API reads is published by its provider', () => {
     const reads = manifest('truebatch_api').reads!;
-    expect(Object.keys(reads)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment']);
+    expect(Object.keys(reads)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment', 'lims']);
     for (const provider of ['deviations', 'qms', 'logbook', 'mms', 'recruitment'])
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
   });
@@ -1108,7 +1111,7 @@ describe('TrueBatch Liquids and TrueBatch Liquids Packing, two products from the
 
   it('PL-08 every view Liquids and Liquids Packing read is published by its provider', () => {
     const reads = manifest('truebatch_liquids').reads!;
-    expect(Object.keys(reads)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment']);
+    expect(Object.keys(reads)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment', 'lims']);
     for (const p of ['truebatch_liquids', 'truebatch_liquids_packing']) {
       const r = manifest(p).reads!;
       for (const provider of Object.keys(r).filter((x) => x !== 'master_data')) expect(r[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `${p} -> ${provider}`).toEqual([]);
