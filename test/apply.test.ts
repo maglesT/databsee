@@ -328,10 +328,10 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
     expect(env.QMS_DATABASE_URL).toMatch(/^postgres:\/\/qms_app:.*@db:5432\/qms$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://qms.ci.example/cb');
     expect(manifest('qms').reads).toEqual({ master_data: ['product_v1', 'supplier_v1', 'material_v1'], deviations: ['capa_v1', 'deviation_v1'],   // QMS D-18: deviations linked; D-21 materials of supplier approvals
-      truebatch: ['batch_fact_v1'], truebatch_packing: ['packing_batch_v1'], truebatch_injectables: ['batch_fact_v1'],   // QMS D-19: PQR filled from the platform
-      truebatch_injectables_packing: ['packing_batch_v1'], truebatch_api: ['batch_fact_v1'], qual: ['qualification_v1'],
-      truebatch_capsules: ['batch_fact_v1'], truebatch_liquids: ['batch_fact_v1'], truebatch_capsules_packing: ['packing_batch_v1'],   // D-109 readers round 2
-      truebatch_liquids_packing: ['packing_batch_v1'], lims: ['oos_v1', 'stability_v1', 'trend_v1'] });
+      truebatch: ['batch_fact_v1', 'material_use_v1'], truebatch_packing: ['packing_batch_v1', 'material_use_v1'], truebatch_injectables: ['batch_fact_v1', 'material_use_v1'],   // QMS D-19: PQR filled from the platform; D-22 materials used
+      truebatch_injectables_packing: ['packing_batch_v1', 'material_use_v1'], truebatch_api: ['batch_fact_v1', 'material_use_v1'], qual: ['qualification_v1'],
+      truebatch_capsules: ['batch_fact_v1', 'material_use_v1'], truebatch_liquids: ['batch_fact_v1', 'material_use_v1'], truebatch_capsules_packing: ['packing_batch_v1', 'material_use_v1'],   // D-109 readers round 2
+      truebatch_liquids_packing: ['packing_batch_v1', 'material_use_v1'], lims: ['oos_v1', 'stability_v1', 'trend_v1'], mms: ['lot_v1'] });   // D-110: PQR starting materials (QMS D-22)
     expect(manifest('qms').publishes).toEqual(['change_v1', 'document_v1', 'risk_v1', 'supplier_approval_v1']);   // change controls for TrueBatch (QMS D-16, D-28); documents in force (QMS D-19), risk register (QMS D-20)
     // Deviations is not licensed here, so the link cannot be switched on.
     expect(() => checkConfig({ ...qms, links: { ...qms.links, qms: { ...qms.links.qms, deviations: ['capa_v1'] } } }, raw)).toThrow(/provider is not licensed/);
@@ -1056,7 +1056,7 @@ describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
 
   it('PL-08 every view LIMS reads is published by its provider', () => {
     const reads = manifest('lims').reads!;
-    expect(Object.keys(reads).sort()).toEqual(['deviations', 'logbook', 'master_data', 'mms', 'qms', 'qual', 'recruitment', 'truebatch']);
+    expect(Object.keys(reads).sort()).toEqual(['deviations', 'logbook', 'master_data', 'mms', 'qms', 'qual', 'recruitment', 'truebatch', 'truebatch_api', 'truebatch_capsules', 'truebatch_injectables', 'truebatch_liquids']);   // D-110: batches of every production edition
     for (const provider of Object.keys(reads).filter((x) => x !== 'master_data'))
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `lims -> ${provider}`).toEqual([]);
   });
