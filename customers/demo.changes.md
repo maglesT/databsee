@@ -108,3 +108,4 @@ Server: 187.126.126.5 (Hostinger KVM 8, Ubuntu 24.04.5), shared with the standal
 | 2026-11-19 | Platform release v1.26.6 (D-118): QMS owns CAPA. QMS 67eab6a (capa_v1, deviation picked; migration 0013), Deviations 48d0d68 (no new local CAPA while QMS linked; shows QMS CAPAs). |
 | 2026-11-19 | Platform release v1.26.7 (D-119): Injectables + Packing 6ecd648 (an EM alert does not hold QC approval; only action excursions need a deviation number). Applied together with v1.26.6. |
 | 2026-11-19 | Platform release v1.26.8 (D-120): MMS 714ab43 (QA sends a lot back to QC; basis from the CoA; migration 0019), QMS b032d21 (CAPA link from Deviations survives sign-in). |
+| 2026-11-19 | Platform release v1.26.9 (D-121): LIMS ee9d605 (retest sample for a lot MMS sent back to QC; no migration). |
