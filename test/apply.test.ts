@@ -533,7 +533,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch.ci.example/cb');
     expect(tb.links.truebatch.master_data).toEqual(manifest('truebatch').reads!.master_data);
     expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment', 'lims']);   // lims: CoAs and results (round 40, D-109)   // training_v1 (TB-23)
-    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
+    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1']);   // D-112 in-process lab requests
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
@@ -618,7 +618,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-packing.ci.example {\n  reverse_proxy 127.0.0.1:8111\n}');
     expect(caddyfile(config)).toContain('truebatch-packing.ci.example {\n  reverse_proxy truebatch_packing:3000\n}');
     expect(tp.links.truebatch_packing.master_data).toEqual(manifest('truebatch_packing').reads!.master_data);
-    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1']);
+    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1', 'lab_request_v1']);
     // It reads the released bulk batches of TrueBatch Tablets only while TrueBatch is licensed and linked.
     expect(() => checkConfig({ ...tp, links: { ...tp.links, truebatch_packing: { ...tp.links.truebatch_packing, truebatch: ['batch_fact_v1'] } } }, raw))
       .toThrow(/link truebatch_packing -> truebatch: provider is not licensed/);
@@ -727,7 +727,7 @@ describe('Release 1.5.0: what both TrueBatch products used, read by the Logbook 
   it('PL-08 the Logbook reads both products\' equipment_use_v1, MMS both products\' material_use_v1; each view is published; each URL comes only with its link', () => {
     expect(manifest('logbook').reads!.truebatch).toEqual(['batch_fact_v1', 'equipment_use_v1']);   // Logbook D-46
     expect(manifest('logbook').reads!.truebatch_packing).toEqual(['equipment_use_v1', 'packing_batch_v1']);   // Logbook D-47, D-61
-    expect(manifest('mms').reads!.truebatch).toEqual(['material_use_v1']);                        // MMS D-57
+    expect(manifest('mms').reads!.truebatch).toEqual(['material_use_v1', 'batch_fact_v1']);   // D-112: MMS D-75 knows a batch from its issue                        // MMS D-57
     expect(manifest('mms').reads!.truebatch_packing).toEqual(['material_use_v1', 'packing_batch_v1']);   // MMS D-58, D-64
     for (const reader of ['logbook', 'mms'])
       for (const provider of ['truebatch', 'truebatch_packing'])
@@ -844,7 +844,7 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables.ci.example {\n  reverse_proxy 127.0.0.1:8113\n}');
     expect(caddyfile(config)).toContain('truebatch-injectables.ci.example {\n  reverse_proxy truebatch_injectables:3000\n}');
     expect(ti.links.truebatch_injectables.master_data).toEqual(manifest('truebatch_injectables').reads!.master_data);
-    expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
+    expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1']);
     expect(() => checkConfig({ ...ti, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_injectables" is not licensed/);
   });
 
@@ -897,7 +897,7 @@ describe('TrueBatch API, its own product from its own repo (D-88)', () => {
     expect(caddyfile(config)).toContain('truebatch-api.ci.example {\n  reverse_proxy truebatch_api:3000\n}');
     expect(ta.links.truebatch_api.master_data).toEqual(manifest('truebatch_api').reads!.master_data);
     // The four views TrueBatch Tablets publishes, and the lots that go to stores for MMS (output_lot_v1).
-    expect(manifest('truebatch_api').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'output_lot_v1']);
+    expect(manifest('truebatch_api').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'output_lot_v1', 'lab_request_v1']);
     expect(() => checkConfig({ ...ta, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_api" is not licensed/);
   });
 
@@ -996,8 +996,8 @@ describe('TrueBatch Capsules and TrueBatch Capsules Packing, two products from t
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules.ci.example {\n  reverse_proxy 127.0.0.1:8115\n}');
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules-packing.ci.example {\n  reverse_proxy 127.0.0.1:8116\n}');
     expect(caddyfile(config)).toContain('truebatch-capsules.ci.example {\n  reverse_proxy truebatch_capsules:3000\n}');
-    expect(manifest('truebatch_capsules').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1']);
-    expect(manifest('truebatch_capsules_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1']);
+    expect(manifest('truebatch_capsules').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1']);
+    expect(manifest('truebatch_capsules_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1', 'lab_request_v1']);
     expect(() => checkConfig({ ...tc, licences: ['hello', 'truebatch_capsules_packing'], links: { hello: tc.links.hello, truebatch_capsules_packing: { master_data: md } } }, raw)).not.toThrow();
     expect(() => checkConfig({ ...tc, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_capsules" is not licensed/);
   });
@@ -1051,12 +1051,12 @@ describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
     expect(env.OIDC_REDIRECT_URI).toBe('https://lims.ci.example/cb');
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('lims.ci.example {\n  reverse_proxy 127.0.0.1:8120\n}');
     expect(caddyfile(config)).toContain('lims.ci.example {\n  reverse_proxy lims:3000\n}');
-    expect(manifest('lims').publishes).toEqual(['coa_v1', 'result_v1', 'oos_v1', 'instrument_use_v1', 'stability_v1', 'em_v1', 'trend_v1']);
+    expect(manifest('lims').publishes).toEqual(['coa_v1', 'result_v1', 'oos_v1', 'instrument_use_v1', 'stability_v1', 'em_v1', 'trend_v1', 'sample_v1']);   // D-112: samples for MMS
   });
 
   it('PL-08 every view LIMS reads is published by its provider', () => {
     const reads = manifest('lims').reads!;
-    expect(Object.keys(reads).sort()).toEqual(['deviations', 'logbook', 'master_data', 'mms', 'qms', 'qual', 'recruitment', 'truebatch', 'truebatch_api', 'truebatch_capsules', 'truebatch_injectables', 'truebatch_liquids']);   // D-110: batches of every production edition
+    expect(Object.keys(reads).sort()).toEqual(['deviations', 'logbook', 'master_data', 'mms', 'qms', 'qual', 'recruitment', 'truebatch', 'truebatch_api', 'truebatch_capsules', 'truebatch_capsules_packing', 'truebatch_injectables', 'truebatch_injectables_packing', 'truebatch_liquids', 'truebatch_liquids_packing', 'truebatch_packing']);   // D-110 batches of every production edition; D-112 lab requests of every edition
     for (const provider of Object.keys(reads).filter((x) => x !== 'master_data'))
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), `lims -> ${provider}`).toEqual([]);
   });

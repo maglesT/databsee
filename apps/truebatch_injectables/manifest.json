@@ -17,7 +17,7 @@
     {"code": "truebatch_injectables.batch.inspect", "label": "Visual inspector: record and sign 100 % visual inspection (granted by QA)"}
   ],
   "signon": { "backchannel_logout": "/backchannel-logout" },
-  "publishes": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1", "material_use_v1"],
+  "publishes": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1", "material_use_v1", "lab_request_v1"],
   "reads": { "qual": ["protocol_v1"], "recruitment": ["training_v1"], "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"], "logbook": ["equipment_status_v1"], "mms": ["lot_v1", "lot_test_v1"], "lims": ["coa_v1", "result_v1"] },
-  "source": { "repo": "https://github.com/maglesT/truebatch-injectabless", "commit": "89261e032dd47e34ae4db1b91a2d523ea5c8fec5" }
+  "source": { "repo": "https://github.com/maglesT/truebatch-injectabless", "commit": "84b6942c1bbeee3c5fb1bec5d64b3f2fb75ef160" }
 }
