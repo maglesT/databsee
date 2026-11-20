@@ -71,6 +71,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 - `item_version` (item_id, version, name, fields jsonb checked per kind, active, changed_by id + name, changed_at UTC, reason) — insert-only; the history is the audit trail.
 - `item_link` (id, from_item, to_item, type e.g. *located_in*, *supplied_by*, *made_of*; version, active, who, when, reason) — insert-only.
 - Views `report.equipment_v1`, `instrument_v1`, `room_v1`, `material_v1`, `supplier_v1`, `product_v1`, `item_link_v1` (current version + `version`, `read_at`, `data_as_of`).
+- `report.product_v1` columns (PL-08: only added at the end): id, code, name, version, active, strength, dosage_form, read_at, data_as_of, kind (D-64), antibiotic (D-69), shelf_life_months (integer 1–120, D-125), expiry_rule ('month before' | 'same month', D-125); null when not set.
 
 **identity**
 - `employee` (id uuid, login — unique for all time, created_at) + `employee_version` (full name, email, active, who, when, reason) — insert-only.
