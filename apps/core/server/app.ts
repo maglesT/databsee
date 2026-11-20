@@ -13,6 +13,7 @@ import { hashPassword, passwordProblem, temporaryPassword, verifyPassword } from
 import { buildProvider, endSignOn, SIGN_ON_COOKIE, SIGN_ON_TTL_S, signOnAccount, signOnCookie, startSignOn, cookieSignature, type OidcSettings } from './oidc.js';
 import { registerMasterData } from './master-data.js';
 import { productInfo } from '../products.js';
+import { loginFromName } from '../names.js';
 import { plantTime } from '../time.js';
 import { linkReport, readLink } from './links.js';
 
@@ -231,9 +232,11 @@ export function buildApp(deps: Deps) {
       me = account ? await loadMe(sql, account) : undefined;
       if (me) await newSession(reply, me.id);
     }
+    // The first screen asks /api/session: signed out is an answer there (200, null), not an error in the browser console.
+    if (!me && req.url === '/api/session') return;
     if (!me) throw new HttpError(401, 'Please sign in.');
     req.me = me;
-    if (me.mustChange && !['/api/me', '/api/me/password', '/api/logout'].includes(req.url)) {
+    if (me.mustChange && !['/api/me', '/api/session', '/api/me/password', '/api/logout'].includes(req.url)) {
       throw new HttpError(403, 'Change your password first.');
     }
   });
@@ -274,6 +277,8 @@ export function buildApp(deps: Deps) {
   });
 
   app.get('/api/me', async (req) => req.me);
+  // The same person, or null when signed out (no 401 on the first load before sign-in).
+  app.get('/api/session', async (req) => ({ me: req.me ?? null }));
 
   // "Your applications": the products this person holds at least one permission in and that sign on through core here
   // (an OIDC client of this site), with the address to open. Core itself is not listed: its screens are in the menu.
@@ -512,7 +517,7 @@ export function buildApp(deps: Deps) {
       order by e.login, g.product, g.code`;
     const links = await sql<{ provider: string; consumer: string; view_name: string; switched_on_at: Date | null; change_ref: string | null }[]>`
       select provider, consumer, view_name, switched_on_at, change_ref from link_state order by consumer, provider, view_name`;
-    const when = (d: Date | null) => (d ? plantTime(d) : 'never');
+    const when = (d: Date | null) => (d ? plantTime(d, true) : 'never');
     const table = (head: string[], rows: unknown[][]) => `<table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${
       rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</table>`;
     reply.type('text/html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Access review report</title>
@@ -623,6 +628,5 @@ export async function createFirstAdmin(sql: Sql, login: string, fullName: string
   return temp;
 }
 
-// D-82: names compared without case and extra spaces; the login a person's name gives (Sameer Kale -> sameer.kale).
+// D-82: names compared without case and extra spaces; the login a person's name gives is loginFromName (names.ts).
 function sameName(name: string) { return `${name.trim().replace(/\s+/g, ' ').toLowerCase()}`; }
-function loginFromName(name: string) { return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, ''); }

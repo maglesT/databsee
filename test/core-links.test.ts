@@ -161,10 +161,13 @@ describe('D-77 D-78 logos and plant time', () => {
     expect(Object.entries(PRODUCTS).filter(([, p]) => p.logo).map(([k]) => k).sort()).toEqual(files);
   });
 
-  it('D-78 dates and times read in plant time: "17 Nov 2026, 10:57 pm IST"', () => {
-    expect(plantTime('2026-11-17T17:27:23Z')).toBe('17 Nov 2026, 10:57 pm IST');
-    expect(plantTime('2026-11-17T18:45:00Z')).toBe('18 Nov 2026, 12:15 am IST');
-    expect(plantTime('2026-09-01T06:30:00Z')).toBe('1 Sep 2026, 12:00 pm IST');
+  it('D-78 dates and times read in plant time, 24-hour like the rest of the suite: "17 Nov, 22:57 IST" (year when not this year; printed always)', () => {
+    const now = new Date('2026-11-20T12:00:00Z');
+    expect(plantTime('2026-11-17T17:27:23Z', false, now)).toBe('17 Nov, 22:57 IST');
+    expect(plantTime('2026-11-17T18:45:00Z', false, now)).toBe('18 Nov, 00:15 IST');
+    expect(plantTime('2025-09-01T06:30:00Z', false, now)).toBe('1 Sep 2025, 12:00 IST');
+    expect(plantTime('2026-11-17T17:27:23Z', true, now)).toBe('17 Nov 2026, 22:57 IST');
+    expect(plantTime('2026-12-31T19:00:00Z', false, now)).toBe('1 Jan 2027, 00:30 IST');
     expect(plantTime(null)).toBe('');
     expect(plantDate('2026-12-01')).toBe('1 Dec 2026');
   });

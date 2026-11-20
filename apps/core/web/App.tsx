@@ -1,10 +1,11 @@
 // Core screens (slice A2b): sign in, change password, people, one person (details, permissions, history), alerts.
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from './api.js';
 import { form, Link, useAction, when } from './ui.js';
 import { MasterData } from './MasterData.js';
 import { productInfo } from '../products.js';
 import { plantDate } from '../time.js';
+import { loginFromName } from '../names.js';
 
 interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean }
 interface Person { id: string; login: string; fullName: string; email: string | null; active: boolean; lockedAt: string | null }
@@ -21,7 +22,7 @@ export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [page, setPage] = useState<Page>({ name: 'home' });
   const [apps, setApps] = useState<MyApp[] | undefined>(undefined);
-  const load = useCallback(() => api<Me>('GET', '/api/me').then(setMe, () => setMe(null)), []);
+  const load = useCallback(() => api<{ me: Me | null }>('GET', '/api/session').then((s) => setMe(s.me), () => setMe(null)), []);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (me && !me.mustChange) api<MyApp[]>('GET', '/api/my-apps').then(setApps, () => setApps([])); }, [me]);
 
@@ -162,6 +163,17 @@ function ChangePassword({ me, onDone }: { me: Me; onDone: () => void }) {
   );
 }
 
+/** D-82: a hire's login suggested from the name (loginFromName: "sameer.kale"); a number is added when that login exists
+ *  already (logins are never reused). It stays editable. */
+export function suggestedLogin(fullName: string, people: { login: string }[]): string {
+  const base = loginFromName(fullName);
+  if (!base) return '';
+  const taken = new Set(people.map((p) => p.login.toLowerCase()));
+  let login = base;
+  for (let n = 2; taken.has(login); n++) login = `${base}${n}`;
+  return login;
+}
+
 function People({ open }: { open: (id: string) => void }) {
   const [people, setPeople] = useState<Person[]>([]);
   const [created, setCreated] = useState<{ login: string; temp: string } | null>(null);
@@ -222,7 +234,7 @@ function People({ open }: { open: (id: string) => void }) {
           </label>
         )}
         {hires.state === 'down' && <p className="muted">The link to Recruitment is down: type the person by hand.</p>}
-        <label>Login ID (never reused)<input name="login" required /></label>
+        <label>Login ID (never reused)<input name="login" key={`l${hire?.candidateRef ?? ''}`} defaultValue={hire ? suggestedLogin(hire.fullName, people) : ''} required /></label>
         <label>Full name<input name="fullName" key={`n${hire?.candidateRef ?? ''}`} defaultValue={hire?.fullName ?? ''} required /></label>
         <label>Email<input name="email" type="email" key={`e${hire?.candidateRef ?? ''}`} defaultValue={hire?.email ?? ''} /></label>
         <label>How was their identity checked?<input name="identityVerifiedHow" placeholder="e.g. company ID card seen" required /></label>
@@ -248,11 +260,13 @@ interface History {
 function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) {
   const [h, setH] = useState<History | null>(null);
   const [temp, setTemp] = useState('');
+  // The reason is typed in the form's own "Reason for change" field, never in a browser prompt box.
+  const reasonRef = useRef<HTMLInputElement>(null);
   const a = useAction();
   const load = useCallback(async () => { setH(await api<History>('GET', `/api/employees/${id}/history`)); }, [id]);
   useEffect(() => { void load(); }, [load]);
   if (!h) return null;
-  const ask = (q: string) => { const r = window.prompt(q); if (!r?.trim()) throw new Error('A reason is required.'); return r; };
+  const ask = (what: string) => { const r = reasonRef.current?.value.trim(); if (!r) throw new Error(`Type the reason for ${what} in "Reason for change" first.`); return r; };
   const e = h.employee;
   return (
     <>
@@ -267,19 +281,21 @@ function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) 
         }}>
           <label>Full name<input name="fullName" defaultValue={e.full_name} required /></label>
           <label>Email<input name="email" type="email" defaultValue={e.email ?? ''} /></label>
-          <label>Reason for change<input name="reason" required /></label>
+          <label>Reason for change<input name="reason" ref={reasonRef} required /></label>
           <button>Save</button>
         </form>
         <p className="row">
           {id !== me.id && (
             <button className="plain" onClick={() => void a.run(async () => {
-              await api('PATCH', `/api/employees/${id}`, { active: !e.active, reason: ask(e.active ? 'Reason for deactivating:' : 'Reason for reactivating:') });
+              await api('PATCH', `/api/employees/${id}`, { active: !e.active, reason: ask(e.active ? 'deactivating' : 'reactivating') });
+              if (reasonRef.current) reasonRef.current.value = '';
               await load();
             })}>{e.active ? 'Deactivate (removes access everywhere)' : 'Reactivate'}</button>
           )}
           {id !== me.id && (
             <button className="plain" onClick={() => void a.run(async () => {
-              const r = await api<{ temporaryPassword: string }>('POST', `/api/employees/${id}/reset-password`, { reason: ask('Reason for the password reset:') });
+              const r = await api<{ temporaryPassword: string }>('POST', `/api/employees/${id}/reset-password`, { reason: ask('the password reset') });
+              if (reasonRef.current) reasonRef.current.value = '';
               setTemp(r.temporaryPassword);
               await load();
             })}>Reset password</button>

@@ -11,6 +11,8 @@ let page: Page;
 let base: string;
 let t: Awaited<ReturnType<typeof coreApp>>;
 let web: ReturnType<typeof buildApp>;
+const dialogs: string[] = [];
+const consoleErrors: string[] = [];
 
 beforeAll(async () => {
   await build({ configFile: 'vite.config.ts', logLevel: 'error' });
@@ -20,7 +22,9 @@ beforeAll(async () => {
   browser = await chromium.launch();
   page = await browser.newPage();
   page.setDefaultTimeout(8000);
-  page.on('dialog', (d) => void d.accept('screen test reason'));
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+  // No screen asks anything in a browser prompt box (the reason is typed in the form): a dialog fails the test.
+  page.on('dialog', (d) => { dialogs.push(d.message()); void d.dismiss(); });
 }, 120000);
 
 afterAll(async () => { await browser?.close(); await web?.close(); await t?.sql.end(); await t?.md.end(); });
@@ -37,6 +41,8 @@ describe('core screens', () => {
     await makeEmployee(`webadmin${run}`, ['core.people.manage']);
     await makeEmployee(`webmodel${run}`, ['core.masterdata.view', 'core.masterdata.edit']);
     await signIn(`webadmin${run}`);
+    // Item 7: the signed-out first load leaves no 401 in the console.
+    expect(consoleErrors).toEqual([]);
     await page.getByLabel('Login ID (never reused)').fill(`webuser${run}`);
     await page.getByLabel('Full name').fill('Web User');
     await page.getByLabel('How was their identity checked?').fill('ID card seen');
@@ -106,8 +112,8 @@ describe('core screens', () => {
     await page.getByRole('link', { name: `WE${run}` }).click();
 
     const linkForm = page.locator('form', { has: page.getByRole('button', { name: 'Link' }) });
-    await linkForm.getByLabel('room').selectOption({ label: `WR${run}: Web room` });
-    await linkForm.getByLabel('Reason').fill('installed');
+    await linkForm.getByLabel('Room').selectOption({ label: `WR${run}: Web room` });
+    await linkForm.getByLabel('Reason for the link').fill('installed');
     await linkForm.getByRole('button', { name: 'Link' }).click();
     await page.getByRole('listitem').filter({ hasText: `WR${run}` }).waitFor();
 
@@ -118,7 +124,44 @@ describe('core screens', () => {
     const history = (await page.locator('.card', { hasText: 'History' }).textContent())!;
     expect(history).toContain('Version 1: Web mixer');
     expect(history).toContain('Version 2: Web high-shear mixer');
-    expect(history).toContain(`Linked WE${run} located in WR${run}`);
+    expect(history).toContain(`Linked: WE${run} is located in WR${run}`);
     expect(history).toContain('name per URS');
+    // The history reads in words, not JSON.
+    expect(history).toContain('Make: Acme');
+    expect(history).not.toContain('{');
+
+    // Retire takes its reason from the form's own field; empty, it says so (no browser prompt box).
+    await page.getByRole('button', { name: 'Retire' }).click();
+    await page.getByText('Type the reason for retiring first.').waitFor();
+    await page.getByLabel('Reason for change').fill('scrapped');
+    await page.getByRole('button', { name: 'Retire' }).click();
+    await page.getByRole('heading', { name: /version 3, retired/ }).waitFor();
+    expect(await page.locator('.card', { hasText: 'History' }).textContent()).toContain('scrapped');
+    expect(dialogs).toEqual([]);
+  });
+
+  it('D-82 a product\'s antibiotic box sits before its words; the item and link forms have one reason field each', async () => {
+    await page.getByRole('link', { name: '← Master data' }).click();
+    await page.getByRole('link', { name: 'Products' }).click();
+    const box = page.getByLabel('Antibiotic (needs product-changeover cleaning)');
+    const [b, l] = await Promise.all([box.boundingBox(), page.getByText('Antibiotic (needs product-changeover cleaning)').boundingBox()]);
+    expect(Math.abs(b!.y + b!.height / 2 - (l!.y + l!.height / 2))).toBeLessThan(6);   // same line
+    expect(b!.x).toBeLessThan(l!.x);
+    await page.getByLabel('Code (never reused)').fill(`WP${run}`);
+    await page.getByLabel('Name', { exact: true }).fill('Web tablets');
+    await page.getByLabel('Reason').fill('initial load');
+    await page.getByRole('button', { name: 'Add' }).click();
+    await page.getByRole('link', { name: `WP${run}` }).click();
+    await page.getByRole('heading', { name: /Web tablets/ }).waitFor();
+    expect(await page.locator('input[name=reason]').count()).toBe(1);
+    expect(await page.locator('input[name=linkReason]').count()).toBe(1);
+    await page.getByLabel('Material').waitFor();
+  });
+
+  it("D-82 the hire's login is pulled from the name, with a number when taken", async () => {
+    const { suggestedLogin } = await import('../apps/core/web/App.js');
+    expect(suggestedLogin('Sameer  Kale', [])).toBe('sameer.kale');
+    expect(suggestedLogin('Sameer Kale', [{ login: 'sameer.kale' }, { login: 'sameer.kale2' }])).toBe('sameer.kale3');
+    expect(suggestedLogin(' ', [])).toBe('');
   });
 });
