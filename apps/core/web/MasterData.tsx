@@ -11,7 +11,7 @@ const KINDS: { kind: Kind; label: string }[] = [
   { kind: 'material', label: 'Materials' }, { kind: 'supplier', label: 'Suppliers' }, { kind: 'product', label: 'Products' },
 ];
 
-type Input = 'text' | 'check' | 'category' | 'number' | 'basis' | 'eqclass' | 'grade' | 'prodkind';
+type Input = 'text' | 'check' | 'category' | 'number' | 'basis' | 'eqclass' | 'grade' | 'prodkind' | 'expiry';
 /** D-24: maintenance, cleaning and requalification parameters (empty = not applicable). */
 const CARE: [string, string, Input][] = [
   ['cleanHoldHours', 'Clean hold (hours)', 'number'], ['dirtyHoldHours', 'Dirty hold (hours)', 'number'],
@@ -31,11 +31,15 @@ const FIELDS: Record<Kind, [string, string, Input][]> = {
   material: [['category', 'Category', 'category'], ['unit', 'Unit', 'text']],
   supplier: [['address', 'Address', 'text']],
   product: [['kind', 'Product type', 'prodkind'], ['strength', 'Strength', 'text'], ['dosageForm', 'Dosage form', 'text'],
-    ['antibiotic', 'Antibiotic (needs product-changeover cleaning)', 'check']],
+    ['antibiotic', 'Antibiotic (needs product-changeover cleaning)', 'check'],
+    // D-125: the approved shelf life of this row (bulk or pack); TrueBatch packing reads it.
+    ['shelfLifeMonths', 'Shelf life (months)', 'number'], ['expiryRule', 'Expiry', 'expiry']],
 };
 
 /** D-64: a product is bulk (made in TrueBatch Tablets) or a finished pack (made in TrueBatch Tablets Packing). */
 const PRODUCT_KIND: Record<string, string> = { bulk: 'Bulk product', pack: 'Pack (finished pack)' };
+/** D-125: how the expiry follows from the shelf life (the same choices as TrueBatch packing). */
+const EXPIRY_RULE: Record<string, string> = { 'month before': 'Month of manufacture + shelf life − 1', 'same month': 'Month of manufacture + shelf life' };
 
 /** The link an item of this kind can have: [type, target kind, label]. */
 const LINK: Partial<Record<Kind, [string, Kind, string]>> = {
@@ -70,6 +74,10 @@ function FieldInputs({ kind, values = {} }: { kind: Kind; values?: Record<string
         ) : input === 'prodkind' ? (
           <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? '')}>
             <option value="">Not set</option>{Object.entries(PRODUCT_KIND).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select></label>
+        ) : input === 'expiry' ? (
+          <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? '')}>
+            <option value="">Not set</option>{Object.entries(EXPIRY_RULE).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
           </select></label>
         ) : input === 'basis' ? (
           <label key={name}>{label}<select name={name} defaultValue={String(values[name] ?? 'operation')}>
@@ -191,7 +199,7 @@ function ItemPage({ id, canEdit, back }: { id: string; canEdit: boolean; back: (
             </p>
           </form>
         ) : (
-          <table><tbody>{FIELDS[it.kind].map(([n, l, input]) => <tr key={n}><th>{l}</th><td>{input === 'prodkind' ? PRODUCT_KIND[String(it.fields[n])] ?? '' : String(it.fields[n] ?? '')}</td></tr>)}</tbody></table>
+          <table><tbody>{FIELDS[it.kind].map(([n, l, input]) => <tr key={n}><th>{l}</th><td>{input === 'prodkind' ? PRODUCT_KIND[String(it.fields[n])] ?? '' : input === 'expiry' ? EXPIRY_RULE[String(it.fields[n])] ?? '' : String(it.fields[n] ?? '')}</td></tr>)}</tbody></table>
         )}
         <a.Error />
       </div>

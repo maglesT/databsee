@@ -160,7 +160,7 @@ describe('PL-08 maintenance, cleaning and requalification parameters are kept on
     // PL-08: kind was added after data_as_of, so the view only grew (antibiotic followed it, D-69).
     const cols = await su<{ column_name: string; data_type: string }[]>`select column_name, data_type from information_schema.columns
       where table_schema = 'report' and table_name = 'product_v1' order by ordinal_position`;
-    expect(cols.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'strength', 'dosage_form', 'read_at', 'data_as_of', 'kind', 'antibiotic']);
+    expect(cols.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'strength', 'dosage_form', 'read_at', 'data_as_of', 'kind', 'antibiotic', 'shelf_life_months', 'expiry_rule']);
     expect(cols.find((c) => c.column_name === 'kind')!.data_type).toBe('text');
     await su`select platform.set_link('hello_app', array['product_v1'], false, 'CC-MD4', 'cleanup')`;
     await hello.end();
@@ -202,9 +202,34 @@ describe('PL-08 maintenance, cleaning and requalification parameters are kept on
       'decontamination_valid_days', 'glove_test_every_days', 'sip_valid_days']);
     expect(eq.at(-1)!.data_type).toBe('integer');
     const pr = await cols('product_v1');
-    expect(pr.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'strength', 'dosage_form', 'read_at', 'data_as_of', 'kind', 'antibiotic']);
-    expect(pr.at(-1)!.data_type).toBe('boolean');
+    expect(pr.map((c) => c.column_name)).toEqual(['id', 'code', 'name', 'version', 'active', 'strength', 'dosage_form', 'read_at', 'data_as_of', 'kind', 'antibiotic', 'shelf_life_months', 'expiry_rule']);
+    expect(pr.find((c) => c.column_name === 'antibiotic')!.data_type).toBe('boolean');
     await su`select platform.set_link('hello_app', array['equipment_v1', 'product_v1'], false, 'CC-MD4', 'cleanup')`;
+    await hello.end();
+    await su.end();
+  });
+
+  it('PL-08 master data owns a product\'s approved shelf life and expiry rule, versioned, read through product_v1 as last columns (D-125)', async () => {
+    const bad = (kind: string, fields: object) => editor.call('POST', '/api/items', { kind, code: code(`L${Math.random().toString(36).slice(2, 6)}`), name: 'x', fields, reason: 'r' });
+    const pk = await add('product', code('SLP'), 'Metformin 500 mg blister 10 x 10', { kind: 'pack', shelfLifeMonths: 24, expiryRule: 'month before' });
+    await add('product', code('SLB'), 'Metformin tablets 500 mg', { kind: 'bulk', shelfLifeMonths: 36 });
+    await add('product', code('SLN'), 'Old product, not set');
+    for (const f of [{ shelfLifeMonths: 0 }, { shelfLifeMonths: 121 }, { shelfLifeMonths: 1.5 }, { shelfLifeMonths: '24' }, { expiryRule: 'end of month' }])
+      expect((await bad('product', f)).statusCode).toBe(400);
+    expect((await bad('equipment', { shelfLifeMonths: 24 })).statusCode).toBe(400);   // only products
+    // A change is a new version with its reason.
+    expect((await editor.call('PATCH', `/api/items/${pk}`, { fields: { kind: 'pack', shelfLifeMonths: 36, expiryRule: 'same month' }, reason: 'stability data: 36 months approved' })).statusCode).toBe(200);
+    const su = postgres({ database: 'master_data', onnotice: () => {}, max: 1 });
+    await su`select platform.set_link('hello_app', array['product_v1'], true, 'CC-MD4', 'hello reads the shelf life')`;
+    await enableLogin('hello_app');
+    const hello = postgres({ database: 'master_data', username: 'hello_app', password: 'test-only', onnotice: () => {}, max: 1 });
+    expect(await hello`select code, version, shelf_life_months, expiry_rule from report.product_v1 where code in (${code('SLP')}, ${code('SLB')}, ${code('SLN')}) order by code`)
+      .toEqual([{ code: code('SLB'), version: 1, shelf_life_months: 36, expiry_rule: null }, { code: code('SLN'), version: 1, shelf_life_months: null, expiry_rule: null },
+        { code: code('SLP'), version: 2, shelf_life_months: 36, expiry_rule: 'same month' }]);
+    const cols = await su<{ column_name: string; data_type: string }[]>`select column_name, data_type from information_schema.columns
+      where table_schema = 'report' and table_name = 'product_v1' order by ordinal_position`;
+    expect(cols.slice(-2).map((c) => [c.column_name, c.data_type])).toEqual([['shelf_life_months', 'integer'], ['expiry_rule', 'text']]);
+    await su`select platform.set_link('hello_app', array['product_v1'], false, 'CC-MD4', 'cleanup')`;
     await hello.end();
     await su.end();
   });

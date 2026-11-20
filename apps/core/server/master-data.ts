@@ -18,6 +18,8 @@ const months = z.number({ invalid_type_error: 'Months must be a whole number.' }
 // Owner 2026-11-16 (D-36): a room's grade is a pick list (EU GMP Annex 1 grades A to D, CNC = controlled not
 // classified); no grade means none. Products compare grades, so a typo ("b ") must not get in.
 export const GRADES = ['A', 'B', 'C', 'D', 'CNC'] as const;
+// D-125: how the expiry follows from the shelf life, the same choices as TrueBatch packing.
+export const EXPIRY_RULES = ['month before', 'same month'] as const;
 const care = { cleanHoldHours: hours, dirtyHoldHours: hours, pmFrequencyDays: days, calibrationFrequencyDays: days, requalificationFrequencyMonths: months };
 /** The system checks on each kind's own fields (A11 6 / SchM 20.6: no critical batch data is entered here). */
 export const FIELDS = {
@@ -38,8 +40,13 @@ export const FIELDS = {
   // D-64 (owner, 2026-11-17): a bulk product (made in TrueBatch Tablets, e.g. tablets) or a pack (finished pack, made in
   // TrueBatch Tablets Packing, e.g. blister 10 x 10), so the designers offer only the right ones. Empty means not set.
   // D-69 (owner, 2026-11-17): antibiotic, the product needs product-changeover cleaning. Empty means not set.
+  // D-125 (owner, 2026-11-20): master data owns the approved shelf life (whole months) and the expiry rule of the row it
+  // is entered on (bulk or pack); TrueBatch packing reads them. Empty means not set.
   product: z.object({ strength: text, dosageForm: text,
     antibiotic: z.boolean({ invalid_type_error: 'Antibiotic must be yes or no.' }).optional(),
+    shelfLifeMonths: z.number({ invalid_type_error: 'Shelf life must be a whole number of months.' }).int('Shelf life must be a whole number of months.')
+      .min(1, 'Shelf life must be 1 to 120 months.').max(120, 'Shelf life must be 1 to 120 months.').optional(),
+    expiryRule: z.enum(EXPIRY_RULES, { errorMap: () => ({ message: 'Expiry rule must be month before, same month or empty.' }) }).optional(),
     kind: z.enum(['bulk', 'pack'], { errorMap: () => ({ message: 'Product type must be bulk, pack or empty.' }) }).optional() }).strict(),
 };
 export type Kind = keyof typeof FIELDS;
