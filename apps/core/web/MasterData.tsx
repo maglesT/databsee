@@ -228,7 +228,7 @@ function ItemPage({ id, canEdit, back }: { id: string; canEdit: boolean; back: (
             </p>
           </form>
         ) : (
-          <table><tbody>{FIELDS[it.kind].map(([n, l, input]) => <tr key={n}><th>{l}</th><td>{it.fields[n] === undefined || it.fields[n] === '' ? '' : fieldText(it.kind, { [n]: it.fields[n] }).replace(/^[^:]*: /, '')}</td></tr>)}</tbody></table>
+          <table className="facts"><tbody>{FIELDS[it.kind].map(([n, l, input]) => <tr key={n}><th>{l}</th><td>{it.fields[n] === undefined || it.fields[n] === '' ? '—' : fieldText(it.kind, { [n]: it.fields[n] }).replace(/^[^:]*: /, '')}</td></tr>)}</tbody></table>
         )}
         <a.Error />
       </div>

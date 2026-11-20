@@ -164,4 +164,31 @@ describe('core screens', () => {
     expect(suggestedLogin('Sameer Kale', [{ login: 'sameer.kale' }, { login: 'sameer.kale2' }])).toBe('sameer.kale3');
     expect(suggestedLogin(' ', [])).toBe('');
   });
+
+  it('display 21 Nov: Links name the data in words, not view names', async () => {
+    const { viewWords } = await import('../apps/core/web/App.js');
+    expect(viewWords('batch_fact_v1')).toBe('Batches');
+    expect(viewWords('hire_v1')).toBe('Hires');
+    expect(viewWords('something_new_v2')).toBe('Something new');
+  });
+
+  it('display 21 Nov: a reader sees an item\'s facts at 390 px with every value inside its card', async () => {
+    await makeEmployee(`webview${run}`, ['core.masterdata.view']);
+    await page.getByRole('button', { name: 'Sign out' }).click().catch(() => {});
+    await page.setViewportSize({ width: 390, height: 900 });
+    await signIn(`webview${run}`);
+    await page.getByRole('heading', { name: 'Master data' }).waitFor();
+    await page.getByRole('link', { name: 'Products' }).click();
+    await page.getByRole('link', { name: `WP${run}` }).click();
+    await page.getByRole('heading', { name: /Web tablets/ }).waitFor();
+    const card = page.locator('.card', { has: page.locator('table.facts') });
+    const box = (await card.boundingBox())!;
+    for (const td of await card.locator('table.facts td').all()) {
+      const b = (await td.boundingBox())!;
+      expect(b.x + b.width).toBeLessThanOrEqual(box.x + box.width + 1);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: process.env.SHOT_DIR ? `${process.env.SHOT_DIR}/core-item-390.png` : 'dist/core-item-390.png', fullPage: true });
+    await page.setViewportSize({ width: 1280, height: 900 });
+  });
 });
