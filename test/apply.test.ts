@@ -517,9 +517,9 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch: 'test-only-client-secret' } },
   };
 
-  it('PL-01 TrueBatch offers its 11 permission codes, all its own, the demo skip among them', () => {
+  it('PL-01 TrueBatch offers its 12 permission codes, all its own, the demo skip among them', () => {
     const codes = manifest('truebatch').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(11);
+    expect(codes).toHaveLength(12);
     expect(codes.every((c) => c.startsWith('truebatch.'))).toBe(true);
     expect(codes).toContain('truebatch.demo.skip');   // works only with TRUEBATCH_DEMO=1 (D-30)
     expect(manifest('truebatch').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
@@ -534,7 +534,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch.ci.example/cb');
     expect(tb.links.truebatch.master_data).toEqual(manifest('truebatch').reads!.master_data);
     expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment', 'lims']);   // lims: CoAs and results (round 40, D-109)   // training_v1 (TB-23)
-    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1']);   // D-112 in-process lab requests
+    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'reading_v1']);   // D-112 in-process lab requests; D-128 readings for CPV
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
@@ -595,9 +595,9 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_packing: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Packing offers its 11 permission codes, all its own, QC approval and the demo skip among them', () => {
+  it('PL-01 Packing offers its 12 permission codes, all its own, QC approval and the demo skip among them', () => {
     const codes = manifest('truebatch_packing').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(11);
+    expect(codes).toHaveLength(12);
     expect(codes.every((c) => c.startsWith('truebatch_packing.'))).toBe(true);
     expect(codes).toContain('truebatch_packing.qc.approve');
     expect(codes).toContain('truebatch_packing.demo.skip');   // works only with TRUEBATCH_DEMO=1 (D-30)

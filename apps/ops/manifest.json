@@ -14,7 +14,7 @@
     {"code": "ops.audit.read", "label": "Read the audit trail"},
     {"code": "ops.site.edit", "label": "Edit the site name and time zone"}
   ],
-  "publishes": [],
-  "reads": { "master_data": ["equipment_v1", "product_v1", "material_v1"], "logbook": ["equipment_v1", "entry_v1", "reliability_v1"], "truebatch": ["batch_fact_v1", "equipment_use_v1"], "truebatch_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1"], "truebatch_injectables_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_capsules": ["batch_fact_v1", "equipment_use_v1"], "truebatch_capsules_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_liquids": ["batch_fact_v1", "equipment_use_v1"], "truebatch_liquids_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_api": ["batch_fact_v1", "equipment_use_v1"] },
-  "source": { "repo": "https://github.com/maglesT/operations", "commit": "e859de251a8d93a981abd4bf70d3557e1ccc34d3" }
+  "publishes": ["cpv_signal_v1", "cpv_summary_v1"],
+  "reads": { "master_data": ["equipment_v1", "product_v1", "material_v1"], "logbook": ["equipment_v1", "entry_v1", "reliability_v1"], "truebatch": ["batch_fact_v1", "equipment_use_v1", "reading_v1"], "truebatch_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1"], "truebatch_injectables_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_capsules": ["batch_fact_v1", "equipment_use_v1"], "truebatch_capsules_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_liquids": ["batch_fact_v1", "equipment_use_v1"], "truebatch_liquids_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_api": ["batch_fact_v1", "equipment_use_v1"], "lims": ["trend_v1"] },
+  "source": { "repo": "https://github.com/maglesT/operations", "commit": "95524778fb5ae5459e233e078fe867ebb0a0af2c" }
 }

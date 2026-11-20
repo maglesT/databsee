@@ -12,11 +12,12 @@
     {"code": "truebatch_packing.qc.approve", "label": "QC approval of the finished packed product (tested and complies)"},
     {"code": "truebatch_packing.qa.release", "label": "QA review and release of packed batches"},
     {"code": "truebatch_packing.view", "label": "View packing records and packing master versions"},
-    {"code": "truebatch_packing.demo.skip", "label": "Skip a running wait (demo installations only)"}
+    {"code": "truebatch_packing.demo.skip", "label": "Skip a running wait (demo installations only)"},
+    {"code": "truebatch_packing.exception.decide", "label": "Decide a deviation note without a number: close it here (reason and e-signature) or send it to Deviations"}
   ],
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["packing_batch_v1", "equipment_use_v1", "material_use_v1", "deviation_note_v1", "lab_request_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "truebatch": ["batch_fact_v1", "deviation_note_v1"], "mms": ["lot_v1", "lot_test_v1"], "logbook": ["equipment_status_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"], "recruitment": ["training_v1"], "lims": ["coa_v1", "result_v1"] },
-  "source": { "repo": "https://github.com/maglesT/TrueBatch-Tablets", "commit": "ec3a548dcc74a9c0ee6d2c5f12d2f4a0fcdb619f", "dockerfile": "ops/packing.Dockerfile" },
+  "source": { "repo": "https://github.com/maglesT/TrueBatch-Tablets", "commit": "2c69fc58605166268f22cc1b564d24e8b567ada9", "dockerfile": "ops/packing.Dockerfile" },
   "migrate": { "command": ["node", "dist/packing/migrate.js"] }
 }
