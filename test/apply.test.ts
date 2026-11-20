@@ -389,9 +389,9 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, logbook: 'test-only-client-secret', deviations: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Deviations offers its 11 permission codes, all its own', () => {
+  it('PL-01 Deviations offers its 12 permission codes, all its own', () => {
     const m = manifest('deviations');
-    expect(m.permissions).toHaveLength(11);
+    expect(m.permissions).toHaveLength(12);
     expect(m.permissions.every((p) => p.code.startsWith('deviations.'))).toBe(true);
   });
 
@@ -475,9 +475,9 @@ describe('Operations, a product kept in its own repo (Operations D-19)', () => {
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, ops: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Operations offers its 11 permission codes, all its own', () => {
+  it('PL-01 Operations offers its 12 permission codes, all its own', () => {
     const m = manifest('ops');
-    expect(m.permissions).toHaveLength(11);
+    expect(m.permissions).toHaveLength(12);
     expect(m.permissions.every((p) => p.code.startsWith('ops.'))).toBe(true);
   });
 

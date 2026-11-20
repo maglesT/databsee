@@ -12,9 +12,10 @@
     {"code": "deviations.capa.complete", "label": "Mark CAPAs you own as done"},
     {"code": "deviations.capa.verify", "label": "Verify CAPAs and record effectiveness checks (e-signature)"},
     {"code": "deviations.audit.read", "label": "Read the audit trail, run the integrity check"},
-    {"code": "deviations.settings.manage", "label": "Edit site settings, areas and deviation types"}
+    {"code": "deviations.settings.manage", "label": "Edit site settings, areas and deviation types"},
+    {"code": "deviations.report.cancel", "label": "Cancel a report as not a deviation (reason and e-signature)"}
   ],
   "publishes": ["capa_v1", "deviation_v1"],
   "reads": { "identity": ["employee_v1"], "logbook": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1", "overdue_v1"], "truebatch": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_injectables_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_capsules": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_capsules_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_liquids": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_liquids_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_api": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "lims": ["oos_v1"], "qms": ["capa_v1"], "ops": ["cpv_signal_v1"] },
-  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "1851c52128e4387c37fe757e168a66b69f7e048d" }
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "e244c238f7e3487dba851e2502538c58becadf14" }
 }
