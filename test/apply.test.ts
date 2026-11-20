@@ -880,9 +880,9 @@ describe('TrueBatch API, its own product from its own repo (D-88)', () => {
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_api: 'test-only-client-secret' } },
   };
 
-  it('PL-01 TrueBatch API offers its 11 permission codes, all its own: QC approval and the demo skip among them', () => {
+  it('PL-01 TrueBatch API offers its 12 permission codes, all its own: QC approval and the demo skip among them', () => {
     const codes = manifest('truebatch_api').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(11);
+    expect(codes).toHaveLength(12);
     expect(codes.every((c) => c.startsWith('truebatch_api.'))).toBe(true);
     for (const c of ['qc.approve', 'qa.release', 'demo.skip']) expect(codes).toContain(`truebatch_api.${c}`);
     for (const p of ['truebatch', 'truebatch_packing', 'truebatch_injectables']) expect(manifest(p).permissions.some((x) => x.code.startsWith('truebatch_api.'))).toBe(false);
@@ -900,7 +900,7 @@ describe('TrueBatch API, its own product from its own repo (D-88)', () => {
     expect(caddyfile(config)).toContain('truebatch-api.ci.example {\n  reverse_proxy truebatch_api:3000\n}');
     expect(ta.links.truebatch_api.master_data).toEqual(manifest('truebatch_api').reads!.master_data);
     // The four views TrueBatch Tablets publishes, and the lots that go to stores for MMS (output_lot_v1).
-    expect(manifest('truebatch_api').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'output_lot_v1', 'lab_request_v1']);
+    expect(manifest('truebatch_api').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'output_lot_v1', 'lab_request_v1', 'reading_v1']);   // D-133 readings for CPV
     expect(() => checkConfig({ ...ta, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_api" is not licensed/);
   });
 
