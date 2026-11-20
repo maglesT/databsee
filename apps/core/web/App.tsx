@@ -401,6 +401,24 @@ function Permissions({ id, onChange }: { id: string; onChange: () => Promise<voi
 }
 
 /** D-79: every link the platform knows (customer config and the products' manifests), on / off / down, checked now. */
+// Display round 21 Nov: the data a link reads in plain words, never the view name (batch_fact_v1).
+const VIEW_WORDS: Record<string, string> = {
+  batch_fact: 'Batches', calibration: 'Calibrations', capa: 'CAPAs', change: 'Change controls', cleaning_validation: 'Cleaning validations',
+  coa: 'Certificates of analysis', cpv_signal: 'CPV signals', cpv_summary: 'CPV reports', deviation_note: 'Deviation notes from batches',
+  deviation: 'Deviations', document: 'Documents', em: 'Environmental monitoring', employee: 'Employees', entry: 'Logbook entries',
+  equipment_status: 'Equipment status', equipment_use: 'Equipment use in batches', equipment: 'Equipment', hire: 'Hires',
+  instrument_use: 'Instrument use', instrument: 'Instruments', lab_request: 'Lab requests', logbook_sop: 'Logbook SOPs', lot_test: 'Lot tests',
+  lot: 'Material lots', material_use: 'Materials used in batches', material: 'Materials', note: 'Notes', oos: 'OOS results',
+  output_lot: 'Output lots', overdue: 'Overdue items', packing_batch: 'Packing batches', product: 'Products', protocol: 'Protocols',
+  qualification: 'Qualifications', reading: 'Batch readings', reliability: 'Equipment reliability', result: 'QC results', risk: 'Risk assessments',
+  room: 'Rooms', sample: 'Samples', stability: 'Stability studies', steriliser_cycle: 'Steriliser cycles', supplier_approval: 'Supplier approvals',
+  supplier: 'Suppliers', training: 'Training records', trend: 'QC trends',
+};
+export const viewWords = (view: string) => {
+  const base = view.replace(/_v\d+$/, '');
+  return VIEW_WORDS[base] ?? base.replaceAll('_', ' ').replace(/^\w/, (c) => c.toUpperCase());
+};
+
 function Links() {
   const [r, setR] = useState<{ checkedAt: string; links: LinkRow[] } | null>(null);
   const [error, setError] = useState('');
@@ -417,11 +435,11 @@ function Links() {
       {r && <p className="row"><span className="muted">Checked {when(r.checkedAt)}</span><button className="plain" onClick={load}>Check again</button></p>}
       {r && (
         <table>
-          <thead><tr><th>Reader</th><th>Reads from</th><th>View</th><th>State</th><th>Switched on</th><th>Change reference</th></tr></thead>
+          <thead><tr><th>Reader</th><th>Reads from</th><th>Data</th><th>State</th><th>Switched on</th><th>Change reference</th></tr></thead>
           <tbody>{r.links.length === 0 && <tr><td colSpan={6} className="muted">No links: none is switched on, and no licensed product can read another.</td></tr>}
             {r.links.map((l) => (
             <tr key={`${l.reader}|${l.provider}|${l.view}`}>
-              <td>{l.readerName}</td><td>{l.providerName}</td><td><code>{l.view}</code></td>
+              <td>{l.readerName}</td><td>{l.providerName}</td><td>{viewWords(l.view)}</td>
               <td>{chip(l.state)}{l.why && <span className="muted"> {l.why}</span>}</td>
               <td>{l.switchedOnAt ? when(l.switchedOnAt) : ''}</td><td>{l.changeRef ?? ''}</td>
             </tr>
