@@ -12,10 +12,11 @@
     {"code": "truebatch_capsules.qc.approve", "label": "QC approval of the results used for release"},
     {"code": "truebatch_capsules.qa.release", "label": "QA review and release of bulk capsules"},
     {"code": "truebatch_capsules.view", "label": "View batch records and master versions"},
-    {"code": "truebatch_capsules.demo.skip", "label": "Skip a running wait (demo installations only)"}
+    {"code": "truebatch_capsules.demo.skip", "label": "Skip a running wait (demo installations only)"},
+    {"code": "truebatch_capsules.exception.decide", "label": "Decide a deviation note without a number: close it here (reason and e-signature) or send it to Deviations"}
   ],
   "signon": {"backchannel_logout": "/backchannel-logout"},
-  "publishes": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1", "material_use_v1", "lab_request_v1"],
+  "publishes": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1", "material_use_v1", "lab_request_v1", "reading_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"], "logbook": ["equipment_status_v1"], "mms": ["lot_v1", "lot_test_v1"], "recruitment": ["training_v1"], "lims": ["coa_v1", "result_v1"] },
-  "source": {"repo": "https://github.com/maglesT/truebatch-capsules", "commit": "42b30577d54c9fa26c1ebcd256347d1bfa02f520"}
+  "source": {"repo": "https://github.com/maglesT/truebatch-capsules", "commit": "0036371c50e3c21e9b80c77ae575d232d052c2c4"}
 }

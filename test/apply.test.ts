@@ -331,7 +331,7 @@ describe('QMS, a product kept in its own repo (QMS D-11)', () => {
       truebatch: ['batch_fact_v1', 'material_use_v1'], truebatch_packing: ['packing_batch_v1', 'material_use_v1'], truebatch_injectables: ['batch_fact_v1', 'material_use_v1'],   // QMS D-19: PQR filled from the platform; D-22 materials used
       truebatch_injectables_packing: ['packing_batch_v1', 'material_use_v1'], truebatch_api: ['batch_fact_v1', 'material_use_v1'], qual: ['qualification_v1'],
       truebatch_capsules: ['batch_fact_v1', 'material_use_v1'], truebatch_liquids: ['batch_fact_v1', 'material_use_v1'], truebatch_capsules_packing: ['packing_batch_v1', 'material_use_v1'],   // D-109 readers round 2
-      truebatch_liquids_packing: ['packing_batch_v1', 'material_use_v1'], lims: ['oos_v1', 'stability_v1', 'trend_v1'], mms: ['lot_v1'] });   // D-110: PQR starting materials (QMS D-22)
+      truebatch_liquids_packing: ['packing_batch_v1', 'material_use_v1'], lims: ['oos_v1', 'stability_v1', 'trend_v1'], mms: ['lot_v1'], ops: ['cpv_summary_v1'] });   // D-129 PQR reads CPV (QMS D-24)   // D-110: PQR starting materials (QMS D-22)
     expect(manifest('qms').publishes).toEqual(['change_v1', 'document_v1', 'risk_v1', 'supplier_approval_v1', 'capa_v1']);   // change controls for TrueBatch (QMS D-16, D-28); documents in force (QMS D-19), risk register (QMS D-20); CAPAs (QMS D-23)
     // Deviations is not licensed here, so the link cannot be switched on.
     expect(() => checkConfig({ ...qms, links: { ...qms.links, qms: { ...qms.links.qms, deviations: ['capa_v1'] } } }, raw)).toThrow(/provider is not licensed/);
@@ -404,7 +404,8 @@ describe('Deviations & CAPA, a product kept in its own repo (Deviations D-42)', 
     expect(env.LOGBOOK_DATABASE_URL).toMatch(/^postgres:\/\/deviations_app:.*@db:5432\/logbook$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://deviations.ci.example/cb');
     const { truebatch: fromTrueBatch, truebatch_packing: fromPacking, truebatch_injectables: fromInjectables, truebatch_injectables_packing: fromInjectablesPacking,
-      truebatch_capsules: fromCapsules, truebatch_capsules_packing: fromCapsulesPacking, truebatch_liquids: fromLiquids, truebatch_liquids_packing: fromLiquidsPacking, truebatch_api: fromApi, lims: fromLims, qms: fromQms, ...reads } = manifest('deviations').reads!;
+      truebatch_capsules: fromCapsules, truebatch_capsules_packing: fromCapsulesPacking, truebatch_liquids: fromLiquids, truebatch_liquids_packing: fromLiquidsPacking, truebatch_api: fromApi, lims: fromLims, qms: fromQms, ops: fromOps, ...reads } = manifest('deviations').reads!;
+    expect(fromOps).toEqual(['cpv_signal_v1']);   // D-129 CPV signals QA sent (Deviations D-66)
     expect(fromQms).toEqual(['capa_v1']);   // QMS owns CAPA while linked (Deviations D-63, QMS D-23)
     expect(fromLims).toEqual(['oos_v1']);   // OOS phase II picked from LIMS once licensed (Deviations D-60, D-109)
     expect(dev.links.deviations).toEqual(reads);
@@ -826,9 +827,9 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_injectables: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Injectables offers its 13 permission codes, all its own: QC approval, the demo skip, aseptic operator and visual inspector among them', () => {
+  it('PL-01 Injectables offers its 14 permission codes, all its own: QC approval, the demo skip, aseptic operator and visual inspector among them', () => {
     const codes = manifest('truebatch_injectables').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(13);
+    expect(codes).toHaveLength(14);
     expect(codes.every((c) => c.startsWith('truebatch_injectables.'))).toBe(true);
     for (const c of ['qc.approve', 'demo.skip', 'batch.aseptic', 'batch.inspect']) expect(codes).toContain(`truebatch_injectables.${c}`);
     for (const p of ['truebatch', 'truebatch_packing']) expect(manifest(p).permissions.some((x) => x.code.startsWith('truebatch_injectables.'))).toBe(false);
@@ -845,7 +846,7 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables.ci.example {\n  reverse_proxy 127.0.0.1:8113\n}');
     expect(caddyfile(config)).toContain('truebatch-injectables.ci.example {\n  reverse_proxy truebatch_injectables:3000\n}');
     expect(ti.links.truebatch_injectables.master_data).toEqual(manifest('truebatch_injectables').reads!.master_data);
-    expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'steriliser_cycle_v1']);   // D-114 cycles for the Logbook
+    expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'steriliser_cycle_v1', 'reading_v1']);   // D-114 cycles for the Logbook
     expect(manifest('logbook').reads!.truebatch_injectables).toEqual(['batch_fact_v1', 'equipment_use_v1', 'steriliser_cycle_v1']);   // D-123 the Logbook reads them (Logbook D-78)
     expect(() => checkConfig({ ...ti, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_injectables" is not licensed/);
   });
@@ -931,9 +932,9 @@ describe('TrueBatch Injectables Packing, a second product from the Injectables r
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_injectables_packing: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Injectables Packing offers its 11 permission codes, all its own', () => {
+  it('PL-01 Injectables Packing offers its 12 permission codes, all its own', () => {
     const codes = manifest('truebatch_injectables_packing').permissions.map((p) => p.code);
-    expect(codes).toHaveLength(11);
+    expect(codes).toHaveLength(12);
     expect(codes.every((c) => c.startsWith('truebatch_injectables_packing.'))).toBe(true);
     expect(codes).toContain('truebatch_injectables_packing.qc.approve');
     // Injectables' codes stay Injectables': none starts with the packing product's name and a dot.
@@ -974,10 +975,10 @@ describe('TrueBatch Capsules and TrueBatch Capsules Packing, two products from t
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_capsules: 'test-only-client-secret', truebatch_capsules_packing: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Capsules offers its 11 permission codes and Capsules Packing its 11, each all its own', () => {
+  it('PL-01 Capsules offers its 12 permission codes and Capsules Packing its 12, each all its own', () => {
     for (const p of ['truebatch_capsules', 'truebatch_capsules_packing']) {
       const codes = manifest(p).permissions.map((x) => x.code);
-      expect(codes, p).toHaveLength(11);
+      expect(codes, p).toHaveLength(12);
       expect(codes.every((c) => c.startsWith(`${p}.`)), p).toBe(true);
       expect(codes, p).toContain(`${p}.qc.approve`);
       expect(manifest(p).signon).toEqual({ backchannel_logout: '/backchannel-logout' });
@@ -998,7 +999,7 @@ describe('TrueBatch Capsules and TrueBatch Capsules Packing, two products from t
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules.ci.example {\n  reverse_proxy 127.0.0.1:8115\n}');
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules-packing.ci.example {\n  reverse_proxy 127.0.0.1:8116\n}');
     expect(caddyfile(config)).toContain('truebatch-capsules.ci.example {\n  reverse_proxy truebatch_capsules:3000\n}');
-    expect(manifest('truebatch_capsules').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1']);
+    expect(manifest('truebatch_capsules').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'reading_v1']);   // D-129 readings for CPV
     expect(manifest('truebatch_capsules_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1', 'lab_request_v1']);
     expect(() => checkConfig({ ...tc, licences: ['hello', 'truebatch_capsules_packing'], links: { hello: tc.links.hello, truebatch_capsules_packing: { master_data: md } } }, raw)).not.toThrow();
     expect(() => checkConfig({ ...tc, licences: ['hello'] }, raw)).toThrow(/link reader "truebatch_capsules" is not licensed/);
@@ -1082,10 +1083,10 @@ describe('TrueBatch Liquids and TrueBatch Liquids Packing, two products from the
     oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, truebatch_liquids: 'test-only-client-secret', truebatch_liquids_packing: 'test-only-client-secret' } },
   };
 
-  it('PL-01 Liquids and Liquids Packing offer 11 permission codes each, all their own', () => {
+  it('PL-01 Liquids and Liquids Packing offer 12 permission codes each, all their own', () => {
     for (const p of ['truebatch_liquids', 'truebatch_liquids_packing']) {
       const codes = manifest(p).permissions.map((x) => x.code);
-      expect(codes).toHaveLength(11);
+      expect(codes).toHaveLength(12);
       expect(codes.every((c) => c.startsWith(`${p}.`)), p).toBe(true);
       for (const c of ['qc.approve', 'qa.release', 'demo.skip']) expect(codes).toContain(`${p}.${c}`);
       expect(manifest(p).signon).toEqual({ backchannel_logout: '/backchannel-logout' });
