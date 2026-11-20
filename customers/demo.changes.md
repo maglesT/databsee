@@ -114,3 +114,4 @@ Server: 187.126.126.5 (Hostinger KVM 8, Ubuntu 24.04.5), shared with the standal
 | 2026-11-20 | Platform release v1.26.12 (D-124): SOPs picked from QMS. Logbook a5ff7c2 (SOP references from QMS document_v1 while linked), Recruitment bc635b1 (training SOPs from QMS; migration 0013). |
 | 2026-11-20 | Platform release v1.26.13 (D-126): master data owns the approved shelf life (product shelf_life_months, expiry_rule; migration master_data 0008). |
 | 2026-11-20 | Platform release v1.26.14 (D-127): MMS 77925df (batch view, its PDF/CSV and packed finished-goods lots list the lots each TrueBatch batch used). No migration. |
+| 2026-11-20 | Platform release v1.26.15 (D-128): exceptions closed in the product or sent to Deviations (Logbook 9f06ded mig 0028, TrueBatch Tablets+Packing 2c69fc5 mig 0022-0025/packing 0113, Deviations e3aeb78); roller compaction and device assembly blocks, reading_v1; Operations 9552477 CPV (reads truebatch reading_v1, lims trend_v1). |
