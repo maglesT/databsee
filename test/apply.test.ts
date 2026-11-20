@@ -454,7 +454,7 @@ describe('Recruitment, a product kept in its own repo (Recruitment D-74)', () =>
     expect(Object.keys(env).sort()).toEqual(['IDENTITY_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'RECRUITMENT_DATABASE_URL']);
     expect(env.RECRUITMENT_DATABASE_URL).toMatch(/^postgres:\/\/recruitment_app:.*@db:5432\/recruitment$/);
     expect(env.IDENTITY_DATABASE_URL).toMatch(/^postgres:\/\/recruitment_app:.*@db:5432\/identity$/);
-    expect(manifest('recruitment').reads).toEqual({ identity: ['employee_v1'] });
+    expect(manifest('recruitment').reads).toEqual({ identity: ['employee_v1'], qms: ['document_v1'] });   // D-124 SOPs from QMS (Recruitment D-85)
   });
 
   it('PL-10 its image is pinned to a full commit', () => {

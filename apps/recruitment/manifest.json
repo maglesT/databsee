@@ -18,6 +18,6 @@
     {"code": "recruitment.training.approve", "label": "Training: approve (sign) training records and withdraw wrong ones"}
   ],
   "publishes": ["training_v1", "hire_v1"],
-  "reads": { "identity": ["employee_v1"] },
-  "source": { "repo": "https://github.com/maglesT/recruitemensyst", "commit": "10a6e76699ff13dbf013e878895de4a351a5604b" }
+  "reads": { "identity": ["employee_v1"], "qms": ["document_v1"] },
+  "source": { "repo": "https://github.com/maglesT/recruitemensyst", "commit": "bc635b1835637927c371afc2667406f481fcedc4" }
 }
