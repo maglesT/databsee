@@ -38,6 +38,15 @@ describe('PL-01 only authorised people, with authority checks', () => {
   it('PL-01 no request without a session', async () => {
     expect((await t.app.inject({ method: 'GET', url: '/api/employees' })).statusCode).toBe(401);
   });
+
+  it('PL-01 the first-load probe /api/session answers signed out quietly (200, null) and names a signed-in person', async () => {
+    const out = await t.app.inject({ method: 'GET', url: '/api/session' });
+    expect(out.statusCode).toBe(200);
+    expect(out.json()).toEqual({ me: null });
+    await makeEmployee(`sess${run}`, ['core.masterdata.view']);
+    const { call } = await signIn(t.app, `sess${run}`);
+    expect((await call('GET', '/api/session')).json().me).toMatchObject({ login: `sess${run}`, permissions: ['core.masterdata.view'] });
+  });
 });
 
 describe('PL-02 / PL-01 the permission register', () => {

@@ -38,8 +38,31 @@ const FIELDS: Record<Kind, [string, string, Input][]> = {
 
 /** D-64: a product is bulk (made in TrueBatch Tablets) or a finished pack (made in TrueBatch Tablets Packing). */
 const PRODUCT_KIND: Record<string, string> = { bulk: 'Bulk product', pack: 'Pack (finished pack)' };
+const CATEGORY: Record<string, string> = { starting: 'Starting material', packaging: 'Packaging material', intermediate: 'Intermediate', other: 'Other' };
+const EQCLASS: Record<string, string> = { process: 'Process equipment', engineering_system: 'Engineering system' };
+const BASIS: Record<string, string> = { operation: 'Operation-based', frequency: 'Frequency-based' };
 /** D-125: how the expiry follows from the shelf life (the same choices as TrueBatch packing). */
 const EXPIRY_RULE: Record<string, string> = { 'month before': 'Month of manufacture + shelf life − 1', 'same month': 'Month of manufacture + shelf life' };
+
+/** A kind in words, as a field label ("Material", not "material"). */
+const KIND_WORD: Record<Kind, string> = { equipment: 'Equipment', instrument: 'Instrument', room: 'Room', material: 'Material', supplier: 'Supplier', product: 'Product' };
+/** A link type in words for the history ("uses", "located in"). */
+const LINK_WORD: Record<string, string> = { located_in: 'is located in', supplied_by: 'is supplied by', uses: 'uses' };
+
+/** One stored field in words for the history: "Unit: kg", "Antibiotic: yes", "Product type: Bulk product". */
+function fieldText(kind: Kind, fields: Record<string, unknown>): string {
+  return FIELDS[kind].filter(([n]) => fields[n] !== undefined && fields[n] !== '' && fields[n] !== null).map(([n, label, input]) => {
+    const v = fields[n];
+    const text = input === 'check' ? (v ? 'yes' : 'no')
+      : input === 'prodkind' ? PRODUCT_KIND[String(v)] ?? String(v)
+      : input === 'expiry' ? EXPIRY_RULE[String(v)] ?? String(v)
+      : input === 'category' ? CATEGORY[String(v)] ?? String(v)
+      : input === 'eqclass' ? EQCLASS[String(v)] ?? String(v)
+      : input === 'basis' ? BASIS[String(v)] ?? String(v)
+      : String(v);
+    return `${label}: ${text}`;
+  }).join('; ');
+}
 
 /** The link an item of this kind can have: [type, target kind, label]. */
 const LINK: Partial<Record<Kind, [string, Kind, string]>> = {
@@ -64,7 +87,7 @@ function FieldInputs({ kind, values = {} }: { kind: Kind; values?: Record<string
     <>
       {FIELDS[kind].map(([name, label, input]) =>
         input === 'check' ? (
-          <label key={name}><input type="checkbox" name={name} defaultChecked={Boolean(values[name])} style={{ display: 'inline', width: 'auto' }} /> {label}</label>
+          <label key={name} className="check"><input type="checkbox" name={name} defaultChecked={Boolean(values[name])} /> <span>{label}</span></label>
         ) : input === 'number' ? (
           <label key={name}>{label}<input name={name} type="number" min={1} step={1} inputMode="numeric" defaultValue={values[name] === undefined ? '' : String(values[name])} /></label>
         ) : input === 'grade' ? (
@@ -174,8 +197,14 @@ function ItemPage({ id, canEdit, back }: { id: string; canEdit: boolean; back: (
   useEffect(() => { if (link) void api<Item[]>('GET', `/api/items?kind=${link[1]}`).then((x) => setTargets(x.filter((i) => i.active))); }, [link?.[1]]);
   if (!h) return null;
   const it = h.item;
-  const ask = (q: string) => { const r = window.prompt(q); if (!r?.trim()) throw new Error('A reason is required.'); return r; };
+  // The reason is typed in the form's own field, never in a browser prompt box.
+  const reasonIn = (el: HTMLElement | null, what: string) => {
+    const r = (el?.closest('form')?.querySelector<HTMLInputElement>('input[name=reason], input[name=linkReason]')?.value ?? '').trim();
+    if (!r) throw new Error(`Type the reason for ${what} first.`);
+    return r;
+  };
   const outgoing = h.current.filter((l) => l.fromId === id);
+  const nameOf = (toId: string) => { const t = targets.find((x) => x.id === toId); return t ? `: ${t.name}` : ''; };
   return (
     <>
       <p><Link onClick={back}>← Master data</Link></p>
@@ -189,17 +218,17 @@ function ItemPage({ id, canEdit, back }: { id: string; canEdit: boolean; back: (
           }}>
             <label>Name<input name="name" defaultValue={it.name} required /></label>
             <FieldInputs kind={it.kind} values={it.fields} />
-            <label>Reason for change<input name="reason" required /></label>
+            <label>Reason for change (also for retiring or bringing back)<input name="reason" required /></label>
             <p className="row">
               <button>Save</button>
-              <button type="button" className="plain" onClick={() => void a.run(async () => {
-                await api('PATCH', `/api/items/${id}`, { active: !it.active, reason: ask(it.active ? 'Reason for retiring:' : 'Reason for bringing back:') });
+              <button type="button" className="plain" onClick={(e) => { const el = e.currentTarget; void a.run(async () => {
+                await api('PATCH', `/api/items/${id}`, { active: !it.active, reason: reasonIn(el, it.active ? 'retiring' : 'bringing back') });
                 await load();
-              })}>{it.active ? 'Retire' : 'Bring back'}</button>
+              }); }}>{it.active ? 'Retire' : 'Bring back'}</button>
             </p>
           </form>
         ) : (
-          <table><tbody>{FIELDS[it.kind].map(([n, l, input]) => <tr key={n}><th>{l}</th><td>{input === 'prodkind' ? PRODUCT_KIND[String(it.fields[n])] ?? '' : input === 'expiry' ? EXPIRY_RULE[String(it.fields[n])] ?? '' : String(it.fields[n] ?? '')}</td></tr>)}</tbody></table>
+          <table><tbody>{FIELDS[it.kind].map(([n, l, input]) => <tr key={n}><th>{l}</th><td>{it.fields[n] === undefined || it.fields[n] === '' ? '' : fieldText(it.kind, { [n]: it.fields[n] }).replace(/^[^:]*: /, '')}</td></tr>)}</tbody></table>
         )}
         <a.Error />
       </div>
@@ -207,25 +236,34 @@ function ItemPage({ id, canEdit, back }: { id: string; canEdit: boolean; back: (
       {link && (
         <div className="card">
           <h3>{link[2]}</h3>
-          <ul>
-            {outgoing.map((l) => (
-              <li key={l.toId}>{l.to_code} {canEdit && <Link onClick={() => void a.run(async () => {
-                await api('POST', '/api/item-links', { fromId: id, toId: l.toId, type: l.type, active: false, reason: ask('Reason for removing the link:') });
-                await load();
-              })}>remove</Link>}</li>
-            ))}
-            {outgoing.length === 0 && <li className="muted">None</li>}
-          </ul>
-          {canEdit && (
-            <form className="row" onSubmit={(e) => {
+          {canEdit ? (
+            <form onSubmit={(e) => {
               e.preventDefault();
               const f = form(e);
-              void a.run(async () => { await api('POST', '/api/item-links', { fromId: id, toId: f.target, type: link[0], active: true, reason: f.reason }); await load(); });
+              const el = e.currentTarget;
+              void a.run(async () => { await api('POST', '/api/item-links', { fromId: id, toId: f.target, type: link[0], active: true, reason: f.linkReason }); el.reset(); await load(); });
             }}>
-              <label>{link[1]}<select name="target" required>{targets.map((x) => <option key={x.id} value={x.id}>{x.code}: {x.name}</option>)}</select></label>
-              <label>Reason<input name="reason" required /></label>
-              <button>Link</button>
+              <ul>
+                {outgoing.map((l) => (
+                  <li key={l.toId}>{l.to_code}{nameOf(l.toId)} <button type="button" className="plain" onClick={(e) => { const el = e.currentTarget; void a.run(async () => {
+                    await api('POST', '/api/item-links', { fromId: id, toId: l.toId, type: l.type, active: false, reason: reasonIn(el, 'removing the link') });
+                    el.closest('form')?.reset();
+                    await load();
+                  }); }}>Remove</button></li>
+                ))}
+                {outgoing.length === 0 && <li className="muted">None</li>}
+              </ul>
+              <div className="row">
+                <label>{KIND_WORD[link[1]]}<select name="target" required>{targets.map((x) => <option key={x.id} value={x.id}>{x.code}: {x.name}</option>)}</select></label>
+                <label>Reason for the link (also for removing one)<input name="linkReason" required /></label>
+                <button>Link</button>
+              </div>
             </form>
+          ) : (
+            <ul>
+              {outgoing.map((l) => <li key={l.toId}>{l.to_code}{nameOf(l.toId)}</li>)}
+              {outgoing.length === 0 && <li className="muted">None</li>}
+            </ul>
           )}
         </div>
       )}
@@ -236,8 +274,8 @@ function ItemPage({ id, canEdit, back }: { id: string; canEdit: boolean; back: (
           <thead><tr><th>When</th><th>What</th><th>By</th><th>Reason</th></tr></thead>
           <tbody>
             {[
-              ...h.versions.map((v) => ({ at: v.changed_at, what: `Version ${v.version}: ${v.name}${v.active ? '' : ' (retired)'} ${JSON.stringify(v.fields)}`, by: v.changed_by_name, reason: v.reason })),
-              ...h.links.map((l) => ({ at: l.changed_at, what: `${l.active ? 'Linked' : 'Unlinked'} ${l.from_code} ${l.type.replace('_', ' ')} ${l.to_code}`, by: l.changed_by_name, reason: l.reason })),
+              ...h.versions.map((v) => ({ at: v.changed_at, what: `Version ${v.version}: ${v.name}${v.active ? '' : ' (retired)'}${fieldText(it.kind, v.fields) ? `. ${fieldText(it.kind, v.fields)}` : ''}`, by: v.changed_by_name, reason: v.reason })),
+              ...h.links.map((l) => ({ at: l.changed_at, what: `${l.active ? 'Linked' : 'Link removed'}: ${l.from_code} ${LINK_WORD[l.type] ?? l.type.replaceAll('_', ' ')} ${l.to_code}`, by: l.changed_by_name, reason: l.reason })),
             ].sort((x, y) => x.at.localeCompare(y.at)).map((r, i) => <tr key={i}><td>{when(r.at)}</td><td>{r.what}</td><td>{r.by}</td><td>{r.reason}</td></tr>)}
           </tbody>
         </table>

@@ -6,7 +6,7 @@ export function Link({ onClick, children }: { onClick: () => void; children: Rea
   return <a href="#" onClick={(e) => { e.preventDefault(); onClick(); }}>{children}</a>;
 }
 
-/** Every date and time on the core screens, in plant time: "17 Nov 2026, 10:57 pm IST" (D-78). */
+/** Every date and time on the core screens, in plant time: "17 Nov, 22:57 IST", the year only when not this year (D-78). */
 export const when = (t: string | null | undefined) => plantTime(t);
 export const form = (e: FormEvent<HTMLFormElement>) => Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
 
