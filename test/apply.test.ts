@@ -535,7 +535,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch.ci.example/cb');
     expect(tb.links.truebatch.master_data).toEqual(manifest('truebatch').reads!.master_data);
     expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment', 'lims']);   // lims: CoAs and results (round 40, D-109)   // training_v1 (TB-23)
-    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'reading_v1']);   // D-112 in-process lab requests; D-128 readings for CPV
+    expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'reading_v1', 'master_lab_field_v1']);   // D-135 in-process lab fields of masters for LIMS; D-112 in-process lab requests; D-128 readings for CPV
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
@@ -620,7 +620,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-packing.ci.example {\n  reverse_proxy 127.0.0.1:8111\n}');
     expect(caddyfile(config)).toContain('truebatch-packing.ci.example {\n  reverse_proxy truebatch_packing:3000\n}');
     expect(tp.links.truebatch_packing.master_data).toEqual(manifest('truebatch_packing').reads!.master_data);
-    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1', 'lab_request_v1']);
+    expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1', 'lab_request_v1', 'master_lab_field_v1']);
     // It reads the released bulk batches of TrueBatch Tablets only while TrueBatch is licensed and linked.
     expect(() => checkConfig({ ...tp, links: { ...tp.links, truebatch_packing: { ...tp.links.truebatch_packing, truebatch: ['batch_fact_v1'] } } }, raw))
       .toThrow(/link truebatch_packing -> truebatch: provider is not licensed/);
