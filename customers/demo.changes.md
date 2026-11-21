@@ -121,3 +121,4 @@ Server: 187.126.126.5 (Hostinger KVM 8, Ubuntu 24.04.5), shared with the standal
 | 2026-11-21 | Platform release v1.26.19 (D-132): display follow-up: core, Logbook fefda28, QMS 63b11f4, Operations 971de9e, MMS bc96e81, TrueBatch a6ead0c, Injectables d99b798, Capsules cadea3b, Liquids 8980efb. |
 | 2026-11-21 | Platform release v1.26.20 (D-133): TrueBatch API d5c9e70 (rounds 47/46/48 ports, migrations 0022-0024, display round); Operations reads truebatch_api reading_v1. |
 | 2026-11-21 | Platform release v1.26.21 (D-134): LIMS f5596b9 (change-control product match by code; names with commas). |
+| 2026-11-21 | Platform release v1.26.22 (D-135): fix round from the new-formulation runs: TrueBatch Tablets + Packing 0d29160, Logbook 91bb200 (2 new permissions), QMS 5a888a1, Operations 44f5224, LIMS 44d7ed4; LIMS reads master_lab_field_v1 and item_link_v1. |
