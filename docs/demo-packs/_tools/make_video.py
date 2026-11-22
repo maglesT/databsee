@@ -20,6 +20,11 @@ PRODUCTS = {
     "assure": ("Medhanta ASSURE", "Quality management system", "brand/medhanta-assure-logo.png"),
     "rise": ("Medhanta RISE", "Operations, OEE and machine-learning insights", "brand/medhanta-rise-logo.png"),
     "tide": ("Medhanta TIDE", "Recruitment with online tests and live quizzes", "brand/medhanta-tide-logo.png"),
+    "truebatch-api": ("TrueBatch API", "Electronic batch records for active pharmaceutical ingredients", "brand/medhanta-api-logo.png"),
+    "truebatch-capsules": ("TrueBatch Capsules", "Electronic batch records for capsules", "brand/medhanta-capsules-logo.png"),
+    "truebatch-oral-liquids": ("TrueBatch Oral Liquids", "Electronic batch records for oral liquids", "brand/medhanta-liquids-logo.png"),
+    "clear": ("Medhanta CLEAR", "Compliance Library for Evaluation and Audit Readiness", "brand/medhanta-clear-logo.png"),
+    "qlims": ("Medhanta QLIMS", "Laboratory information management for QC labs", "brand/medhanta-qlims-logo.png"),
 }
 
 # ---------- pronunciation for the TTS voice (captions keep normal spelling) ----------
@@ -254,7 +259,7 @@ def main():
     if limit: segs = segs[:limit]
     import base64
     du = lambda f: "data:image/png;base64," + base64.b64encode(open(f, "rb").read()).decode()
-    emb_url = du(os.path.join(pack, emb))
+    emb_url = du(os.path.join(pack, emb) if os.path.isfile(os.path.join(pack, emb)) else os.path.join(PACKS, "brand", "medhanta-logo.png"))
     mark_url = du(os.path.join(PACKS, "brand", "medhanta-logo.png"))
     json.dump({"intro": intro, "segs": segs, "outro": outro}, open(os.path.join(work, "plan.json"), "w"), indent=1)
 
