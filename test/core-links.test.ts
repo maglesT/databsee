@@ -61,7 +61,7 @@ describe('D-75 add a person from a Recruitment hire', () => {
     await su.end();
     expect((await a.call('GET', '/api/hires')).json().hires.map((h: { candidateRef: string }) => h.candidateRef)).not.toContain(ref);
     expect((await a.call('POST', '/api/employees', { ...body, login: `asha2${run}` })).statusCode).toBe(409);
-    expect((await a.call('POST', '/api/employees', { ...body, login: `nobody${run}`, hireRef: 'NO-SUCH' })).json().error).toBe('No such hire in Recruitment.');
+    expect((await a.call('POST', '/api/employees', { ...body, login: `nobody${run}`, hireRef: 'NO-SUCH' })).json().error).toBe('No such hire in TIDE.');
   });
 
   it('PL-08 D-82 a hire who is already an active person (same name, or the login the name gives) is left out; the email is pulled', async () => {

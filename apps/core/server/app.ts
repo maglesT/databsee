@@ -325,8 +325,8 @@ export function buildApp(deps: Deps) {
     // D-75, PL-08: a person picked from Recruitment's hires keeps the hire's reference; the hire must be there now.
     if (b.hireRef) {
       const r = await readLink(deps.links?.recruitment, (db) => db`select 1 from report.hire_v1 where candidate_ref = ${b.hireRef!}`);
-      if (r.state !== 'on') throw new HttpError(400, `The link to Recruitment is ${r.state}: add the person typed by hand, without the hire.`);
-      if (!r.rows.length) throw new HttpError(400, 'No such hire in Recruitment.');
+      if (r.state !== 'on') throw new HttpError(400, `The link to TIDE is ${r.state}: add the person typed by hand, without the hire.`);
+      if (!r.rows.length) throw new HttpError(400, 'No such hire in TIDE.');
     }
     const temp = temporaryPassword();
     const hash = await hashPassword(temp);

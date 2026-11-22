@@ -222,7 +222,7 @@ function People({ open }: { open: (id: string) => void }) {
       }}>
         <h2>Add a person</h2>
         {hires.state === 'on' && (
-          <label>From Recruitment: hired, not yet employees
+          <label>From TIDE: hired, not yet employees
             <select value={hire?.candidateRef ?? ''} onChange={(e) => setHire(hires.hires.find((h) => h.candidateRef === e.target.value) ?? null)}>
               <option value="">{hires.hires.length ? 'choose a hire, or type the person below' : 'no hires waiting'}</option>
               {hires.hires.map((h) => (
@@ -233,14 +233,14 @@ function People({ open }: { open: (id: string) => void }) {
             </select>
           </label>
         )}
-        {hires.state === 'down' && <p className="muted">The link to Recruitment is down: type the person by hand.</p>}
+        {hires.state === 'down' && <p className="muted">The link to TIDE is down: type the person by hand.</p>}
         <label>Login ID (never reused)<input name="login" key={`l${hire?.candidateRef ?? ''}`} defaultValue={hire ? suggestedLogin(hire.fullName, people) : ''} required /></label>
         <label>Full name<input name="fullName" key={`n${hire?.candidateRef ?? ''}`} defaultValue={hire?.fullName ?? ''} required /></label>
         <label>Email<input name="email" type="email" key={`e${hire?.candidateRef ?? ''}`} defaultValue={hire?.email ?? ''} /></label>
         <label>How was their identity checked?<input name="identityVerifiedHow" placeholder="e.g. company ID card seen" required /></label>
         <label>Reason<input name="reason" key={`r${hire?.candidateRef ?? ''}`} required placeholder="e.g. new joiner, HR ticket 123"
-          defaultValue={hire ? `New joiner from Recruitment ${hire.candidateRef}: ${[hire.jobTitle, hire.department].filter(Boolean).join(', ')}` : ''} /></label>
-        {hire ? <p className="muted">Name and job pulled from Recruitment ({hire.candidateRef}).</p>
+          defaultValue={hire ? `New joiner from TIDE ${hire.candidateRef}: ${[hire.jobTitle, hire.department].filter(Boolean).join(', ')}` : ''} /></label>
+        {hire ? <p className="muted">Name and job pulled from TIDE ({hire.candidateRef}).</p>
           : hires.state === 'on' && <p className="muted">Typed by hand.</p>}
         <a.Error />
         <button>Add</button>
@@ -375,8 +375,8 @@ function Permissions({ id, me, onChange }: { id: string; me: Me; onChange: () =>
       })}
       {training.state !== 'off' && (
         <div className="training">
-          <h4>Training (from Recruitment, read only)</h4>
-          {training.state === 'down' ? <p className="muted">The link to Recruitment is down: training not shown.</p>
+          <h4>Training (from TIDE, read only)</h4>
+          {training.state === 'down' ? <p className="muted">The link to TIDE is down: training not shown.</p>
             : training.training.length === 0 ? <p className="muted">No approved training records.</p>
               : <table>
                 <thead><tr><th>Skill</th><th>Trained on</th><th>Valid until</th><th>Status</th></tr></thead>
