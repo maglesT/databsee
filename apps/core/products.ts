@@ -11,6 +11,7 @@ export const PRODUCTS: Record<string, ProductInfo> = {
   deviations: { name: 'Medhanta DIVE', tagline: 'Report, investigate and close deviations with their CAPAs', initials: 'DV', logo: true },
   recruitment: { name: 'Medhanta TIDE', tagline: 'Openings, candidates, tests, interviews and offers', initials: 'RC', logo: true },
   lims: { name: 'Medhanta QLIMS', tagline: 'The QC laboratory: specifications, methods, samples, analyses, review and certificates of analysis', initials: 'LI', logo: true },
+  audit: { name: 'Medhanta CLEAR', tagline: 'Compliance Library for Evaluation and Audit Readiness: audit checklists from the GMP regulations', initials: 'CL' },
   ops: { name: 'Medhanta RISE', tagline: 'OEE, losses, process parameters and advice', initials: 'OP', logo: true },
   truebatch: { name: 'TrueBatch Tablets', tagline: 'Electronic batch records for tablets, dispensing to QA release of bulk', initials: 'TB', logo: true },
   truebatch_api: { name: 'TrueBatch API', tagline: 'Electronic batch records for APIs made by chemical synthesis, first charge to QA release of the packed drums', initials: 'TA', logo: true },
