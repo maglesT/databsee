@@ -2,3 +2,4 @@ node_modules/
 deploy/secrets/
 deploy/.env
 dist/
+node_modules
