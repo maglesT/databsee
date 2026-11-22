@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="32" height="32" role="img" aria-label="TrueBatch Injectables"><defs>
+<linearGradient id="rinjectables" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d4140c"/><stop offset="1" stop-color="#f4511e"/></linearGradient>
+<linearGradient id="oinjectables" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#f4511e"/><stop offset="1" stop-color="#f9a12a"/></linearGradient>
+<linearGradient id="ginjectables" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dd1a10"/><stop offset=".55" stop-color="#f4511e"/><stop offset="1" stop-color="#f7941d"/></linearGradient>
+<linearGradient id="winjectables" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+    <rect x="14" y="26" width="34" height="10" rx="3" fill="url(#rinjectables)"/><path d="M18 36h26v66a8 8 0 0 1 -8 8H26a8 8 0 0 1 -8 -8z" fill="url(#rinjectables)"/>
+    <path d="M18 70h26v32a8 8 0 0 1 -8 8H26a8 8 0 0 1 -8 -8z" fill="url(#oinjectables)"/><rect x="22" y="40" width="5" height="26" rx="2.5" fill="#fff" opacity=".5"/>
+    <g transform="rotate(40 80 64)"><rect x="70" y="26" width="20" height="62" rx="5" fill="url(#oinjectables)"/><rect x="66" y="22" width="28" height="6" rx="3" fill="url(#rinjectables)"/><rect x="77" y="8" width="6" height="16" rx="2" fill="url(#rinjectables)"/><rect x="72" y="4" width="16" height="5" rx="2" fill="url(#rinjectables)"/><line x1="80" y1="88" x2="80" y2="112" stroke="#d4140c" stroke-width="3" stroke-linecap="round"/>
+    <g stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="74" y1="40" x2="80" y2="40"/><line x1="74" y1="50" x2="80" y2="50"/><line x1="74" y1="60" x2="80" y2="60"/></g></g>
+    </svg>
