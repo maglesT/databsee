@@ -276,6 +276,7 @@ links:
       - room_v1
       - material_v1
       - product_v1
+      - item_link_v1
     deviations:
       - deviation_v1
     qms:
@@ -290,6 +291,8 @@ links:
     lims:
       - coa_v1
       - result_v1
+    ops:
+      - running_batch_v1
   truebatch_packing:
     master_data:
       - equipment_v1
@@ -297,6 +300,7 @@ links:
       - room_v1
       - material_v1
       - product_v1
+      - item_link_v1
     truebatch:
       - batch_fact_v1
       - deviation_note_v1
@@ -314,6 +318,8 @@ links:
     lims:
       - coa_v1
       - result_v1
+    ops:
+      - running_batch_v1
   truebatch_injectables:
     master_data:
       - equipment_v1
@@ -512,6 +518,7 @@ links:
     truebatch_injectables:
       - batch_fact_v1
       - lab_request_v1
+      - master_lab_field_v1
     truebatch_api:
       - batch_fact_v1
       - lab_request_v1
