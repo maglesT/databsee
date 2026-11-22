@@ -75,7 +75,7 @@ Dropped (no clause requires them): MFA, approval signatures on master-data edits
 
 **identity**
 - `employee` (id uuid, login — unique for all time, created_at) + `employee_version` (full name, email, active, who, when, reason) — insert-only.
-- `credential` (password hash argon2id, changed_at, failed count, locked_at), `alert` (lockouts, acknowledged by/at).
+- `credential` (password hash scrypt, changed_at, failed count, locked_at), `alert` (lockouts, acknowledged by/at).
 - `permission_event` (product, code, label, active, by, at, reason) — the catalogue, loaded by apply from each product's manifest; insert-only; `current_permission` view (D-16).
 - `permission_grant` (employee, product, code, grant|revoke, by, at, reason) — insert-only; `current_permission_grant` view. Each person holds a subset of the catalogue; no roles.
 - `signon_event` (employee, product, at, ok/failed).

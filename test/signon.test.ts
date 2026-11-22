@@ -293,6 +293,19 @@ describe('PL-01 one person per browser: core sign-in and the products\' single s
     expect((await productSignOn(b)).silent).toBe(false);
   });
 
+  it('GAP-PC-03 an idle-expired core session is not re-opened from the single sign-on: the password is asked again', async () => {
+    const a = await person('idlere');
+    const b = browser(app2);
+    await b.api('POST', '/api/login', { login: a.login, password: PASSWORD });
+    expect((await b.api('GET', '/api/me')).statusCode).toBe(200);
+    const su = superuser();
+    await su`update session set last_seen_at = now() - interval '1 hour' where employee_id = ${a.id}`;
+    await su.end();
+    expect((await b.api('GET', '/api/me')).statusCode).toBe(401);
+    expect((await b.api('POST', '/api/login', { login: a.login, password: PASSWORD })).statusCode).toBe(200);
+    expect((await b.api('GET', '/api/me')).statusCode).toBe(200);
+  });
+
   it('PL-01 signed in through a product, the core screens open as that person; "Yes, sign me out" at core ends both', async () => {
     const a = await person('viaprod');
     const b = browser(app2);

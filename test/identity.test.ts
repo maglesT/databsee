@@ -88,7 +88,11 @@ describe('PL-02 / PL-01 the permission register', () => {
   it('PL-01 an administrator cannot remove their own people permission, and copies only from an active person', async () => {
     const admin = await signIn(t.app, adminLogin);
     const me = (await admin.call('GET', '/api/me')).json().id;
-    expect((await admin.call('PUT', `/api/employees/${me}/permissions`, { product: 'core', codes: [], reason: 'oops' })).statusCode).toBe(400);
+    expect((await admin.call('PUT', `/api/employees/${me}/permissions`, { product: 'core', codes: [], reason: 'oops' })).statusCode).toBe(403);
+    const own = await admin.call('PUT', `/api/employees/${me}/permissions`, { product: 'core', codes: ['core.people.manage', 'core.masterdata.edit'], reason: 'self grant' });
+    expect(own.statusCode).toBe(403);
+    expect(own.json().error).toBe("You can't change your own permissions; ask another administrator.");
+    expect((await admin.call('POST', `/api/employees/${me}/permissions/copy`, { product: 'core', fromId: (await makeEmployee(`mdl${run}`, ['core.masterdata.edit'])), reason: 'self copy' })).statusCode).toBe(403);
     const gone = await makeEmployee(`gone${run}`, ['core.masterdata.view']);
     const su = superuser();
     await su`insert into employee_version (employee_id, version, full_name, active, changed_by_name, reason) values (${gone}, 2, 'Gone', false, 'test', 'left')`;

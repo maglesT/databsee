@@ -48,13 +48,14 @@ async function setPermissions(tx: TransactionSql, me: Me, employeeId: string, pr
   await tx`select pg_advisory_xact_lock(hashtext(${employeeId}))`;   // one change of a person's permissions at a time
   const offered = new Set((await tx<{ code: string }[]>`select code from current_permission where product = ${product}`).map((r) => r.code));
   const want = new Set(codes);
-  if (employeeId === me.id && product === 'core' && !want.has(PEOPLE) && me.permissions.includes(PEOPLE))
-    throw new HttpError(400, `You cannot remove your own ${PEOPLE}; ask another administrator.`);
   for (const c of want) if (!offered.has(c)) throw new HttpError(400, `${product} has no permission "${c}".`);
   const have = new Set((await tx<{ code: string }[]>`select code from current_permission_grant
     where employee_id = ${employeeId} and product = ${product}`).map((r) => r.code));
   const granted = [...want].filter((c) => !have.has(c)).sort();
   const revoked = [...have].filter((c) => !want.has(c)).sort();
+  // GAP-PC-01: nobody grants or removes their own permissions (any product); another administrator does it.
+  if (employeeId === me.id && (granted.length || revoked.length))
+    throw new HttpError(403, "You can't change your own permissions; ask another administrator.");
   for (const [list, on] of [[granted, true], [revoked, false]] as const)
     for (const code of list)
       await tx`insert into permission_grant (employee_id, product, code, granted, by_id, by_name, reason)
@@ -227,7 +228,8 @@ export function buildApp(deps: Deps) {
       returning employee_id` : [];
     let me = s && (await loadMe(sql, s.employee_id));
     // Signed in through a product first: the same login opens the core screens (one login for every application).
-    if (!me && provider) {
+    // Not when the core session was there and ran out (idle): then the password is asked again (GAP-PC-03).
+    if (!me && provider && !sid) {
       const account = await signOnAccount(provider, browserSignOn(req));
       me = account ? await loadMe(sql, account) : undefined;
       if (me) await newSession(reply, me.id);
