@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="32" height="32" role="img" aria-label="Medhanta TIDE"><defs>
+<linearGradient id="rtide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d4140c"/><stop offset="1" stop-color="#f4511e"/></linearGradient>
+<linearGradient id="otide" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#f4511e"/><stop offset="1" stop-color="#f9a12a"/></linearGradient>
+<linearGradient id="gtide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dd1a10"/><stop offset=".55" stop-color="#f4511e"/><stop offset="1" stop-color="#f7941d"/></linearGradient>
+<linearGradient id="wtide" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+    <circle cx="30" cy="40" r="11" fill="url(#rtide)"/><circle cx="60" cy="28" r="13" fill="url(#gtide)"/><circle cx="90" cy="40" r="11" fill="url(#otide)"/>
+    <path d="M8 74 C24 56 44 56 60 70 C76 56 96 56 112 74 V82 H8Z" fill="url(#gtide)"/><path d="M8 96 C24 80 40 80 56 92 C72 104 92 104 112 88 V110 H8Z" fill="url(#otide)"/>
+    <path d="M8 96 C24 80 40 80 56 92 C72 104 92 104 112 88" stroke="#fff" stroke-opacity=".6" stroke-width="3" fill="none"/></svg>
