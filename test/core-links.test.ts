@@ -157,7 +157,7 @@ describe('D-79 the Links screen', () => {
 
 describe('D-77 D-78 logos and plant time', () => {
   it('D-77 a product is marked logo exactly when its logo file exists, so no logo is requested in vain', () => {
-    const files = readdirSync('apps/core/web/public/products').filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4)).sort();
+    const files = readdirSync('apps/core/web/public/products').filter((f) => f.endsWith('.svg')).map((f) => f.slice(0, -4)).sort();
     expect(Object.entries(PRODUCTS).filter(([, p]) => p.logo).map(([k]) => k).sort()).toEqual(files);
   });
 

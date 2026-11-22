@@ -58,7 +58,7 @@ function Shell({ me, children, onSignOut, go, current, hasApps }: { me: Me; chil
     <>
       <header>
         <a className="brand" href="/" onClick={(e) => { e.preventDefault(); go({ name: hasApps ? 'apps' : 'home' }); }}>
-          <img src="/medhanta-mark.png" alt="Medhanta" /><span><b>Medhanta</b><small>Platform</small></span>
+          <img src="/brand/mark.svg" alt="Medhanta" /><span><b>Medhanta</b><small>Platform</small></span>
         </a>
         <nav>
           {!me.mustChange && hasApps && <Tab on={current === 'apps'} onClick={() => go({ name: 'apps' })}>Applications</Tab>}
@@ -112,13 +112,13 @@ function Applications({ me, apps, go, people, md }: { me: Me; apps: MyApp[]; go:
   );
 }
 
-/** The product's logo (public/products/<product>.png, only for a product marked logo in products.ts) or its initials
+/** The product's logo (public/products/<product>.svg, only for a product marked logo in products.ts) or its initials
  *  in Medhanta colours: a product without a logo file is never requested (D-77). */
 function ProductIcon({ product, initials, logo: hasLogo }: { product: string; initials: string; logo: boolean }) {
   const [logo, setLogo] = useState(hasLogo);
   return (
     <div className="icon" aria-hidden="true">
-      {logo ? <img src={`/products/${product}.png`} alt="" onError={() => setLogo(false)} /> : initials}
+      {logo ? <img src={`/products/${product}.svg`} alt="" onError={() => setLogo(false)} /> : initials}
     </div>
   );
 }
@@ -127,7 +127,7 @@ function SignIn({ onDone }: { onDone: () => void }) {
   const a = useAction();
   return (
     <main className="signin">
-      <img className="logo" src="/medhanta-logo.png" alt="Medhanta: Where Expertise Meets Intelligence" />
+      <img className="logo" src="/brand/logo.svg" alt="Medhanta: Where Expertise Meets Intelligence" />
       <form className="card" onSubmit={(e) => { e.preventDefault(); const f = form(e); void a.run(async () => { await api('POST', '/api/login', f); onDone(); }); }}>
         <h2>Sign in</h2>
         <label>Login ID<input name="login" autoComplete="username" required /></label>
