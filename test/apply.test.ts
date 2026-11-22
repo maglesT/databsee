@@ -510,7 +510,7 @@ describe('Operations, a product kept in its own repo (Operations D-19)', () => {
 describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
   const tb = {
     ...base, licences: ['hello', 'truebatch'],
-    links: { hello: { master_data: ['equipment_v1'] }, truebatch: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'] } },
+    links: { hello: { master_data: ['equipment_v1'] }, truebatch: { master_data: ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1', 'item_link_v1'] } },
   };
   const raw = {
     ...rawSecrets,
@@ -534,7 +534,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_app:.*@db:5432\/master_data$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch.ci.example/cb');
     expect(tb.links.truebatch.master_data).toEqual(manifest('truebatch').reads!.master_data);
-    expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment', 'lims']);   // lims: CoAs and results (round 40, D-109)   // training_v1 (TB-23)
+    expect(Object.keys(manifest('truebatch').reads!)).toEqual(['master_data', 'deviations', 'qms', 'logbook', 'mms', 'recruitment', 'lims', 'ops']);   // lims: CoAs and results (round 40, D-109)   // training_v1 (TB-23)
     expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'reading_v1', 'master_lab_field_v1']);   // D-135 in-process lab fields of masters for LIMS; D-112 in-process lab requests; D-128 readings for CPV
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
@@ -585,7 +585,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
 });
 
 describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D-29)', () => {
-  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
+  const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1', 'item_link_v1'];
   const tp = {
     ...base, licences: ['hello', 'truebatch_packing'],
     links: { hello: { master_data: ['equipment_v1'] }, truebatch_packing: { master_data: md } },
@@ -629,7 +629,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
 
   it('PL-08 the Packing links: every view read is published by its provider; each provider URL comes only with its link', () => {
     const reads = manifest('truebatch_packing').reads!;
-    expect(Object.keys(reads)).toEqual(['master_data', 'truebatch', 'mms', 'logbook', 'deviations', 'qms', 'recruitment', 'lims']);   // training_v1 (TB-23)
+    expect(Object.keys(reads)).toEqual(['master_data', 'truebatch', 'mms', 'logbook', 'deviations', 'qms', 'recruitment', 'lims', 'ops']);   // training_v1 (TB-23)
     expect(reads.truebatch).toEqual(['batch_fact_v1', 'deviation_note_v1']);   // the bulk batch's open deviations block packing release (S24)
     for (const provider of ['truebatch', 'mms', 'logbook', 'deviations', 'qms'])
       expect(reads[provider]!.filter((v) => !manifest(provider).publishes.includes(v)), provider).toEqual([]);
@@ -1007,7 +1007,8 @@ describe('TrueBatch Capsules and TrueBatch Capsules Packing, two products from t
 
   it('PL-08 every view Capsules and Capsules Packing read is published by its provider; Packing reads Capsules\' bulk batches and deviation notes', () => {
     const reads = manifest('truebatch_capsules').reads!;
-    expect(reads).toEqual(manifest('truebatch').reads);
+    const { ops: _ops, ...tb } = manifest('truebatch').reads!;   // Operations' running-batch panel is Tablets only (1.26.26)
+    expect(reads).toEqual({ ...tb, master_data: tb.master_data!.filter((v) => v !== 'item_link_v1') });
     const preads = manifest('truebatch_capsules_packing').reads!;
     expect(preads.truebatch_capsules).toEqual(['batch_fact_v1', 'deviation_note_v1']);
     for (const [r, p] of [[reads, 'truebatch_capsules'], [preads, 'truebatch_capsules_packing']] as const)
