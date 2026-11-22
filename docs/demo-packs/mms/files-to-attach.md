@@ -1,0 +1,56 @@
+# Files to attach to Claude Design (in this order)
+
+1. `claude-design-prompt.md`
+2. `demo-script.md`
+3. Brand: `brand/medhanta-mms-logo.png` (Medhanta MMS emblem, 900 px), `brand/medhanta-mms-logo-white.png`, `brand/medhanta-mms-mark.png`, `brand/medhanta-mms-logo.svg`, `brand/medhanta-mms-mark.svg`, `brand/medhanta-mms-favicon.svg`, `brand/medhanta-mms-favicon-32.png`, then the Medhanta fallback files `brand/medhanta-logo.png`, `brand/medhanta-mark.png`, `brand/favicon.png`, `brand/brand.md`
+4. Screenshots, in order (49 files, folder `screens/`):
+   1. `screens/01-sign-in.png`
+   2. `screens/02-stores-home.png`
+   3. `screens/03-sources.png`
+   4. `screens/04-source-approve-before.png`
+   5. `screens/05-source-approve-after.png`
+   6. `screens/06-po-date-check.png`
+   7. `screens/07-receipt-before.png`
+   8. `screens/08-receipt-after.png`
+   9. `screens/09-container-labels.png`
+   10. `screens/10-lot-quarantine.png`
+   11. `screens/11-sample-from-qlims.png`
+   12. `screens/12-qc-pick-coa-before.png`
+   13. `screens/13-qc-pick-coa-after.png`
+   14. `screens/14-qa-approve-before.png`
+   15. `screens/15-qa-approve-after.png`
+   16. `screens/16-history-signatures.png`
+   17. `screens/17-qa-reject-before.png`
+   18. `screens/18-qa-reject-after.png`
+   19. `screens/19-send-back-before.png`
+   20. `screens/20-send-back-after.png`
+   21. `screens/21-segregate-rejected.png`
+   22. `screens/22-disposal-recorded.png`
+   23. `screens/23-disposal-sign-after.png`
+   24. `screens/24-stock-list.png`
+   25. `screens/25-expired-lot.png`
+   26. `screens/26-lot-truebatch-use.png`
+   27. `screens/27-lot-truebatch-lines.png`
+   28. `screens/28-vials-issued-injectables.png`
+   29. `screens/29-count-whole-lot.png`
+   30. `screens/30-count-qa-after.png`
+   31. `screens/31-issue-truebatch-batch.png`
+   32. `screens/32-reserve-refused-stock.png`
+   33. `screens/33-fefo-proposal.png`
+   34. `screens/34-issue-refused-more-than-lot.png`
+   35. `screens/35-issue-after.png`
+   36. `screens/36-production-confirm.png`
+   37. `screens/37-batch-view-mms.png`
+   38. `screens/38-fg-released-in-truebatch.png`
+   39. `screens/39-fg-receive-truebatch.png`
+   40. `screens/40-fg-traceback.png`
+   41. `screens/41-dispatch-fefo.png`
+   42. `screens/42-distribution-report.png`
+   43. `screens/43-batch-view-truebatch-tablets.png`
+   44. `screens/44-lot-history-pdf.png`
+   45. `screens/45-correction-before.png`
+   46. `screens/46-correction-after.png`
+   47. `screens/47-audit-trail.png`
+   48. `screens/48-integrity-check.png`
+   49. `screens/49-master-materials.png`
+5. `feature-list.md`
