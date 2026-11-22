@@ -48,13 +48,14 @@ async function setPermissions(tx: TransactionSql, me: Me, employeeId: string, pr
   await tx`select pg_advisory_xact_lock(hashtext(${employeeId}))`;   // one change of a person's permissions at a time
   const offered = new Set((await tx<{ code: string }[]>`select code from current_permission where product = ${product}`).map((r) => r.code));
   const want = new Set(codes);
-  if (employeeId === me.id && product === 'core' && !want.has(PEOPLE) && me.permissions.includes(PEOPLE))
-    throw new HttpError(400, `You cannot remove your own ${PEOPLE}; ask another administrator.`);
   for (const c of want) if (!offered.has(c)) throw new HttpError(400, `${product} has no permission "${c}".`);
   const have = new Set((await tx<{ code: string }[]>`select code from current_permission_grant
     where employee_id = ${employeeId} and product = ${product}`).map((r) => r.code));
   const granted = [...want].filter((c) => !have.has(c)).sort();
   const revoked = [...have].filter((c) => !want.has(c)).sort();
+  // GAP-PC-01: nobody grants or removes their own permissions (any product); another administrator does it.
+  if (employeeId === me.id && (granted.length || revoked.length))
+    throw new HttpError(403, "You can't change your own permissions; ask another administrator.");
   for (const [list, on] of [[granted, true], [revoked, false]] as const)
     for (const code of list)
       await tx`insert into permission_grant (employee_id, product, code, granted, by_id, by_name, reason)
@@ -146,7 +147,7 @@ function signInPage(product: string, uid: string, o: { error?: string; login?: s
   const p = productInfo(product);
   const title = o.reauth ? 'Confirm it is you' : o.change ? 'Choose a new password' : `Sign in to ${p.name}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)} - Medhanta</title><link rel="icon" type="image/png" href="/favicon.png"><style>
+<title>${esc(title)} - Medhanta</title><link rel="icon" type="image/svg+xml" href="/brand/favicon.svg"><link rel="apple-touch-icon" href="/brand/apple-touch-icon.png"><style>
 :root{--brand:#e8500f;--brand-dark:#c8410a;--grey:#5f5f5f;--muted:#666b73;--line:#d9d3ce;--bad:#c0352b;--grad:linear-gradient(90deg,#dd1a10,#f4511e 55%,#f7941d)}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;background:#faf8f6;color:#2b2b2b;-webkit-font-smoothing:antialiased}
 main{max-width:420px;margin:0 auto;padding:7vh 20px 40px;text-align:center}.logo{width:250px;max-width:80%;height:auto}
@@ -157,7 +158,7 @@ label{display:grid;gap:5px;margin:12px 0;color:var(--muted);font-size:.88rem;fon
 input{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px}input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(232,80,15,.18)}
 button{width:100%;margin-top:10px;padding:11px 16px;border-radius:8px;border:0;background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer}button:hover{background:var(--brand-dark)}
 .e{color:var(--bad);font-weight:500}.m{color:var(--muted);font-size:.9rem;margin:4px 0}footer{margin-top:16px;color:var(--muted);font-size:.8rem}</style></head><body><main>
-<img class="logo" src="/medhanta-logo.png" alt="Medhanta: Where Expertise Meets Intelligence">
+<img class="logo" src="/brand/logo.svg" alt="Medhanta: Where Expertise Meets Intelligence">
 <form method="post" action="/interaction/${esc(uid)}/login">
 <p class="for">${esc(p.name)}</p>
 <h1>${esc(title)}</h1>
@@ -227,7 +228,8 @@ export function buildApp(deps: Deps) {
       returning employee_id` : [];
     let me = s && (await loadMe(sql, s.employee_id));
     // Signed in through a product first: the same login opens the core screens (one login for every application).
-    if (!me && provider) {
+    // Not when the core session was there and ran out (idle): then the password is asked again (GAP-PC-03).
+    if (!me && provider && !sid) {
       const account = await signOnAccount(provider, browserSignOn(req));
       me = account ? await loadMe(sql, account) : undefined;
       if (me) await newSession(reply, me.id);

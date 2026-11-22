@@ -58,7 +58,7 @@ function Shell({ me, children, onSignOut, go, current, hasApps }: { me: Me; chil
     <>
       <header>
         <a className="brand" href="/" onClick={(e) => { e.preventDefault(); go({ name: hasApps ? 'apps' : 'home' }); }}>
-          <img src="/medhanta-mark.png" alt="Medhanta" /><span><b>Medhanta</b><small>Platform</small></span>
+          <img src="/brand/mark.svg" alt="Medhanta" /><span><b>Medhanta</b><small>Platform</small></span>
         </a>
         <nav>
           {!me.mustChange && hasApps && <Tab on={current === 'apps'} onClick={() => go({ name: 'apps' })}>Applications</Tab>}
@@ -112,13 +112,13 @@ function Applications({ me, apps, go, people, md }: { me: Me; apps: MyApp[]; go:
   );
 }
 
-/** The product's logo (public/products/<product>.png, only for a product marked logo in products.ts) or its initials
+/** The product's logo (public/products/<product>.svg, only for a product marked logo in products.ts) or its initials
  *  in Medhanta colours: a product without a logo file is never requested (D-77). */
 function ProductIcon({ product, initials, logo: hasLogo }: { product: string; initials: string; logo: boolean }) {
   const [logo, setLogo] = useState(hasLogo);
   return (
     <div className="icon" aria-hidden="true">
-      {logo ? <img src={`/products/${product}.png`} alt="" onError={() => setLogo(false)} /> : initials}
+      {logo ? <img src={`/products/${product}.svg`} alt="" onError={() => setLogo(false)} /> : initials}
     </div>
   );
 }
@@ -127,7 +127,7 @@ function SignIn({ onDone }: { onDone: () => void }) {
   const a = useAction();
   return (
     <main className="signin">
-      <img className="logo" src="/medhanta-logo.png" alt="Medhanta: Where Expertise Meets Intelligence" />
+      <img className="logo" src="/brand/logo.svg" alt="Medhanta: Where Expertise Meets Intelligence" />
       <form className="card" onSubmit={(e) => { e.preventDefault(); const f = form(e); void a.run(async () => { await api('POST', '/api/login', f); onDone(); }); }}>
         <h2>Sign in</h2>
         <label>Login ID<input name="login" autoComplete="username" required /></label>
@@ -305,7 +305,7 @@ function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) 
         <a.Error />
       </div>
 
-      <Permissions id={id} onChange={load} />
+      <Permissions id={id} me={me} onChange={load} />
 
       <div className="card">
         <h3>History</h3>
@@ -327,7 +327,7 @@ function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) 
 }
 
 /** PL-01: one person's permissions in one product: tick exactly the ones they need, or copy another person's. */
-function Permissions({ id, onChange }: { id: string; onChange: () => Promise<void> }) {
+function Permissions({ id, me, onChange }: { id: string; me: Me; onChange: () => Promise<void> }) {
   const [catalogue, setCatalogue] = useState<Permission[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
@@ -337,6 +337,7 @@ function Permissions({ id, onChange }: { id: string; onChange: () => Promise<voi
   const [fromId, setFromId] = useState('');
   const [training, setTraining] = useState<{ state: LinkState; training: Training[] }>({ state: 'off', training: [] });
   const a = useAction();
+  const own = id === me.id;   // GAP-PC-01: not on your own card
   const load = useCallback(async () => setGrants(await api<Grant[]>('GET', `/api/employees/${id}/permissions`)), [id]);
   useEffect(() => {
     void load();
@@ -355,6 +356,7 @@ function Permissions({ id, onChange }: { id: string; onChange: () => Promise<voi
   return (
     <div className="card">
       <h3>Permissions</h3>
+      {own && <p className="muted">You can't change your own permissions; ask another administrator.</p>}
       <label>Product<select value={product} onChange={(e) => setProduct(e.target.value)}>
         {products.map((p) => <option key={p}>{p}</option>)}
       </select></label>
@@ -362,7 +364,7 @@ function Permissions({ id, onChange }: { id: string; onChange: () => Promise<voi
         const g = grants.find((x) => x.code === p.code);
         return (
           <label className="check" key={p.code}>
-            <input type="checkbox" checked={ticked.has(p.code)} onChange={(e) => {
+            <input type="checkbox" disabled={own} checked={ticked.has(p.code)} onChange={(e) => {
               const next = new Set(ticked);
               if (e.target.checked) next.add(p.code); else next.delete(p.code);
               setTicked(next);
@@ -388,12 +390,12 @@ function Permissions({ id, onChange }: { id: string; onChange: () => Promise<voi
       )}
       <label>Reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. new job role, HR ticket 123" /></label>
       <p className="row">
-        <button onClick={() => save(`/api/employees/${id}/permissions`, { codes: [...ticked] })}>Save</button>
+        <button disabled={own} onClick={() => save(`/api/employees/${id}/permissions`, { codes: [...ticked] })}>Save</button>
         <label>Copy from<select value={fromId} onChange={(e) => setFromId(e.target.value)}>
           <option value="">choose a person</option>
           {people.filter((p) => p.id !== id).map((p) => <option key={p.id} value={p.id}>{p.login}: {p.fullName}</option>)}
         </select></label>
-        <button className="plain" disabled={!fromId} onClick={() => save(`/api/employees/${id}/permissions/copy`, { fromId })}>Copy</button>
+        <button className="plain" disabled={own || !fromId} onClick={() => save(`/api/employees/${id}/permissions/copy`, { fromId })}>Copy</button>
       </p>
       <a.Error />
     </div>

@@ -26,7 +26,7 @@ interface Switch { kind: 'licence' | 'link' | 'outside'; name: string; provider?
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const page = (title: string, body: string) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)} · Medhanta control panel</title>
-<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="icon" type="image/svg+xml" href="/brand/favicon.svg">
 <style>
 :root{--brand:#e8500f;--brand-dark:#c8410a;--brand-soft:#fff1e8;--grey:#5f5f5f;--muted:#666b73;--line:#ebe7e4;--line2:#d9d3ce;--ok:#17803d;--ok-soft:#e4f5ea;--bad:#c0352b;--bad-soft:#fdebe9;
 --grad:linear-gradient(90deg,#dd1a10,#f4511e 55%,#f7941d);--shadow:0 1px 2px rgba(60,40,30,.05),0 4px 14px rgba(60,40,30,.06)}
@@ -51,11 +51,11 @@ button{font:inherit;font-weight:600;padding:9px 16px;border:1px solid var(--bran
 .node text{text-anchor:middle;font-size:13px;fill:#2b2b2b}.node text.sub{font-size:10px;fill:var(--muted)}
 .link line{stroke:var(--brand);stroke-width:2}.link.off line{stroke:#b9b1ab;stroke-dasharray:5 4}.link text{font-size:10px;fill:var(--grey)}
 marker path{fill:var(--brand)}
-</style></head><body><header><a class="brand" href="/"><img src="/medhanta-mark.png" alt="Medhanta"><span><b>Medhanta</b><small>Control panel</small></span></a>
+</style></head><body><header><a class="brand" href="/"><img src="/brand/mark.svg" alt="Medhanta"><span><b>Medhanta</b><small>Control panel</small></span></a>
 <nav><a href="/">Customers</a></nav></header><main>${body}</main></body></html>`;
 
 // The Medhanta mark and icon for the panel's pages (the same files as the core screens).
-const brandFiles: Record<string, string> = { '/medhanta-mark.png': 'medhanta-mark.png', '/favicon.png': 'favicon.png' };
+const brandFiles: Record<string, string> = { '/brand/mark.svg': 'brand/mark.svg', '/brand/favicon.svg': 'brand/favicon.svg' };
 const brandDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../core/web/public');
 
 export function buildPanel(deps: PanelDeps) {
@@ -94,7 +94,7 @@ export function buildPanel(deps: PanelDeps) {
   };
 
   for (const [url, file] of Object.entries(brandFiles)) {
-    app.get(url, async (_req, reply) => reply.header('cache-control', 'max-age=86400').type('image/png').send(readFileSync(path.join(brandDir, file))));
+    app.get(url, async (_req, reply) => reply.header('cache-control', 'max-age=86400').type('image/svg+xml').send(readFileSync(path.join(brandDir, file))));
   }
 
   app.get('/', async (_req, reply) => {
