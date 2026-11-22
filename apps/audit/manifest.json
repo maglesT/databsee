@@ -1,0 +1,14 @@
+{
+  "product": "audit",
+  "database": "audit",
+  "permissions": [
+    {"code": "audit.view", "label": "See templates, audits and exports"},
+    {"code": "audit.template.edit", "label": "Create, edit and delete checklist templates"},
+    {"code": "audit.audit.perform", "label": "Start audits and record answers, observations and findings"},
+    {"code": "audit.audit.close", "label": "Close, re-open and delete audits"}
+  ],
+  "signon": { "backchannel_logout": "/backchannel-logout" },
+  "publishes": [],
+  "reads": { "identity": ["employee_v1"], "master_data": ["room_v1", "equipment_v1", "product_v1"] },
+  "source": { "repo": "https://github.com/maglesT/audit-insp-syste", "commit": "0c85046e7676db3e0c5032d9458f1a5eb4c77527" }
+}

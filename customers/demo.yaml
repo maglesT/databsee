@@ -29,6 +29,7 @@ licences:
   - truebatch_capsules
   - truebatch_capsules_packing
   - lims
+  - audit
 links:
   logbook:
     master_data:
@@ -482,6 +483,13 @@ links:
     recruitment:
       - hire_v1
       - training_v1
+  audit:
+    identity:
+      - employee_v1
+    master_data:
+      - room_v1
+      - equipment_v1
+      - product_v1
   lims:
     master_data:
       - equipment_v1

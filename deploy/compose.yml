@@ -240,6 +240,17 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
       interval: 10s
+  audit:                  # Medhanta CLEAR (audit checklist), built from its own repo at the commit in apps/audit/manifest.json
+    image: medhanta/audit:${AUDIT_COMMIT:-none}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [audit]
+    env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/audit.env
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
   truebatch_liquids:  # TrueBatch Liquids, built from its own repo at the commit in apps/truebatch_liquids/manifest.json (D-92)
     image: medhanta/truebatch_liquids:${TRUEBATCH_LIQUIDS_COMMIT:-none}
     restart: unless-stopped

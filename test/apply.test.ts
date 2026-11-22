@@ -1072,6 +1072,33 @@ describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
   });
 });
 
+describe('Medhanta CLEAR, the audit checklist (D-142)', () => {
+  const ac = { ...base, licences: ['hello', 'audit'], links: { hello: { master_data: ['equipment_v1'] }, audit: { identity: ['employee_v1'], master_data: ['room_v1', 'equipment_v1', 'product_v1'] } } };
+  const raw = { ...rawSecrets, logins: { ...rawSecrets.logins, audit_app: PW }, oidc: { ...rawSecrets.oidc, clients: { ...rawSecrets.oidc.clients, audit: 'test-only-client-secret' } } };
+
+  it('PL-01 CLEAR offers its 4 permission codes, all its own, with back-channel logout', () => {
+    const codes = manifest('audit').permissions.map((x) => x.code);
+    expect(codes).toEqual(['audit.view', 'audit.template.edit', 'audit.audit.perform', 'audit.audit.close']);
+    expect(manifest('audit').signon).toEqual({ backchannel_logout: '/backchannel-logout' });
+  });
+
+  it('PL-08 CLEAR gets its own database, login and sign-on at audit.<domain>, on host port 8121 behind an outside proxy; it reads people and master data while linked', () => {
+    const { config, secrets: s } = checkConfig(ac, raw);
+    const env = productEnv(config, s!, 'audit');
+    expect(Object.keys(env).sort()).toEqual(['AUDIT_DATABASE_URL', 'IDENTITY_DATABASE_URL', 'MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
+    expect(env.AUDIT_DATABASE_URL).toMatch(/^postgres:\/\/audit_app:.*@db:5432\/audit$/);
+    expect(env.OIDC_REDIRECT_URI).toBe('https://audit.ci.example/cb');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('audit.ci.example {\n  reverse_proxy 127.0.0.1:8121\n}');
+    expect(manifest('audit').publishes).toEqual([]);
+  });
+
+  it('PL-10 the CLEAR image is pinned to a full commit of its repo, migrated by the default migrator', () => {
+    expect(imageTags().AUDIT_COMMIT).toMatch(/^[0-9a-f]{40}$/);
+    expect(manifest('audit').source!.repo).toBe('https://github.com/maglesT/audit-insp-syste');
+    expect(manifest('audit').migrate).toBeUndefined();
+  });
+});
+
 describe('TrueBatch Liquids and TrueBatch Liquids Packing, two products from the Liquids repo (D-92)', () => {
   const md = ['equipment_v1', 'instrument_v1', 'room_v1', 'material_v1', 'product_v1'];
   const tl = {
