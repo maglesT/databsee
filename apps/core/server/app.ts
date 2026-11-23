@@ -707,7 +707,7 @@ export function buildApp(deps: Deps) {
 table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding:4px 6px;text-align:left}.muted{color:#667085}
 @media print{button{display:none}}</style></head><body>
 <h1>Access review report</h1><p class="muted">Printed ${esc(when(new Date()))} from the permission register. Reviewed by: ______________ Date: ________ Signature: ______________</p>
-<button onclick="print()">Print</button>
+<p class="muted">To print or save as PDF, use the browser's Print (Ctrl+P).</p>
 <h2>Active permissions (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Permission', 'Label', 'Granted by', 'Granted', 'Last sign-in with password to product'],
       grants.map((g) => [g.login, g.full_name, g.active ? 'yes' : 'NO', g.product, g.code, g.label ?? '', g.granted_by, when(g.granted_at), when(g.last_signon)]))}
 <h2>Links and outside logins that are on, as recorded by the last apply (${links.length})</h2>${table(['Reader', 'Reads database', 'View', 'Switched on', 'Change reference'],

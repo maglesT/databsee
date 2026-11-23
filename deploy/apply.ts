@@ -217,11 +217,35 @@ export function externalPort(service: string): number {
   return Number(port);
 }
 
+/**
+ * The security headers every site sends (snippet "security_headers", imported by each site block). Product pages
+ * are single-page apps with one script file of their own and inline styles, so: default-src 'self'; styles may be
+ * inline; images may be data: and blob:; nothing may frame the site. One page needs a small inline script: /cb in
+ * a signature window hands the signing proof to the dialog that opened it, so /cb alone may run inline scripts.
+ * The same text is in docs/security-headers.md for a host proxy that is kept by hand.
+ */
+const CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; " +
+  "frame-src 'self' blob:; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'";
+export const SECURITY_HEADERS = `(security_headers) {
+\theader {
+\t\tStrict-Transport-Security "max-age=31536000"
+\t\tX-Content-Type-Options "nosniff"
+\t\tX-Frame-Options "DENY"
+\t\tReferrer-Policy "strict-origin-when-cross-origin"
+\t\tPermissions-Policy "camera=(), microphone=(), geolocation=()"
+\t}
+\t@page_policy not path /cb
+\theader @page_policy Content-Security-Policy "${CSP}"
+\t@esign_window path /cb
+\theader @esign_window Content-Security-Policy "${CSP.replace("default-src 'self';", "default-src 'self'; script-src 'self' 'unsafe-inline';")}"
+}
+`;
+
 /** Site blocks for core and each licensed product: the platform's caddy (Caddyfile) or the host's proxy (Caddyfile.host). */
 export function caddyfile(config: Config): string {
   const target = (service: string) => (config.proxy === 'external' ? `127.0.0.1:${externalPort(service)}` : `${service}:3000`);
-  return [`${config.domain} {\n  reverse_proxy ${target('core')}\n}`,
-    ...config.licences.map((p) => `${productHost(p, config.domain)} {\n  reverse_proxy ${target(p)}\n}`)].join('\n') + '\n';
+  const site = (host: string, service: string) => `${host} {\n  import security_headers\n  reverse_proxy ${target(service)}\n}`;
+  return [SECURITY_HEADERS, site(config.domain, 'core'), ...config.licences.map((p) => site(productHost(p, config.domain), p))].join('\n') + '\n';
 }
 
 /** Docker Compose runtime: writes each service's settings, starts core, Caddy and the licensed products, removes
