@@ -25,7 +25,9 @@ returned `sub` is the person signing.
 ## Customer config and apply (slice A6)
 `customers/<name>.yaml` is the customer's system: version, licences, links (`product -> provider database -> views`),
 outside logins, and the customer's change reference and reason for the change (template: `customers/example.yaml`).
-Secrets (database passwords, OIDC keys) are in `customers/<name>.secrets.yaml.age`, encrypted with age (D-12).
+Secrets (database passwords, OIDC keys) are in `customers/<name>.secrets.yaml.age`, encrypted with age (D-12). This repo is
+public (MED-03): no password, token or key is ever committed in plain text, and CI refuses one
+(`scripts/check-secrets.sh`). GitHub secret scanning with push protection is on for every repo (Settings, Code security).
 `deploy/apply.sh customers/<name>.yaml` decrypts the secrets and runs `deploy/apply.ts`: create databases, migrate
 (a data-moving migration ships `NNNN_name.check.sql`, two queries split by `-- after` that must return the same rows,
 PL-13), load the products' permissions into the register, switch logins and links (only the differences, each logged with the change reference),
