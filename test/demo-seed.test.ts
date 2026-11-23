@@ -6,7 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
 import { loadPermissions } from '../deploy/apply.js';
 import { allProducts, manifest } from '../deploy/config.js';
-import { BY, readSeed, seedDemo } from '../deploy/seed-demo.js';
+import { readFileSync } from 'node:fs';
+import { BY, newDemoPasswords, readSeed, seedDemo } from '../deploy/seed-demo.js';
 import { verifyPassword } from '../apps/core/server/passwords.js';
 
 const ID = 'demo_t_identity';
@@ -15,6 +16,7 @@ const psql = (db: string, args: string[]) => execFileSync('psql', ['-X', '-q', '
 let identity: postgres.Sql;
 let md: postgres.Sql;
 const seed = readSeed();
+let firstPasswords = new Map<string, string>();
 
 /** A fresh, migrated database, made like init.sh does. */
 async function fresh(db: string, dir: string) {
@@ -41,7 +43,8 @@ describe('demo company seed (DEMO-ONLY)', () => {
   });
 
   it('PL-01 PL-03 the demo seed loads people, their permission codes and the edge cases into a fresh platform', async () => {
-    expect(await seedDemo('demo', identity, md)).toBeGreaterThan(0);
+    const { written, passwords } = await seedDemo('demo', identity, md);
+    expect(written).toBeGreaterThan(0);
     const people = await identity<{ login: string; active: boolean; must_change: boolean; password_hash: string }[]>`
       select e.login, e.active, c.must_change, c.password_hash from employee_current e join credential c on c.employee_id = e.id`;
     expect(people).toHaveLength(Object.keys(seed.people).length);
@@ -49,7 +52,8 @@ describe('demo company seed (DEMO-ONLY)', () => {
     expect(p['prod.op3']!.active).toBe(false);                       // deactivated person
     expect(p['qc.analyst2']!.must_change).toBe(true);                // temporary password
     expect(people.filter((r) => r.must_change)).toHaveLength(1);
-    expect(await verifyPassword(seed.password, p['it.admin']!.password_hash)).toBe(true);   // scrypt, the documented demo password
+    expect(await verifyPassword(passwords.get('it.admin')!, p['it.admin']!.password_hash)).toBe(true);   // scrypt
+    firstPasswords = passwords;
     const grants = await identity<{ login: string; code: string }[]>`
       select e.login, g.code from current_permission_grant g join employee e on e.id = g.employee_id`;
     for (const [login, person] of Object.entries(seed.people))
@@ -84,7 +88,7 @@ describe('demo company seed (DEMO-ONLY)', () => {
       (await md`select (select count(*) from item_version) + (select count(*) from link_event) as n`)[0]!.n,
     ];
     const before = await events();
-    expect(await seedDemo('demo', identity, md)).toBe(0);
+    expect(await seedDemo('demo', identity, md)).toEqual({ written: 0, passwords: new Map() });
     expect(await events()).toEqual(before);
   });
 
@@ -101,10 +105,33 @@ describe('demo company seed (DEMO-ONLY)', () => {
     const [press, rm105, rm106] = [await id('EQ-CMP-01'), await id('RM-105'), await id('RM-106')];
     await md`insert into link_event (from_item, to_item, type, active, changed_by, changed_by_name, reason) values
       (${press}, ${rm105}, 'located_in', false, ${admin}, 'Arjun Mehta', 'moved'), (${press}, ${rm106}, 'located_in', true, ${admin}, 'Arjun Mehta', 'moved')`;
-    expect(await seedDemo('demo', identity, md)).toBe(0);
+    expect(await seedDemo('demo', identity, md)).toEqual({ written: 0, passwords: new Map() });
     expect((await identity`select active from employee_current where id = ${op3}`)[0]!.active).toBe(true);
     expect((await identity`select count(*)::int as n from current_permission_grant where employee_id = ${op3} and code = 'logbook.entry.record_use'`)[0]!.n).toBe(0);
     expect((await md`select room_code from report.equipment_v1 where code = 'EQ-CMP-01'`).map((r) => r.room_code)).toEqual(['RM-106']);
+  });
+
+  it('MED-03 PL-04 no demo password is in the repo: each person gets their own random one, shown once', async () => {
+    expect(readFileSync('deploy/demo.seed.yaml', 'utf8')).not.toMatch(/^password:/m);
+    expect(readFileSync('docs/demo-company.md', 'utf8')).not.toMatch(/Demo-Tablets/);
+    expect(firstPasswords.size).toBe(Object.keys(seed.people).length);
+    expect(new Set(firstPasswords.values()).size).toBe(firstPasswords.size);              // per person
+    for (const pw of firstPasswords.values()) expect(pw).toMatch(/^[A-Za-z0-9_-]{20}$/);   // 120 random bits
+    const hash = async (login: string) => (await identity`select c.password_hash from credential c join employee e on e.id = c.employee_id where e.login = ${login}`)[0]!.password_hash as string;
+    expect(await verifyPassword(firstPasswords.get('qa.head')!, await hash('it.admin'))).toBe(false);
+  });
+
+  it('MED-03 PL-04 rotation gives every demo person a new random password, unlocks them and logs a reset', async () => {
+    const admin = (await identity`select id from employee where login = 'it.admin'`)[0]!.id;
+    await identity`update credential set failed_count = 5, locked_at = now() where employee_id = ${admin}`;
+    await expect(newDemoPasswords('acme', identity)).rejects.toThrow(/only for the customer "demo"/);
+    const fresh = await newDemoPasswords('demo', identity);
+    expect([...fresh.keys()].sort()).toEqual(Object.keys(seed.people).sort());
+    const [c] = await identity<{ password_hash: string; locked_at: Date | null; must_change: boolean }[]>`select * from credential where employee_id = ${admin}`;
+    expect(await verifyPassword(fresh.get('it.admin')!, c!.password_hash)).toBe(true);
+    expect(await verifyPassword(firstPasswords.get('it.admin')!, c!.password_hash)).toBe(false);
+    expect([c!.locked_at, c!.must_change]).toEqual([null, false]);
+    expect((await identity`select count(*)::int as n from credential_event where employee_id = ${admin} and kind = 'reset'`)[0]!.n).toBe(2);
   });
 
   it('PL-09 the demo seed refuses an identity database that holds people but none of its own (a real installation)', async () => {
