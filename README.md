@@ -74,7 +74,8 @@ the folder belongs to the database container's user), then start PostgreSQL on i
   config names the version it runs.
 - **Apply**: `.github/workflows/apply.yml` runs on every commit that changes `customers/<name>.yaml` or its secrets
   (or by hand, "Run workflow"). It checks the config, builds the bundle (`deploy/bundle.sh`: release `v<version>` with its
-  node_modules and images, plus the config and encrypted secrets) and signs it with `ssh-keygen -Y sign`.
+  node_modules and images, plus the config and encrypted secrets) and signs it with `ssh-keygen -Y sign`
+  (`deploy/sign-bundle.sh`, in a separate step).
   Online sites: the bundle is copied over SSH (host key pinned in the config) and applied. Offline sites: download the
   bundle and its `.sig` from the run and run `/opt/medhanta/current/deploy/apply.sh <bundle>.tar` on site.
   `apply.sh` checks the signature first and refuses anything else. One apply per customer runs at a time.
@@ -86,7 +87,8 @@ the folder belongs to the database container's user), then start PostgreSQL on i
 2. `age-keygen -o /etc/medhanta/age.key` (mode 600); add its public key as a recipient of the customer's secrets file.
 3. `/etc/medhanta/allowed_signers`: `medhanta-release namespaces="medhanta-bundle" <release public key>`.
 4. GitHub: Environment `production` limited to the `main` branch, holding the secrets `BUNDLE_SIGNING_KEY` and
-   `DEPLOY_SSH_KEY`. Online sites: user `deploy` with the Actions public key, allowed `sudo /opt/medhanta/current/deploy/apply.sh *` only;
+   `DEPLOY_SSH_KEY`, with **required reviewers** (the owner), so every apply waits for a human approval (MED-07). The
+   bundle is built with npm install scripts off and signed in a step of its own, the only one that gets the key. Online sites: user `deploy` with the Actions public key, allowed `sudo /opt/medhanta/current/deploy/apply.sh *` only;
    put the server's `ssh-ed25519` host key in the config (`host_key`).
 5. Cron lines from "Backups" above.
 6. First install: check the first bundle by hand (`deploy/verify-bundle.sh` from the repo), unpack it to
