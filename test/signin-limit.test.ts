@@ -81,14 +81,51 @@ describe('MED-05 sign-in rate limit and lockout window', () => {
     expect(page.statusCode).toBe(200);
     expect(page.body).toContain(`<form method="post"><button>Unlock unlock${run}</button></form>`);
     expect((await login(`unlock${run}`, PASSWORD)).statusCode).toBe(401);      // opening the link unlocked nothing
-    expect((await app.inject({ method: 'POST', url: link })).statusCode).toBe(200);
+    // As a browser posts the page's form (urlencoded, empty body).
+    const post = () => app.inject({ method: 'POST', url: link, headers: { 'content-type': 'application/x-www-form-urlencoded' }, payload: '' });
+    expect((await post()).statusCode).toBe(200);
     expect((await login(`unlock${run}`, PASSWORD)).statusCode).toBe(200);
-    expect((await app.inject({ method: 'POST', url: link })).statusCode).toBe(404);
+    expect((await post()).statusCode).toBe(404);
     expect((await app.inject({ method: 'POST', url: '/unlock/forged-token' })).statusCode).toBe(404);
     const su = superuser();
     try {
       expect((await su`select by_name from credential_event where employee_id = ${id} and kind = 'unlocked'`).map((r) => r.by_name)).toEqual(['site security contact']);
       expect((await su`select acknowledged_at from alert where employee_id = ${id}`)[0]!.acknowledged_at).not.toBeNull();
     } finally { await su.end(); }
+  });
+
+  it('MED-05 PL-04 an unlock link works only for the lock it was sent for: not after it lifted, not for a later lock', async () => {
+    const id = await makeEmployee(`stale${run}`);
+    const lock = async () => {
+      t.mailbox.length = 0;
+      for (let i = 0; i < 5; i++) await login(`stale${run}`, 'guess', `192.0.2.${150 + i}`);
+      return t.mailbox[0]!.text.match(/\/unlock\/[A-Za-z0-9_-]+/)![0];
+    };
+    const first = await lock();
+    await later(id, 16);                                                        // lock A lifted unused
+    expect((await app.inject({ url: first })).statusCode).toBe(404);
+    const second = await lock();                                                // lock B
+    expect((await app.inject({ method: 'POST', url: first })).statusCode).toBe(404);
+    expect((await login(`stale${run}`, PASSWORD)).statusCode).toBe(401);       // still locked
+    expect((await app.inject({ method: 'POST', url: second })).statusCode).toBe(200);
+  });
+
+  it('MED-05 PL-04 tries made while locked (even with the right password) do not count once the lock lifts', async () => {
+    const id = await makeEmployee(`during${run}`);
+    for (let i = 0; i < 5; i++) await login(`during${run}`, 'guess', `192.0.2.${160 + i}`);
+    for (let i = 0; i < 4; i++) expect((await login(`during${run}`, PASSWORD, `192.0.2.${170 + i}`)).statusCode).toBe(401);
+    await later(id, 16);
+    expect((await login(`during${run}`, 'typo', '192.0.2.180')).statusCode).toBe(401);
+    expect((await login(`during${run}`, PASSWORD, '192.0.2.181')).statusCode).toBe(200);
+  });
+
+  it('MED-05 PL-04 parallel sprays from one address cannot pass the limit; an IPv6 /64 counts as one address', async () => {
+    const codes = await Promise.all(Array.from({ length: 40 }, (_, i) => login(`par${i}${run}`, 'Summer2026!', '203.0.113.77')))
+      .then((r) => r.map((x) => x.statusCode));
+    expect(codes.filter((c) => c === 401)).toHaveLength(10);
+    expect(codes.filter((c) => c === 429)).toHaveLength(30);
+    for (let i = 0; i < 10; i++) await login(`v6${i}${run}`, 'x', `2001:db8:1:2::${i + 1}`);
+    expect((await login(`v6x${run}`, 'x', '2001:db8:1:2:ffff::9')).statusCode).toBe(429);
+    expect((await login(`v6y${run}`, 'x', '2001:db8:1:3::1')).statusCode).toBe(401);
   });
 });

@@ -81,8 +81,9 @@ async function loadMe(sql: Sql | TransactionSql, employeeId: string): Promise<Me
  * The one password check for every sign-on (core screens now, products through OIDC in A3).
  * PL-04: counts failures; at the limit locks the account, raises the on-screen alert and emails the site security
  * contact at once (D-03). Returns the employee id on success.
- * MED-05: only failures within the last 15 minutes (and since the last success, reset, lock or unlock) count; a lock
- * lifts by itself after 15 minutes, so nobody can lock a person out for good by guessing; the security contact can
+ * MED-05: only failures within the last 15 minutes (since the last success, reset or unlock, and after the last lock
+ * ended: tries during a lock never count) count; a lock
+ * lifts by itself after 15 minutes, so 5 wrong tries cannot lock a person out for good; the security contact can
  * also unlock at once from the email.
  */
 export async function checkPassword(deps: Deps, login: string, password: string, product = 'core'): Promise<string | null> {
@@ -104,7 +105,8 @@ export async function checkPassword(deps: Deps, login: string, password: string,
         const [f] = await tx<{ failed: number }[]>`select count(*)::int as failed from credential_event
           where employee_id = ${row.id} and kind = 'signon_failed' and at > now() - make_interval(mins => ${window})
             and at > coalesce((select max(at) from credential_event where employee_id = ${row.id}
-              and kind in ('signon_ok', 'reset', 'changed', 'unlocked', 'locked')), '-infinity')`;
+              and kind in ('signon_ok', 'reset', 'changed', 'unlocked')), '-infinity')
+            and at > coalesce((select locked_at + make_interval(mins => ${window}) from credential where employee_id = ${row.id}), '-infinity')`;
         const failed = f!.failed;
         if (failed >= POLICY.maxFailedAttempts) {
           await tx`update credential set failed_count = ${failed}, locked_at = now() where employee_id = ${row.id}`;
@@ -145,20 +147,39 @@ async function emailAlert(deps: Deps, a: { message: string; alertId: string; tok
   }
 }
 
-/** MED-05: failed sign-ins per client address in the last minute (in memory: one core process per site). */
+/** MED-05: failed sign-ins per client address in the last minute (in memory: one core process per site). A slot is
+ *  taken before the password is checked and given back on success, so parallel requests cannot pass the limit. An
+ *  IPv6 client is keyed by its /64 (one site or home network). */
 export class FailureLimiter {
   private seen = new Map<string, number[]>();
   constructor(private perMinute = POLICY.failuresPerIpPerMinute, private now = () => Date.now()) {}
-  private recent(ip: string) {
+  private key(ip: string) {
+    const v6 = ip.toLowerCase().replace(/^::ffff:(?=\d+\.)/, '');
+    if (!v6.includes(':')) return v6;
+    const [head = '', tail = ''] = v6.split('::');
+    const left = head ? head.split(':') : [];
+    const right = tail ? tail.split(':') : [];
+    const full = v6.includes('::') ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right] : left;
+    return full.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':') + '::/64';
+  }
+  private recent(key: string) {
     const since = this.now() - 60_000;
-    const list = (this.seen.get(ip) ?? []).filter((t) => t > since);
-    if (list.length) this.seen.set(ip, list); else this.seen.delete(ip);
+    const list = (this.seen.get(key) ?? []).filter((t) => t > since);
+    if (list.length) this.seen.set(key, list); else this.seen.delete(key);
     return list;
   }
-  blocked(ip: string) { return this.recent(ip).length >= this.perMinute; }
-  fail(ip: string) {
+  /** Takes a slot for one sign-in attempt; null when this address already failed too often in the last minute. */
+  take(ip: string): (() => void) | null {
+    const key = this.key(ip);
     if (this.seen.size > 10_000) for (const k of [...this.seen.keys()]) this.recent(k);
-    this.seen.set(ip, [...this.recent(ip), this.now()]);
+    const list = this.recent(key);
+    if (list.length >= this.perMinute) return null;
+    const t = this.now();
+    this.seen.set(key, [...list, t]);
+    return () => {   // the attempt succeeded: it was not a failure
+      const left = (this.seen.get(key) ?? []).filter((x, i, a) => x !== t || a.indexOf(t) !== i);
+      if (left.length) this.seen.set(key, left); else this.seen.delete(key);
+    };
   }
 }
 const TOO_MANY = 'Too many failed sign-ins from this computer. Wait a minute and try again.';
@@ -217,7 +238,8 @@ export function csv(rows: Record<string, unknown>[]): string {
 
 export function buildApp(deps: Deps) {
   const { sql } = deps;
-  // MED-05: the client address for the sign-in limit is the one the proxy in front (Caddy, one hop) saw.
+  // MED-05: the client address for the sign-in limit is the one the proxy in front (Caddy, one hop) saw. Caddy replaces
+  // a client's own X-Forwarded-For; only services on the server's internal network could set it themselves.
   const app = Fastify({ logger: false, trustProxy: (_address: string, hop: number) => hop < 1 });
   const limiter = deps.limiter ?? new FailureLimiter();
   app.register(cookie);
@@ -285,12 +307,11 @@ export function buildApp(deps: Deps) {
 
   app.post('/api/login', async (req, reply: FastifyReply) => {
     const b = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(req.body);
-    if (limiter.blocked(req.ip)) throw new HttpError(429, TOO_MANY);
+    const succeeded = limiter.take(req.ip);
+    if (!succeeded) throw new HttpError(429, TOO_MANY);
     const id = await checkPassword(deps, b.login, b.password);
-    if (!id) {
-      limiter.fail(req.ip);
-      throw new HttpError(401, 'Wrong login or password, or the account is locked or inactive.');
-    }
+    if (!id) throw new HttpError(401, 'Wrong login or password, or the account is locked or inactive.');
+    succeeded();
     const old = req.cookies[SESSION_COOKIE];
     if (old) await sql`delete from session where id = ${sessionKey(old)}`;
     await newSession(reply, id);
@@ -523,33 +544,40 @@ export function buildApp(deps: Deps) {
 <title>Unlock account - Medhanta</title><style>body{font:15px/1.5 system-ui,sans-serif;max-width:460px;margin:10vh auto;padding:0 20px;color:#2b2b2b}
 button{padding:10px 18px;border:0;border-radius:8px;background:#e8500f;color:#fff;font:inherit;font-weight:600;cursor:pointer}</style></head>
 <body><h1>Unlock account</h1><p>${esc(text)}</p>${form}</body></html>`;
-  const lockFor = (token: string) => sql<{ alert: string; employee_id: string; login: string; locked: boolean }[]>`
-    select a.id::text as alert, a.employee_id, e.login, c.locked_at is not null as locked
-    from alert a join employee e on e.id = a.employee_id join credential c on c.employee_id = a.employee_id
-    where a.unlock_token_hash = ${tokenHash(token)}`;
-  app.get('/unlock/:token', async (req, reply) => {
-    const { token } = z.object({ token: z.string().max(64) }).parse(req.params);
-    const [l] = await lockFor(token);
-    reply.type('text/html');
-    if (!l || !l.locked) return reply.code(404).send(unlockPage('This link was already used, or the account is not locked.'));
-    return unlockPage(`Unlock the account ${l.login} now? Do this only if the failed attempts were the person themself.`,
-      `<form method="post"><button>Unlock ${esc(l.login)}</button></form>`);
-  });
-  app.post('/unlock/:token', async (req, reply) => {
-    const { token } = z.object({ token: z.string().max(64) }).parse(req.params);
-    reply.type('text/html');
-    const done = await sql.begin(async (tx) => {
-      const [a] = await tx<{ id: string; employee_id: string; login: string }[]>`update alert set unlock_token_hash = null
-        where unlock_token_hash = ${tokenHash(token)} returning id::text, employee_id, (select login from employee where id = employee_id)`;
-      if (!a) return null;
-      await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${a.employee_id}`;
-      await tx`insert into credential_event (employee_id, login, kind, by_name, reason)
-        values (${a.employee_id}, ${a.login}, 'unlocked', 'site security contact', 'unlocked from the lockout email')`;
-      await tx`update alert set acknowledged_by_name = 'site security contact (unlocked)', acknowledged_at = now() where id = ${a.id} and acknowledged_at is null`;
-      return a.login;
+  // The token belongs to one lock: its alert was written with the lock (same transaction, so alert.at = locked_at),
+  // and only while that lock lasts. A later lock, a lock that lifted, a reset or a sign-in makes old links useless.
+  const current = (window: number) => sql`c.locked_at = a.at and c.locked_at > now() - make_interval(mins => ${window})`;
+  app.register(async (inst) => {
+    inst.register(formbody);   // the page's form posts application/x-www-form-urlencoded (an empty body)
+    inst.get('/unlock/:token', async (req, reply) => {
+      const { token } = z.object({ token: z.string().max(64) }).parse(req.params);
+      const [l] = await sql<{ login: string }[]>`select e.login
+        from alert a join employee e on e.id = a.employee_id join credential c on c.employee_id = a.employee_id
+        where a.unlock_token_hash = ${tokenHash(token)} and ${current(POLICY.failureWindowMinutes)}`;
+      reply.type('text/html');
+      if (!l) return reply.code(404).send(unlockPage('This link was already used, or the lock it was sent for has ended.'));
+      return unlockPage(`Unlock the account ${l.login} now? Do this only if the failed attempts were the person themself.`,
+        `<form method="post"><button>Unlock ${esc(l.login)}</button></form>`);
     });
-    if (!done) return reply.code(404).send(unlockPage('This link was already used, or the account is not locked.'));
-    return unlockPage(`The account ${done} is unlocked. The person can sign in again.`);
+    inst.post('/unlock/:token', async (req, reply) => {
+      const { token } = z.object({ token: z.string().max(64) }).parse(req.params);
+      reply.type('text/html');
+      const done = await sql.begin(async (tx) => {
+        const [a] = await tx<{ id: string; employee_id: string; login: string }[]>`update alert a set unlock_token_hash = null
+          from credential c, employee e
+          where a.unlock_token_hash = ${tokenHash(token)} and c.employee_id = a.employee_id and e.id = a.employee_id
+            and ${current(POLICY.failureWindowMinutes)}
+          returning a.id::text, a.employee_id, e.login`;
+        if (!a) return null;
+        await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${a.employee_id}`;
+        await tx`insert into credential_event (employee_id, login, kind, by_name, reason)
+          values (${a.employee_id}, ${a.login}, 'unlocked', 'site security contact', 'unlocked from the lockout email')`;
+        await tx`update alert set acknowledged_by_name = 'site security contact (unlocked)', acknowledged_at = now() where id = ${a.id} and acknowledged_at is null`;
+        return a.login;
+      });
+      if (!done) return reply.code(404).send(unlockPage('This link was already used, or the lock it was sent for has ended.'));
+      return unlockPage(`The account ${done} is unlocked. The person can sign in again.`);
+    });
   });
 
   // ---- Alerts (core.people.manage; shown on every core screen until acknowledged) ----
@@ -654,12 +682,11 @@ function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, p
       const login = (b.login ?? '').trim().toLowerCase();
       const show = (o: Parameters<typeof signInPage>[2]) => reply.type('text/html').send(signInPage(product, d.uid, { login, ...o }));
 
-      if (limiter.blocked(req.ip)) { reply.code(429); return show({ error: TOO_MANY }); }
+      const succeeded = limiter.take(req.ip);
+      if (!succeeded) { reply.code(429); return show({ error: TOO_MANY }); }
       const id = await checkPassword(deps, login, b.password ?? '', product);
-      if (!id) {
-        limiter.fail(req.ip);
-        return show({ error: 'Wrong login or password, or the account is locked or inactive.' });
-      }
+      if (!id) return show({ error: 'Wrong login or password, or the account is locked or inactive.' });
+      succeeded();
       // PL-05: re-authentication (e.g. for an e-signature) confirms the person already signed in; nobody else may
       // answer it. Switching person needs a sign-out first.
       if (d.session?.accountId && d.prompt.name === 'login' && d.session.accountId !== id) {
