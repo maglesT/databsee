@@ -35,6 +35,11 @@ inactive and is revoked from everyone holding it. The control panel uses `reads`
   `"permissions": ["hello.note.read", "hello.note.sign"]`. Check the needed code on the server for each action. No
   local user table, no local passwords. Someone with no permission in the product is refused at sign-in by core.
 - At an e-signature, redirect with `prompt=login`. The re-authenticated `sub` must be the signer.
+- Security headers (MED-06): the proxy sends HSTS, nosniff, `Referrer-Policy: same-origin` and, unless the product
+  sends its own, `Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';
+  script-src 'self'; object-src 'none'; frame-ancestors 'none'`. An inline `<script>` (such as the sign window that posts
+  the signing proof) runs only if its hash is in the manifest, `"signon": {"script_hashes": ["sha256-<base64>"]}`, or in
+  the product's own policy. Keep the script fixed (data in a `data-` attribute or JSON element) so its hash does not change.
 
 ## 4. Reading master data or another product (PL-07, PL-08, A11 5) — mandatory
 - Read only through the provider's `report.*_v1` views, with the product's own login and a second connection pool.

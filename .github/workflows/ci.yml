@@ -40,9 +40,9 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npx playwright install --with-deps chromium
-      - name: PostgreSQL 17 binaries and rclone for the PL-11 tests
+      - name: PostgreSQL 17 binaries and rclone for the PL-11 tests, caddy for MED-06
         run: |
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install -y postgresql-17 rclone
+          sudo apt-get install -y postgresql-17 rclone caddy
       - name: Tests (named by rule ID)
         run: npm test

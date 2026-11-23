@@ -16,6 +16,7 @@ import { productInfo } from '../products.js';
 import { loginFromName } from '../names.js';
 import { plantTime } from '../time.js';
 import { linkReport, readLink } from './links.js';
+import { PRINT_SCRIPT } from './csp.js';
 
 export interface Deps {
   sql: Sql;
@@ -527,13 +528,13 @@ export function buildApp(deps: Deps) {
 table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding:4px 6px;text-align:left}.muted{color:#667085}
 @media print{button{display:none}}</style></head><body>
 <h1>Access review report</h1><p class="muted">Printed ${esc(when(new Date()))} from the permission register. Reviewed by: ______________ Date: ________ Signature: ______________</p>
-<button onclick="print()">Print</button>
+<button id="print">Print</button>
 <h2>Active permissions (${grants.length})</h2>${table(['Login', 'Name', 'Employee active', 'Product', 'Permission', 'Label', 'Granted by', 'Granted', 'Last sign-in with password to product'],
       grants.map((g) => [g.login, g.full_name, g.active ? 'yes' : 'NO', g.product, g.code, g.label ?? '', g.granted_by, when(g.granted_at), when(g.last_signon)]))}
 <h2>Links and outside logins that are on, as recorded by the last apply (${links.length})</h2>${table(['Reader', 'Reads database', 'View', 'Switched on', 'Change reference'],
       links.map((l) => [l.consumer, l.provider, l.view_name, when(l.switched_on_at), l.change_ref]))}
 <p class="muted">Revoked permissions and switched-off links are not listed; their history is in the grant history export and each database's link log.</p>
-</body></html>`);
+<script>${PRINT_SCRIPT}</script></body></html>`);
   });
 
   return app;
