@@ -54,7 +54,7 @@ Generated from `compliance/register.yaml` by `scripts/check-register.py --render
 
 **Breaks if dropped.** 11.300(b), 11.300(d).
 
-**Implementation (least strict).** Password expiry (default 90 days; the clause gives ageing as an example). Admin reset sets a temporary password that must be changed at first use, so no admin ever knows a usable password. Lockout after 5 failures emails the site security contact at once (decision D-03) and raises an alert on every core screen for identity admins until acknowledged, plus an audit row. Failures count within 15 minutes and a lock lifts after 15 minutes, so nobody can lock a person out for good by guessing; the email has a one-click unlock link for the security contact; more than 10 failed sign-ins a minute from one address are refused (MED-05).
+**Implementation (least strict).** Password expiry (default 90 days; the clause gives ageing as an example). Admin reset sets a temporary password that must be changed at first use, so no admin ever knows a usable password. Lockout after 5 failures emails the site security contact at once (decision D-03) and raises an alert on every core screen for identity admins until acknowledged, plus an audit row. Failures count within 15 minutes and a lock lifts after 15 minutes, so 5 wrong tries cannot lock a person out for good; keeping them out takes fresh tries after every lock, each lock alerting the security contact again. The email has a one-click unlock link for that lock; more than 10 failed sign-ins a minute from one address are refused (MED-05).
 
 **Test.** Fifth failure locks, sends the email and raises the alert; temporary password must be changed before any token is issued.
 
