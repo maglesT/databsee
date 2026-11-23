@@ -268,7 +268,11 @@ export const docker: Runtime = {
     for (const p of config.licences) write(`${p}.env`, env(productEnv(config, secrets, p)));
     write('backup.env', env({ // read by deploy/backup.sh: the rclone remote "offsite" from the secrets
       ...Object.fromEntries(Object.entries(secrets.backup).map(([k, v]) => [`RCLONE_CONFIG_OFFSITE_${k.toUpperCase()}`, v])),
-      BACKUP_REMOTE: `offsite:${config.backup.path}`,
+      // MED-02: everything goes through the crypt remote "secure" over the backup folder (names and contents encrypted).
+      RCLONE_CONFIG_SECURE_TYPE: 'crypt',
+      RCLONE_CONFIG_SECURE_REMOTE: `offsite:${config.backup.path}`,
+      BACKUP_KEY: secrets.backup_key,
+      BACKUP_REMOTE: 'secure:',
     }));
     const external = config.proxy === 'external';
     write(external ? 'Caddyfile.host' : 'Caddyfile', caddyfile(config));

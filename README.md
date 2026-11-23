@@ -59,10 +59,32 @@ Off-server store: any rclone remote, Google Drive by default. The customer secre
 e.g. `type: drive`, `scope: drive.file`, `token: '{"access_token":...}'` from `rclone authorize "drive"`, quoted) and the config its folder
 (`backup.path`). `rclone copy --immutable` only adds files and never deletes or changes a copied one, so backups are
 secure from alteration and inadvertent erasure (211.68(b)); D-14.
-Restore to a point in time: `deploy/restore.sh <base backup> "<time>" <empty data folder>` (as root on the server, so
+
+**Encrypted, checked, kept apart (MED-02).**
+- Backups leave the server only through an rclone `crypt` remote over that folder: file names and contents are
+  encrypted with `backup_key` from the age secrets (`openssl rand -base64 32`). `backup.sh` refuses to copy without it.
+- **Sealed offline copy of `backup_key`**: print it once, seal it in an envelope signed across the flap by two people,
+  and keep it in the site safe (and one with the owner). Record where it is in `customers/<name>.changes.md`. Without
+  the key no backup can be read; whoever holds it and the Drive account can read every backup.
+- **A separate Google account used only for backups** (not the owner's or anyone's mail account), with 2-step
+  verification and its recovery codes in the same sealed envelope. Authorise rclone with that account, and share the
+  folder with nobody. Drive keeps earlier versions of a file (version history) and trashed files for 30 days, so files
+  deleted or changed with the server's token can be brought back from the account within that time: check its trash
+  and each file's "Manage versions" at the periodic restore test (CP-04).
+- Each base backup has `SHA256SUMS` of its files; `restore.sh` checks it and refuses a base backup that does not
+  match or has none (base backups taken before MED-02 have none: take a new one with `backup.sh base`).
+
+Restore to a point in time: if the server was lost, fetch the archive back with the key from the sealed copy:
+```
+export RCLONE_CONFIG_OFFSITE_TYPE=drive RCLONE_CONFIG_OFFSITE_SCOPE=drive.file RCLONE_CONFIG_OFFSITE_TOKEN='<token>'
+export RCLONE_CONFIG_SECURE_TYPE=crypt RCLONE_CONFIG_SECURE_REMOTE=offsite:<backup.path>
+read -rs KEY && export RCLONE_CONFIG_SECURE_PASSWORD=$(printf '%s' "$KEY" | rclone obscure -)
+rclone copy secure: /var/lib/medhanta/archive
+```
+Then `deploy/restore.sh <base backup> "<time>" <empty data folder>` (as root on the server, so
 the folder belongs to the database container's user), then start PostgreSQL on it and take a new base backup at once.
-`test/pl11-restore.sh` does exactly this in CI for all 10 databases. The site restores a real backup periodically
-(CP-04), using its own copy of the archive, never the live one.
+`test/pl11-restore.sh` does exactly this in CI for all 10 databases, through the crypt remote. The site restores a real
+backup periodically (CP-04), using its own copy of the archive, never the live one.
 
 ## Releases and applying configs (slice A7)
 - **Release** (PL-10): tag `v<version>` on a green `main` commit, with release notes on the GitHub release. A customer

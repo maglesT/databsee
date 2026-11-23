@@ -47,6 +47,9 @@ const secretsSchema = z.object({
   env: z.record(name, z.record(z.string().regex(/^[A-Z][A-Z0-9_]*$/), z.string())).default({}), // product -> its own extra settings (API keys)
   backup: z.record(z.string().regex(/^[a-z_]+$/), z.string())   // rclone remote settings, e.g. type: drive, scope, token
     .refine((b) => !!b.type, 'backup needs the rclone remote type (e.g. drive)'),
+  // MED-02: the key of the rclone crypt remote over that remote: backups leave the server only encrypted. Also kept as a
+  // sealed offline copy (README "Backups"): without it no backup can be read.
+  backup_key: z.string().min(32, 'backup_key: at least 32 characters (openssl rand -base64 32)'),
 }).strict();
 export type Secrets = z.infer<typeof secretsSchema>;
 
