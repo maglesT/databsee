@@ -43,7 +43,9 @@ remote_in_use() {
 case "${1:-}" in
   base)
     stamp=$(date -u +%Y%m%dT%H%M%SZ)       # written under a dot name, renamed when complete (never copied half-done)
+    # MED-02: SHA256SUMS lists every file of the base backup (deploy/restore.sh checks it), written before the rename.
     $IN_DB sh -c "pg_basebackup -U postgres -D '$DB_ARCHIVE/base/.$stamp' -F tar -z -X none --checkpoint=fast &&
+      cd '$DB_ARCHIVE/base/.$stamp' && files=\$(ls) && sha256sum \$files > SHA256SUMS && cd / &&
       mv '$DB_ARCHIVE/base/.$stamp' '$DB_ARCHIVE/base/$stamp'"
     echo "backup: base backup $stamp" ;;
   copy)

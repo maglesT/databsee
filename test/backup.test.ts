@@ -9,12 +9,12 @@ const run = (cmd: string, args: string[], env: Record<string, string> = {}) =>
   execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } });
 
 describe('PL-11 backup with no permanent loss', () => {
-  it('PL-11 a point-in-time restore brings back every database exactly as at the chosen moment', () => {
+  it('MED-02 PL-11 a point-in-time restore brings back every database exactly as at the chosen moment; a base backup not matching its SHA256SUMS is refused', () => {
     // PostgreSQL refuses to run as root; the CI runner is not root.
     const out = process.getuid?.() === 0
       ? run('su', ['postgres', '-s', '/bin/bash', '-c', path.resolve('test/pl11-restore.sh')])
       : run('test/pl11-restore.sh', []);
-    expect(out).toMatch(/PL-11 restore check passed: 10 databases restored/);
+    expect(out).toMatch(/PL-11 restore check passed: 10 databases restored .*, SHA256SUMS checked/);
   }, 120_000);
 
   it('PL-11 the off-server copy only adds files: it never deletes or changes a copied file', () => {

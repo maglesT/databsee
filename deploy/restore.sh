@@ -6,10 +6,13 @@
 # the WAL up to the target time and opens as a new timeline. After a real restore take a base backup at once
 # (deploy/backup.sh base). A trial restore (CP-04) must use its own copy of the archive, never the live one.
 # DB_ARCHIVE is the archive folder as the restored PostgreSQL sees it (/archive in the db container).
+# MED-02: the base backup's files must match its SHA256SUMS (written by backup.sh base), or nothing is restored.
 set -euo pipefail
 base=${1:?base backup folder} target=${2:?target time or latest} data=${3:?new data folder}
 DB_ARCHIVE=${DB_ARCHIVE:-/archive}
 [ ! -e "$data" ] || [ -z "$(ls -A "$data")" ] || { echo "restore: $data is not empty" >&2; exit 1; }
+[ -f "$base/SHA256SUMS" ] || { echo "restore: $base has no SHA256SUMS; refusing" >&2; exit 1; }
+(cd "$base" && sha256sum --check --quiet --strict SHA256SUMS) || { echo "restore: $base does not match its SHA256SUMS; refusing" >&2; exit 1; }
 mkdir -p "$data" && chmod 700 "$data"
 tar -xzf "$base/base.tar.gz" -C "$data"
 {
