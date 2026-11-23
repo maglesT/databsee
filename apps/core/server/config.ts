@@ -3,6 +3,7 @@
 export const POLICY = {
   sessionIdleMinutes: Number(process.env.SESSION_IDLE_MINUTES ?? 15),
   maxFailedAttempts: Number(process.env.MAX_FAILED_ATTEMPTS ?? 5),
+  lockoutMinutes: Number(process.env.LOCKOUT_MINUTES ?? 15),         // a lock opens by itself after this long
   passwordMaxAgeDays: Number(process.env.PASSWORD_MAX_AGE_DAYS ?? 90),
 };
 

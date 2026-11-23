@@ -251,6 +251,7 @@ function People({ open }: { open: (id: string) => void }) {
 }
 
 interface History {
+  lockedAt: string | null;
   employee: { login: string; full_name: string; email: string | null; active: boolean; identity_verified_by: string; identity_verified_how: string };
   versions: { version: number; full_name: string; email: string | null; active: boolean; changed_by_name: string; changed_at: string; reason: string }[];
   grants: { product: string; code: string; granted: boolean; by_name: string; at: string; reason: string }[];
@@ -299,6 +300,13 @@ function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) 
               setTemp(r.temporaryPassword);
               await load();
             })}>Reset password</button>
+          )}
+          {id !== me.id && h.lockedAt && (
+            <button className="plain" onClick={() => void a.run(async () => {
+              await api('POST', `/api/employees/${id}/unlock`, { reason: ask('the unlock') });
+              if (reasonRef.current) reasonRef.current.value = '';
+              await load();
+            })}>Unlock (locked since {when(h.lockedAt)})</button>
           )}
         </p>
         {temp && <p className="note">Temporary password: <code>{temp}</code>. Give it in person; not shown again.</p>}

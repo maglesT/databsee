@@ -6,6 +6,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import Provider, { type Adapter, type AdapterPayload, type Configuration, type KoaContextWithOIDC } from 'oidc-provider';
 import type { Sql } from 'postgres';
+import { POLICY } from './config.js';
 
 export interface OidcSettings {
   issuer: string;                                            // e.g. https://site.example/oidc
@@ -45,7 +46,7 @@ function pgAdapter(sql: Sql) {
 export async function findAccount(sql: Sql, sub: string, product: string | undefined) {
   const [row] = await sql<{ login: string; full_name: string }[]>`
     select e.login, e.full_name from employee_current e join credential c on c.employee_id = e.id
-    where e.id = ${sub} and e.active and c.locked_at is null`;
+    where e.id = ${sub} and e.active and (c.locked_at is null or c.locked_at <= now() - make_interval(mins => ${POLICY.lockoutMinutes}))`;
   if (!row) return undefined;
   const permissions = product
     ? (await sql<{ code: string }[]>`select code from current_permission_grant where employee_id = ${sub} and product = ${product} order by code`).map((r) => r.code)

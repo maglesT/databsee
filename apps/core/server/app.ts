@@ -72,7 +72,8 @@ async function loadMe(sql: Sql | TransactionSql, employeeId: string): Promise<Me
       coalesce((select array_agg(g.code order by g.code) from current_permission_grant g where g.employee_id = e.id and g.product = 'core'), '{}') as permissions,
       (c.must_change or c.changed_at < now() - make_interval(days => ${POLICY.passwordMaxAgeDays})) as must_change
     from employee_current e join credential c on c.employee_id = e.id
-    where e.id = ${employeeId} and e.active and c.locked_at is null`;
+    where e.id = ${employeeId} and e.active
+      and (c.locked_at is null or c.locked_at <= now() - make_interval(mins => ${POLICY.lockoutMinutes}))`;
   return row ? { id: row.id, login: row.login, fullName: row.full_name, permissions: row.permissions, mustChange: row.must_change } : null;
 }
 
@@ -86,11 +87,16 @@ export async function checkPassword(deps: Deps, login: string, password: string,
   let lockedNow: { id: string; login: string; message: string; alertId: string } | null = null;
   const result = await sql.begin(async (tx) => {
     const [row] = await tx<{ id: string; hash: string; failed: number; locked: boolean; active: boolean }[]>`
-      select e.id, c.password_hash as hash, c.failed_count as failed, c.locked_at is not null as locked, e.active
+      select e.id, c.password_hash as hash, c.failed_count as failed,
+        (c.locked_at is not null and c.locked_at > now() - make_interval(mins => ${POLICY.lockoutMinutes})) as locked, e.active
       from employee_current e join credential c on c.employee_id = e.id where e.login = ${login} for update of c`;
     if (!row) {
       await tx`insert into credential_event (login, kind, product) values (${login}, 'signon_failed', ${product})`;
       return null;
+    }
+    if (!row.locked && row.failed >= POLICY.maxFailedAttempts) {   // the lock ran out: start counting again
+      await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${row.id}`;
+      row.failed = 0;
     }
     if (!row.active || row.locked || !(await verifyPassword(password, row.hash))) {
       await tx`insert into credential_event (employee_id, login, kind, product) values (${row.id}, ${login}, 'signon_failed', ${product})`;
@@ -109,7 +115,7 @@ export async function checkPassword(deps: Deps, login: string, password: string,
       }
       return null;
     }
-    await tx`update credential set failed_count = 0 where employee_id = ${row.id}`;
+    await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${row.id}`;
     await tx`insert into credential_event (employee_id, login, kind, product) values (${row.id}, ${login}, 'signon_ok', ${product})`;
     return row.id;
   });
@@ -309,7 +315,7 @@ export function buildApp(deps: Deps) {
   // ---- Employees (core.people.manage) ----
   app.get('/api/employees', async (req) => {
     need(req, PEOPLE);
-    return sql`select e.id, e.login, e.full_name as "fullName", e.email, e.active, e.version, c.locked_at as "lockedAt"
+    return sql`select e.id, e.login, e.full_name as "fullName", e.email, e.active, e.version, case when c.locked_at > now() - make_interval(mins => ${POLICY.lockoutMinutes}) then c.locked_at end as "lockedAt"
       from employee_current e left join credential c on c.employee_id = e.id order by e.login`;
   });
 
@@ -425,14 +431,32 @@ export function buildApp(deps: Deps) {
     return { temporaryPassword: temp };
   });
 
+  // Opens a locked account at once (it also opens by itself after POLICY.lockoutMinutes). Does not touch the password.
+  // Never for oneself; the unlock is an audited credential event with the reason.
+  app.post('/api/employees/:id/unlock', async (req) => {
+    const me = need(req, PEOPLE);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const b = z.object({ reason }).parse(req.body);
+    if (id === me.id) throw new HttpError(400, 'Another administrator must unlock your account.');
+    await sql.begin(async (tx) => {
+      const [e] = await tx<{ login: string }[]>`select login from employee where id = ${id}`;
+      if (!e) throw new HttpError(404, 'No such employee.');
+      await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${id}`;
+      await tx`insert into credential_event (employee_id, login, kind, by_id, by_name, reason) values (${id}, ${e.login}, 'unlocked', ${me.id}, ${me.fullName}, ${b.reason})`;
+    });
+    return { ok: true };
+  });
+
   // PL-06: the full history of one person (versions, grants, credential events).
   app.get('/api/employees/:id/history', async (req) => {
     need(req, PEOPLE);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
     const [employee] = await sql`select * from employee_current where id = ${id}`;
     if (!employee) throw new HttpError(404, 'No such employee.');
+    const [lock] = await sql<{ at: Date | null }[]>`select case when locked_at > now() - make_interval(mins => ${POLICY.lockoutMinutes}) then locked_at end as at from credential where employee_id = ${id}`;
     return {
       employee,
+      lockedAt: lock?.at ?? null,
       versions: await sql`select * from employee_version where employee_id = ${id} order by version`,
       grants: await sql`select product, code, granted, by_name, at, reason from permission_grant where employee_id = ${id} order by id`,
       credentialEvents: await sql`select kind, product, by_name, reason, at from credential_event where employee_id = ${id} order by id`,
