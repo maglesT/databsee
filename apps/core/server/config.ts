@@ -3,6 +3,10 @@
 export const POLICY = {
   sessionIdleMinutes: Number(process.env.SESSION_IDLE_MINUTES ?? 15),
   maxFailedAttempts: Number(process.env.MAX_FAILED_ATTEMPTS ?? 5),
+  // MED-05: failures count within this window, and a lock lifts after it (the alert and email stay).
+  failureWindowMinutes: Number(process.env.FAILURE_WINDOW_MINUTES ?? 15),
+  // MED-05: failed sign-ins allowed per client address per minute, over all logins; more get 429.
+  failuresPerIpPerMinute: Number(process.env.FAILURES_PER_IP_PER_MINUTE ?? 10),
   passwordMaxAgeDays: Number(process.env.PASSWORD_MAX_AGE_DAYS ?? 90),
 };
 

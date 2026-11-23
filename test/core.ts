@@ -1,7 +1,7 @@
 // Test helpers for the core app: a core_app connection, a captured mailbox, and employees made directly.
 import { randomBytes } from 'node:crypto';
 import postgres from 'postgres';
-import { buildApp, type Deps } from '../apps/core/server/app.js';
+import { buildApp, FailureLimiter, type Deps } from '../apps/core/server/app.js';
 import { hashPassword } from '../apps/core/server/passwords.js';
 import { enableLogin } from './db.js';
 import type { Mail } from '../apps/core/server/mail.js';
@@ -15,7 +15,9 @@ export async function coreApp() {
   const sql = postgres({ database: 'identity', username: 'core_app', password: 'test-only', onnotice: () => {} });
   const md = postgres({ database: 'master_data', username: 'core_app', password: 'test-only', onnotice: () => {} });
   const mailbox: Mail[] = [];
-  const deps: Deps = { sql, sendMail: async (m) => { mailbox.push(m); }, securityContact: 'security@site.test', secureCookies: false, md };
+  // Many tests fail sign-ins on purpose from one address: the per-address limit (MED-05) is tested on its own.
+  const deps: Deps = { sql, sendMail: async (m) => { mailbox.push(m); }, securityContact: 'security@site.test', secureCookies: false, md,
+    limiter: new FailureLimiter(1_000_000) };
   return { app: buildApp(deps), sql, md, mailbox, deps };
 }
 
