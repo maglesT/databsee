@@ -16,7 +16,7 @@ const config = checkConfig({
   backup: { path: 'medhanta-backups/ci' }, change_ref: 'CC-H1', reason: 'headers', licences: ['hello', 'audit'], links: {},
   proxy: 'external',
 }).config;
-const POLICY = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'";
+const POLICY = "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'";
 
 let core: Awaited<ReturnType<typeof coreApp>>;
 beforeAll(async () => { core = await coreApp(); });
@@ -35,8 +35,10 @@ describe('MED-06 security headers on every site', () => {
       expect(site).toContain('X-Content-Type-Options "nosniff"');
       expect(site).toContain('Referrer-Policy "same-origin"');
     }
-    // Core's one inline script is allowed by its hash, on core's site only.
-    expect(sites[0]).toContain(`'${scriptHash(PRINT_SCRIPT)}'`);
+    // Core's one inline script is allowed by its hash, and nothing else inline. A product that has not listed its
+    // inline scripts yet keeps 'unsafe-inline' scripts (its sign window), still unframeable and without plugins.
+    expect(sites[0]).toContain(`script-src 'self' '${scriptHash(PRINT_SCRIPT)}';`);
+    expect(sites[1]).toContain("script-src 'self' 'unsafe-inline';");
     expect(sites[1]).not.toContain('sha256-');
   });
 
@@ -45,6 +47,7 @@ describe('MED-06 security headers on every site', () => {
     const hello = { ...manifest('hello'), signon: { script_hashes: [hash] } };
     expect(checkManifest(hello, 'hello').signon?.script_hashes).toEqual([hash]);
     expect(csp([hash])).toContain(`script-src 'self' '${hash}';`);
+    expect(csp([])).toContain("script-src 'self';");                         // listed: none inline
     expect(() => checkManifest({ ...hello, signon: { script_hashes: ["'unsafe-inline'"] } }, 'hello')).toThrow(/script_hashes/);
   });
 

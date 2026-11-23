@@ -218,16 +218,19 @@ export function externalPort(service: string): number {
   return Number(port);
 }
 
-/** MED-06: the policy for a site (CLEAR's own values plus object-src): scripts only from the site itself or the
- *  listed inline-script hashes, no plugins, never inside a frame. A site that sends its own policy keeps it. */
-export const csp = (hashes: string[] = []) =>
-  `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'${hashes.map((h) => ` '${h}'`).join('')}; object-src 'none'; frame-ancestors 'none'`;
+/** MED-06: the policy for a site (CLEAR's own values plus object-src and blob: media): no plugins, never inside a
+ *  frame, scripts only from the site itself and the listed inline-script hashes. A product that has not yet listed its
+ *  inline scripts (manifest signon.script_hashes; [] for none) keeps 'unsafe-inline' scripts, so its sign window still
+ *  works. A site that sends its own policy keeps it. */
+export const csp = (hashes?: string[]) =>
+  `default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'${
+    hashes ? hashes.map((h) => ` '${h}'`).join('') : " 'unsafe-inline'"}; object-src 'none'; frame-ancestors 'none'`;
 
 /** Site blocks for core and each licensed product: the platform's caddy (Caddyfile) or the host's proxy (Caddyfile.host).
  *  MED-06: each site sends HSTS, the policy, nosniff and Referrer-Policy (deferred, so they apply to proxied replies). */
 export function caddyfile(config: Config): string {
   const target = (service: string) => (config.proxy === 'external' ? `127.0.0.1:${externalPort(service)}` : `${service}:3000`);
-  const site = (host: string, service: string, hashes: string[]) => `${host} {
+  const site = (host: string, service: string, hashes?: string[]) => `${host} {
   reverse_proxy ${target(service)}
   header {
     defer
@@ -238,7 +241,7 @@ export function caddyfile(config: Config): string {
   }
 }`;
   return [site(config.domain, 'core', CORE_SCRIPT_HASHES),
-    ...config.licences.map((p) => site(productHost(p, config.domain), p, manifest(p).signon?.script_hashes ?? []))].join('\n') + '\n';
+    ...config.licences.map((p) => site(productHost(p, config.domain), p, manifest(p).signon?.script_hashes))].join('\n') + '\n';
 }
 
 /** Docker Compose runtime: writes each service's settings, starts core, Caddy and the licensed products, removes
