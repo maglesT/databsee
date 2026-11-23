@@ -297,7 +297,7 @@ export function buildApp(deps: Deps) {
     reply.code(500).send({ error: 'Internal error.' });
   });
 
-  // Session check for every /api route except sign-on. Idle sessions end (PL-01); a temporary or expired password
+  // Session check for every /api route except sign-on. Idle sessions end (PL-01) and no session lasts longer than POLICY.sessionMaxHours; a temporary or expired password
   // allows only the password change (PL-04).
   app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
     // Sign-out works with or without a live session: it must always end the single sign-on too.
@@ -306,6 +306,7 @@ export function buildApp(deps: Deps) {
     const [s] = sid ? await sql<{ employee_id: string }[]>`
       update session set last_seen_at = now()
       where id = ${sessionKey(sid)} and last_seen_at > now() - make_interval(mins => ${POLICY.sessionIdleMinutes})
+        and created_at > now() - make_interval(hours => ${POLICY.sessionMaxHours})
       returning employee_id` : [];
     let me = s && (await loadMe(sql, s.employee_id, required));
     // Signed in through a product first: the same login opens the core screens (one login for every application).

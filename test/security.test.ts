@@ -284,3 +284,16 @@ describe('customer config: mfa_required', () => {
     expect(() => checkConfig({ ...raw, mfa_required: ['admins'] })).toThrow();
   });
 });
+
+describe('absolute session lifetime', () => {
+  it('a session ends after 12 hours even when it is in constant use', async () => {
+    const id = await makeEmployee(`abs${run}`);
+    const s = await signIn(t.app, `abs${run}`);
+    const su = superuser();
+    await su`update session set created_at = now() - interval '11 hours' where employee_id = ${id}`;
+    expect((await s.call('GET', '/api/me')).statusCode).toBe(200);   // busy: last_seen keeps moving
+    await su`update session set created_at = now() - interval '12 hours 1 minute' where employee_id = ${id}`;
+    expect((await s.call('GET', '/api/me')).statusCode).toBe(401);
+    await su.end();
+  });
+});
