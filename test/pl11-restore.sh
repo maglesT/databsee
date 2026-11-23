@@ -27,11 +27,17 @@ for d in $dbs; do sql "$d" "insert into pl11 values ('3 after target')"; done
 sql postgres "select pg_switch_wal()" >/dev/null
 stop "$work/live" fast                      # the server is lost; its archive survives
 
-"$root/deploy/restore.sh" "$(ls -d "$ARCHIVE"/base/* | tail -1)" "$target" "$work/restored" >/dev/null
+base=$(ls -d "$ARCHIVE"/base/* | tail -1)
+# MED-02: a base backup that does not match its SHA256SUMS, or has none, is refused.
+cp -r "$base" "$work/changed" && printf x >> "$work/changed/base.tar.gz"
+"$root/deploy/restore.sh" "$work/changed" "$target" "$work/refused" 2>/dev/null && { echo "MED-02: a changed base backup was restored" >&2; exit 1; }
+rm "$work/changed/SHA256SUMS"
+"$root/deploy/restore.sh" "$work/changed" "$target" "$work/refused" 2>/dev/null && { echo "MED-02: a base backup without SHA256SUMS was restored" >&2; exit 1; }
+"$root/deploy/restore.sh" "$base" "$target" "$work/restored" >/dev/null
 start restored
 for _ in $(seq 60); do [ "$(sql postgres 'select pg_is_in_recovery()')" = f ] && break; sleep 0.5; done
 for d in $dbs; do
   got=$(sql "$d" "select string_agg(v, ',' order by v) from pl11")
   [ "$got" = "1 before backup,2 after backup" ] || { echo "PL-11 restore failed in $d: $got" >&2; exit 1; }
 done
-echo "PL-11 restore check passed: 10 databases restored to $target"
+echo "PL-11 restore check passed: 10 databases restored to $target, SHA256SUMS checked"

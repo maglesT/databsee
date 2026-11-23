@@ -26,6 +26,18 @@ or in a crontab. `--immutable` still applies: copied files are never changed or 
 If the secrets have no `backup_crypt`, `backup.sh copy` stops with "copy REFUSED". Only a demo may set
 `backup: { allow_unencrypted: true }` in the customer config (then the copy runs with a warning).
 
+## Keep the store apart (MED-02)
+- **A Google account used only for backups**, not the owner's or anyone's mail account. Turn on 2-step verification;
+  put its recovery codes in the same sealed envelope as the key. Authorise rclone (`rclone authorize "drive"`) with that
+  account, `scope: drive.file`, and share the folder with nobody. A phished personal account then reaches nothing.
+- **Sealed offline copy of the key**: print `backup_crypt` once, seal it in an envelope signed across the flap by two
+  people, keep it in the site safe (and one with the owner), and record where in `customers/<name>.changes.md`.
+- **Version history and trash**: Drive keeps earlier versions of a file and trashed files for 30 days. Files deleted or
+  changed with the server's token can be brought back from that account within that time. Check the trash and a file's
+  "Manage versions" at each trial restore (CP-04). The copy stays add-only (`rclone copy --immutable`).
+- **Checksums**: every base backup carries `SHA256SUMS` of its files. `deploy/restore.sh` refuses a base backup that
+  does not match it or has none. Base backups taken before this have none, so take a new one (`backup.sh base`).
+
 ## Switching an existing site on
 Files already in the store stay unencrypted under the old names (immutable). The crypt remote starts a fresh, encrypted
 copy of the whole local archive, so: apply the key, run `copy` once, check, then remove the old plain files from the store by hand.
