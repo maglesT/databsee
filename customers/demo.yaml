@@ -7,6 +7,7 @@ offline: true # signed bundle downloaded from the apply run and applied by hand 
 security_contact: it-security@demo-pharma.example
 backup:
   path: medhanta-backups/demo-rehearsal # separate Drive folder, deleted with the demo
+  allow_unencrypted: true # demo only, until the rclone crypt remote is set (D-145)
 change_ref: MED-GOLIVE-001
 reason: "Demo on v1.26.31: last demo-walk fixes"
 proxy: external # the host's Caddy owns 80/443 (README "Behind the host's proxy")
