@@ -4,12 +4,15 @@
 // permission grants with who/when/why (PL-01, PL-02), items with versions and link events (PL-06). Every row says
 // "demo seed" (who: changed_by null, as for the installer; master data needs an id, so it.admin's). Unlike the core,
 // demo passwords are not temporary (except qc.analyst2), so testers can sign on at once.
+// MED-03: no password is kept in the repo. Each person the seed adds gets their own random password, printed once to
+// the operator (never stored except as a scrypt hash). --new-passwords gives every demo person a new one (rotation).
 // Idempotent: each event is written only if the seed never wrote it before, so a second run writes nothing and never
 // undoes what was changed in the screens since. Refuses unless the customer config is "demo", and unless identity is
 // empty or already holds the seed's people (a real installation has neither).
 // Usage (after apply, so the permission catalogue is loaded, and instead of create-first-admin: it.admin is the
 // identity administrator): tsx deploy/seed-demo.ts customers/demo.yaml
 // Connection: PG* env as the server's superuser (the installer), like apply.
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -24,14 +27,19 @@ const REASON = 'demo seed (DEMO-ONLY fictional company, not customer data)';
 
 interface Person { name: string; dept: string; codes: string[]; temporary?: boolean; deactivate?: string }
 type Item = Record<string, unknown> & { name: string; in?: string; from?: string[]; uses?: string[]; retire?: string };
-interface Seed { company: string; password: string; people: Record<string, Person>; items: Record<Kind, Record<string, Item>> }
+interface Seed { company: string; people: Record<string, Person>; items: Record<Kind, Record<string, Item>> }
 
 export const readSeed = (file = path.join(ROOT, 'deploy/demo.seed.yaml')): Seed => YAML.parse(readFileSync(file, 'utf8'));
 
-/** Loads the demo company. Returns the number of rows written (0 on a second run). */
-export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = readSeed()): Promise<number> {
+/** A random demo password (MED-03): 20 base64url characters, 120 bits. */
+export const demoPassword = () => randomBytes(15).toString('base64url');
+
+/** Loads the demo company. Returns the number of rows written (0 on a second run) and the password of each person it
+ *  added, to be shown once to the operator. */
+export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = readSeed()): Promise<{ written: number; passwords: Map<string, string> }> {
   if (customer !== 'demo') throw new Error(`the demo seed is only for the customer "demo", not "${customer}"`);
   let written = 0;
+  const passwords = new Map<string, string>();
   const w = async (q: Promise<unknown>) => { await q; written++; };
 
   const ids = await identity.begin(async (tx) => {
@@ -42,7 +50,6 @@ export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = 
     const unknown = Object.values(seed.people).flatMap((p) => p.codes).filter((c) => !known.has(c));
     if (unknown.length) throw new Error(`codes not in the permission catalogue (run apply first?): ${[...new Set(unknown)].join(', ')}`);
 
-    const hash = await hashPassword(seed.password);
     const ids = new Map<string, string>();
     for (const [login, p] of Object.entries(seed.people)) {
       let [e] = await tx<{ id: string; active: boolean; version: number }[]>`select id, active, version from employee_current where login = ${login}`;
@@ -51,7 +58,9 @@ export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = 
           values (${login}, ${BY}, 'fictional demo person') returning id, true as active, 1 as version`;
         await tx`insert into employee_version (employee_id, version, full_name, email, active, changed_by_name, reason)
           values (${e!.id}, 1, ${p.name}, ${`${login}@demo-pharma.example`}, true, ${BY}, ${REASON})`;
-        await tx`insert into credential (employee_id, password_hash, must_change) values (${e!.id}, ${hash}, ${p.temporary === true})`;
+        const password = demoPassword();
+        passwords.set(login, password);
+        await tx`insert into credential (employee_id, password_hash, must_change) values (${e!.id}, ${await hashPassword(password)}, ${p.temporary === true})`;
         await w(tx`insert into credential_event (employee_id, login, kind, by_name, reason) values (${e!.id}, ${login}, 'reset', ${BY}, ${REASON})`);
       }
       const [done] = await tx<{ n: number }[]>`select count(*)::int as n from employee_version where employee_id = ${e!.id} and version > 1 and changed_by_name = ${BY}`;
@@ -111,17 +120,47 @@ export async function seedDemo(customer: string, identity: Sql, md: Sql, seed = 
         await w(tx`insert into link_event (from_item, to_item, type, active, changed_by, changed_by_name, reason)
           values (${from}, ${to}, ${type}, true, ${by}, ${BY}, ${REASON})`);
   });
-  return written;
+  return { written, passwords };
 }
+
+/** MED-03 rotation: a new random password for every demo person (unlocks them too). Returns login -> password. */
+export async function newDemoPasswords(customer: string, identity: Sql, seed = readSeed()): Promise<Map<string, string>> {
+  if (customer !== 'demo') throw new Error(`the demo seed is only for the customer "demo", not "${customer}"`);
+  const passwords = new Map<string, string>();
+  await identity.begin(async (tx) => {
+    const people = await tx<{ id: string; login: string }[]>`select id, login from employee
+      where identity_verified_by = ${BY} and login in ${tx(Object.keys(seed.people))} order by login`;
+    for (const e of people) {
+      const password = demoPassword();
+      passwords.set(e.login, password);
+      await tx`update credential set password_hash = ${await hashPassword(password)}, must_change = ${seed.people[e.login]!.temporary === true},
+        changed_at = now(), failed_count = 0, locked_at = null where employee_id = ${e.id}`;
+      await tx`insert into credential_event (employee_id, login, kind, by_name, reason)
+        values (${e.id}, ${e.login}, 'reset', ${BY}, 'demo seed: new random demo password (MED-03 rotation)')`;
+    }
+  });
+  return passwords;
+}
+
+const printPasswords = (passwords: Map<string, string>) => {
+  if (!passwords.size) return;
+  console.log('Demo passwords (shown once, not stored anywhere; hand them to the testers privately):');
+  for (const [login, pw] of passwords) console.log(`  ${login.padEnd(16)} ${pw}`);
+};
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const file = process.argv[2];
-  if (!file) throw new Error('usage: tsx deploy/seed-demo.ts customers/demo.yaml');
+  if (!file) throw new Error('usage: tsx deploy/seed-demo.ts customers/demo.yaml [--new-passwords]');
   const { customer } = YAML.parse(readFileSync(file, 'utf8')) as { customer?: string };
   const identity = postgres({ database: 'identity', max: 1, onnotice: () => {} });
   const md = postgres({ database: 'master_data', max: 1, onnotice: () => {} });
   try {
-    console.log(`demo seed: ${await seedDemo(String(customer), identity, md)} row(s) written`);
+    if (process.argv.includes('--new-passwords')) printPasswords(await newDemoPasswords(String(customer), identity));
+    else {
+      const { written, passwords } = await seedDemo(String(customer), identity, md);
+      console.log(`demo seed: ${written} row(s) written`);
+      printPasswords(passwords);
+    }
   } finally {
     await identity.end();
     await md.end();
