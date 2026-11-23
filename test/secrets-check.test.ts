@@ -32,10 +32,11 @@ describe('MED-03 no plain-text secrets in the public repo', () => {
     ['deploy/demo.seed.yaml', 'company: x\npassword: Demo-Tablets-2026\n'],
     ['customers/acme.secrets.yaml', 'logins:\n  postgres: whatever\n'],
     ['customers/acme.secrets.yaml.age', 'logins: not encrypted\n'],
-    ['notes.md', 'token ghp_abcdefghijklmnopqrstuvwxyz0123456789\n'],
-    ['key.txt', '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n'],
-    ['age.txt', 'AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ\n'],
-    ['control-panel.env', 'GITHUB_TOKEN=github_pat_11AAAAAAA0aaaaaaaaaaaa_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n'],
+    // Built from parts, so this file itself holds no secret-looking value.
+    ['notes.md', `token ${'ghp'}_${'a'.repeat(36)}\n`],
+    ['key.txt', `-----BEGIN OPENSSH ${'PRIVATE'} KEY-----\nabc\n`],
+    ['age.txt', `${'AGE-SECRET'}-KEY-1${'Q'.repeat(58)}\n`],
+    ['control-panel.env', `GITHUB_TOKEN=${'github'}_pat_11${'A'.repeat(60)}\n`],
   ])('MED-03 PL-10 a commit with %s is refused', (file, text) => {
     const dir = repo(file, text);
     try { expect(check(dir).ok).toBe(false); } finally { rmSync(dir, { recursive: true, force: true }); }

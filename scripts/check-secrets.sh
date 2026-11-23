@@ -9,7 +9,7 @@ bad() { echo "check-secrets: $1" >&2; found=1; }
 
 # 1. Private keys and well-known token formats, in any tracked text file.
 if hits=$(git grep -nIE 'BEGIN [A-Z ]*PRIVATE KEY|AGE-SECRET-KEY-1|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|sk-(ant-)?[A-Za-z0-9_-]{30,}|ya29\.[A-Za-z0-9_-]{20,}|"refresh_token" *: *"1//' \
-    -- . ':!package-lock.json'); then bad "secret-looking value:"; echo "$hits" >&2; fi
+    -- . ':!package-lock.json' ':!scripts/check-secrets.sh'); then bad "secret-looking value:"; echo "$hits" >&2; fi
 
 # 2. Secret-named settings with a real-looking value in YAML and env files (placeholders: REPLACE, example, test-only,
 #    GitHub Actions ${{ secrets.* }}). host_key is a public key.
