@@ -5,6 +5,9 @@ name: apply
 # Secrets live in the GitHub Environment "production", limited to the main branch: BUNDLE_SIGNING_KEY (ed25519
 # private key; its public key is in each server's /etc/medhanta/allowed_signers) and DEPLOY_SSH_KEY (key of the
 # "deploy" user on online servers). Only reviewed code on main can sign or apply.
+# MED-07: the token can only read the repo; actions are pinned to commit ids; npm install scripts never run; the
+# signing key is given only to the signing step, after everything is installed and built. The owner sets required
+# reviewers on the "production" environment (Settings > Environments), so every apply waits for a human approval.
 on:
   push:
     branches: [main]
@@ -14,6 +17,8 @@ on:
       customer:
         description: Customer name (customers/<name>.yaml)
         required: true
+permissions:
+  contents: read
 jobs:
   plan:
     if: github.ref == 'refs/heads/main'
@@ -21,7 +26,7 @@ jobs:
     outputs:
       customers: ${{ steps.list.outputs.customers }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - id: list
@@ -50,29 +55,31 @@ jobs:
     env:
       CONFIG: customers/${{ matrix.customer }}.yaml
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Check the config
         id: config
         run: |
           npx tsx deploy/config.ts "$CONFIG"
           echo "offline=$(yq -r '.offline // false' "$CONFIG")" >> "$GITHUB_OUTPUT"
-      - name: Build and sign the bundle (release v<version> + config)
+      - name: Build the bundle (release v<version> + config)
         env:
-          BUNDLE_SIGNING_KEY: ${{ secrets.BUNDLE_SIGNING_KEY }}
           PRODUCT_SOURCE_TOKEN: ${{ secrets.PRODUCT_SOURCE_TOKEN }}   # reads products kept in their own repo (D-29)
         run: |
-          key=$RUNNER_TEMP/signing_key && printf '%s\n' "$BUNDLE_SIGNING_KEY" > "$key" && chmod 600 "$key"
-          bundle=$(deploy/bundle.sh "$CONFIG" "$RUNNER_TEMP/out" "$key")
+          bundle=$(deploy/bundle.sh "$CONFIG" "$RUNNER_TEMP/out")
           echo "BUNDLE=$bundle" >> "$GITHUB_ENV"
+      - name: Sign the bundle (the only step that holds the signing key)
+        env:
+          BUNDLE_SIGNING_KEY: ${{ secrets.BUNDLE_SIGNING_KEY }}
+        run: deploy/sign-bundle.sh "$BUNDLE"
       - name: Offline site - keep the signed bundle for download
         if: steps.config.outputs.offline == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: bundle-${{ matrix.customer }}
           path: ${{ runner.temp }}/out/

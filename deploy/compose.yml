@@ -46,7 +46,7 @@ services:
     <<: *platform
     command: ["npx", "tsx", "apps/core/server/index.ts"]
     env_file: ${MEDHANTA_STATE:-/var/lib/medhanta/state}/core.env
-    environment: { PORT: "3000" }
+    environment: { PORT: "3000", MEDHANTA_VERSION: "${VERSION:-unknown}" }
   hello:                             # reference product: CI and demos only, never licensed at a customer
     <<: *platform
     profiles: [hello]

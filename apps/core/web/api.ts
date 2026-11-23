@@ -1,4 +1,4 @@
-export class ApiError extends Error { constructor(readonly status: number, message: string) { super(message); } }
+export class ApiError extends Error { constructor(readonly status: number, message: string, readonly data: Record<string, unknown> = {}) { super(message); } }
 
 export async function api<T = unknown>(method: string, url: string, body?: object): Promise<T> {
   const res = await fetch(url, {
@@ -7,6 +7,6 @@ export async function api<T = unknown>(method: string, url: string, body?: objec
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Error ${res.status}`);
+  if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Error ${res.status}`, data as Record<string, unknown>);
   return data as T;
 }

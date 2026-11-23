@@ -5,7 +5,7 @@ import path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrate } from '../db/migrate.js';
-import { applyConfig, caddyfile, dbPortEnv, externalPort, imageTags, loadPermissions, migrateRun, productEnv, productHost, type Runtime } from '../deploy/apply.js';
+import { applyConfig, caddyfile, SECURITY_HEADERS, dbPortEnv, externalPort, imageTags, loadPermissions, migrateRun, productEnv, productHost, type Runtime } from '../deploy/apply.js';
 import { allProducts, checkConfig, checkManifest, manifest, readYaml, ROOT, type Manifest } from '../deploy/config.js';
 import { enableLogin, sqlstate } from './db.js';
 import { makeEmployee, run } from './core.js';
@@ -77,11 +77,21 @@ describe('PL-10 changes only through the config file, with change reference, tes
     } finally { await h.end(); await id.end(); }
   });
 
+  it('every site sends the security headers (HSTS, nosniff, frame-ancestors none, referrer, permissions, CSP); docs/security-headers.md carries the same snippet', () => {
+    const text = caddyfile(A);
+    for (const h of ['Strict-Transport-Security "max-age=31536000"', 'X-Content-Type-Options "nosniff"', 'X-Frame-Options "DENY"',
+      'Referrer-Policy "strict-origin-when-cross-origin"', 'Permissions-Policy "camera=(), microphone=(), geolocation=()"', "frame-ancestors 'none'", "default-src 'self'"]) expect(text).toContain(h);
+    expect(text.match(/import security_headers/g)).toHaveLength(2);   // core and hello
+    expect(text).not.toMatch(/script-src[^"]*unsafe-eval/);
+    expect(readFileSync(path.join(ROOT, 'docs/security-headers.md'), 'utf8')).toContain(SECURITY_HEADERS);
+  });
+
   it('PL-10 the proxy serves core and each licensed product: the platform caddy, or the host proxy on 127.0.0.1 ports', () => {
     expect(A.proxy).toBe('caddy');
-    expect(caddyfile(A)).toBe('ci.example {\n  reverse_proxy core:3000\n}\nhello.ci.example {\n  reverse_proxy hello:3000\n}\n');
+    const sites = (text: string) => text.slice(text.indexOf('\nci.example'));
+    expect(sites(caddyfile(A))).toBe('\nci.example {\n  import security_headers\n  reverse_proxy core:3000\n}\nhello.ci.example {\n  import security_headers\n  reverse_proxy hello:3000\n}\n');
     const ext = check({ ...base, proxy: 'external' }).config;
-    expect(caddyfile(ext)).toBe('ci.example {\n  reverse_proxy 127.0.0.1:8100\n}\nhello.ci.example {\n  reverse_proxy 127.0.0.1:8101\n}\n');
+    expect(sites(caddyfile(ext))).toBe('\nci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8100\n}\nhello.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8101\n}\n');
     expect(() => check({ ...base, proxy: 'nginx' })).toThrow();
     // Every product has its own fixed host port (a product without one could not be licensed with proxy: external).
     const ports = ['core', ...allProducts()].map(externalPort);
@@ -538,7 +548,7 @@ describe('TrueBatch Tablets, a product kept in its own repo (D-27)', () => {
     expect(manifest('truebatch').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'reading_v1', 'master_lab_field_v1']);   // D-135 in-process lab fields of masters for LIMS; D-112 in-process lab requests; D-128 readings for CPV
     expect(() => checkConfig({ ...tb, links: { ...tb.links, truebatch: { ...tb.links.truebatch, deviations: ['deviation_v1'] } } }, raw))
       .toThrow(/link truebatch -> deviations: provider is not licensed/);
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8110\n}');
   });
 
   it('PL-08 the TrueBatch links (D-28): every view read is published by its provider; each reader gets the provider\'s database only through its link', () => {
@@ -617,8 +627,8 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     expect(productHost('truebatch_packing', 'ci.example')).toBe('truebatch-packing.ci.example');
     expect(productHost('truebatch', 'ci.example')).toBe('truebatch.ci.example');
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-packing.ci.example/cb');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-packing.ci.example {\n  reverse_proxy 127.0.0.1:8111\n}');
-    expect(caddyfile(config)).toContain('truebatch-packing.ci.example {\n  reverse_proxy truebatch_packing:3000\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-packing.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8111\n}');
+    expect(caddyfile(config)).toContain('truebatch-packing.ci.example {\n  import security_headers\n  reverse_proxy truebatch_packing:3000\n}');
     expect(tp.links.truebatch_packing.master_data).toEqual(manifest('truebatch_packing').reads!.master_data);
     expect(manifest('truebatch_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1', 'lab_request_v1', 'master_lab_field_v1']);
     // It reads the released bulk batches of TrueBatch Tablets only while TrueBatch is licensed and linked.
@@ -649,7 +659,7 @@ describe('TrueBatch Tablets Packing, a second product from the TrueBatch repo (D
     for (const db of ['truebatch', 'mms', 'logbook', 'deviations', 'qms'])
       expect(env[`${db.toUpperCase()}_DATABASE_URL`]).toMatch(new RegExp(`^postgres://truebatch_packing_app:.*@db:5432/${db}$`));
     expect(productEnv(config, s!, 'truebatch')).not.toHaveProperty('TRUEBATCH_PACKING_DATABASE_URL');   // a provider gets nothing of its reader
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  reverse_proxy 127.0.0.1:8110\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8110\n}');
   });
 
   it('PL-10 its image is built at the same pinned commit as TrueBatch, from the repo\'s ops/packing.Dockerfile', () => {
@@ -843,8 +853,8 @@ describe('TrueBatch Injectables, its own product from its own repo (D-43)', () =
     expect(env.TRUEBATCH_INJECTABLES_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_injectables_app:.*@db:5432\/truebatch_injectables$/);
     expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_injectables_app:.*@db:5432\/master_data$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-injectables.ci.example/cb');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables.ci.example {\n  reverse_proxy 127.0.0.1:8113\n}');
-    expect(caddyfile(config)).toContain('truebatch-injectables.ci.example {\n  reverse_proxy truebatch_injectables:3000\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8113\n}');
+    expect(caddyfile(config)).toContain('truebatch-injectables.ci.example {\n  import security_headers\n  reverse_proxy truebatch_injectables:3000\n}');
     expect(ti.links.truebatch_injectables.master_data).toEqual(manifest('truebatch_injectables').reads!.master_data);
     expect(manifest('truebatch_injectables').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'steriliser_cycle_v1', 'reading_v1', 'master_lab_field_v1']);   // D-114 cycles for the Logbook
     expect(manifest('logbook').reads!.truebatch_injectables).toEqual(['batch_fact_v1', 'equipment_use_v1', 'steriliser_cycle_v1']);   // D-123 the Logbook reads them (Logbook D-78)
@@ -896,8 +906,8 @@ describe('TrueBatch API, its own product from its own repo (D-88)', () => {
     expect(env.TRUEBATCH_API_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_api_app:.*@db:5432\/truebatch_api$/);
     expect(env.MASTER_DATA_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_api_app:.*@db:5432\/master_data$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-api.ci.example/cb');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-api.ci.example {\n  reverse_proxy 127.0.0.1:8119\n}');
-    expect(caddyfile(config)).toContain('truebatch-api.ci.example {\n  reverse_proxy truebatch_api:3000\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-api.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8119\n}');
+    expect(caddyfile(config)).toContain('truebatch-api.ci.example {\n  import security_headers\n  reverse_proxy truebatch_api:3000\n}');
     expect(ta.links.truebatch_api.master_data).toEqual(manifest('truebatch_api').reads!.master_data);
     // The four views TrueBatch Tablets publishes, and the lots that go to stores for MMS (output_lot_v1).
     expect(manifest('truebatch_api').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'output_lot_v1', 'lab_request_v1', 'reading_v1']);   // D-133 readings for CPV
@@ -947,7 +957,7 @@ describe('TrueBatch Injectables Packing, a second product from the Injectables r
     expect(Object.keys(env).sort()).toEqual(['MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_INJECTABLES_PACKING_DATABASE_URL']);
     expect(env.TRUEBATCH_INJECTABLES_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_injectables_packing_app:.*@db:5432\/truebatch_injectables_packing$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://truebatch-injectables-packing.ci.example/cb');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables-packing.ci.example {\n  reverse_proxy 127.0.0.1:8114\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-injectables-packing.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8114\n}');
     const reads = manifest('truebatch_injectables_packing').reads!;
     expect(reads.truebatch_injectables).toEqual(['batch_fact_v1']);
     for (const provider of ['truebatch_injectables', 'mms', 'logbook', 'deviations', 'qms'])
@@ -996,9 +1006,9 @@ describe('TrueBatch Capsules and TrueBatch Capsules Packing, two products from t
     const penv = productEnv(config, s!, 'truebatch_capsules_packing');
     expect(penv.TRUEBATCH_CAPSULES_PACKING_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_capsules_packing_app:.*@db:5432\/truebatch_capsules_packing$/);
     expect(penv.OIDC_REDIRECT_URI).toBe('https://truebatch-capsules-packing.ci.example/cb');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules.ci.example {\n  reverse_proxy 127.0.0.1:8115\n}');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules-packing.ci.example {\n  reverse_proxy 127.0.0.1:8116\n}');
-    expect(caddyfile(config)).toContain('truebatch-capsules.ci.example {\n  reverse_proxy truebatch_capsules:3000\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8115\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('truebatch-capsules-packing.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8116\n}');
+    expect(caddyfile(config)).toContain('truebatch-capsules.ci.example {\n  import security_headers\n  reverse_proxy truebatch_capsules:3000\n}');
     expect(manifest('truebatch_capsules').publishes).toEqual(['batch_fact_v1', 'equipment_use_v1', 'deviation_note_v1', 'material_use_v1', 'lab_request_v1', 'reading_v1']);   // D-129 readings for CPV
     expect(manifest('truebatch_capsules_packing').publishes).toEqual(['packing_batch_v1', 'equipment_use_v1', 'material_use_v1', 'deviation_note_v1', 'lab_request_v1']);
     expect(() => checkConfig({ ...tc, licences: ['hello', 'truebatch_capsules_packing'], links: { hello: tc.links.hello, truebatch_capsules_packing: { master_data: md } } }, raw)).not.toThrow();
@@ -1053,8 +1063,8 @@ describe('Medhanta LIMS, the QC laboratory system (D-91)', () => {
     expect(Object.keys(env).sort()).toEqual(['LIMS_DATABASE_URL', 'MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI', 'TRUEBATCH_DATABASE_URL']);
     expect(env.LIMS_DATABASE_URL).toMatch(/^postgres:\/\/lims_app:.*@db:5432\/lims$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://lims.ci.example/cb');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('lims.ci.example {\n  reverse_proxy 127.0.0.1:8120\n}');
-    expect(caddyfile(config)).toContain('lims.ci.example {\n  reverse_proxy lims:3000\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('lims.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8120\n}');
+    expect(caddyfile(config)).toContain('lims.ci.example {\n  import security_headers\n  reverse_proxy lims:3000\n}');
     expect(manifest('lims').publishes).toEqual(['coa_v1', 'result_v1', 'oos_v1', 'instrument_use_v1', 'stability_v1', 'em_v1', 'trend_v1', 'sample_v1']);   // D-112: samples for MMS
   });
 
@@ -1088,7 +1098,7 @@ describe('Medhanta CLEAR, the audit checklist (D-142)', () => {
     expect(Object.keys(env).sort()).toEqual(['AUDIT_DATABASE_URL', 'IDENTITY_DATABASE_URL', 'MASTER_DATA_DATABASE_URL', 'OIDC_CLIENT_SECRET', 'OIDC_ISSUER', 'OIDC_REDIRECT_URI']);
     expect(env.AUDIT_DATABASE_URL).toMatch(/^postgres:\/\/audit_app:.*@db:5432\/audit$/);
     expect(env.OIDC_REDIRECT_URI).toBe('https://audit.ci.example/cb');
-    expect(caddyfile({ ...config, proxy: 'external' })).toContain('audit.ci.example {\n  reverse_proxy 127.0.0.1:8121\n}');
+    expect(caddyfile({ ...config, proxy: 'external' })).toContain('audit.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8121\n}');
     expect(manifest('audit').publishes).toEqual([]);
   });
 
@@ -1135,8 +1145,8 @@ describe('TrueBatch Liquids and TrueBatch Liquids Packing, two products from the
     expect(pk.TRUEBATCH_LIQUIDS_DATABASE_URL).toMatch(/^postgres:\/\/truebatch_liquids_packing_app:.*@db:5432\/truebatch_liquids$/);
     expect(pk.OIDC_REDIRECT_URI).toBe('https://truebatch-liquids-packing.ci.example/cb');
     const caddy = caddyfile({ ...config, proxy: 'external' });
-    expect(caddy).toContain('truebatch-liquids.ci.example {\n  reverse_proxy 127.0.0.1:8117\n}');
-    expect(caddy).toContain('truebatch-liquids-packing.ci.example {\n  reverse_proxy 127.0.0.1:8118\n}');
+    expect(caddy).toContain('truebatch-liquids.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8117\n}');
+    expect(caddy).toContain('truebatch-liquids-packing.ci.example {\n  import security_headers\n  reverse_proxy 127.0.0.1:8118\n}');
     expect(() => checkConfig({ ...tl, licences: ['hello', 'truebatch_liquids_packing'] }, raw)).toThrow(/link truebatch_liquids_packing -> truebatch_liquids: provider is not licensed|link reader "truebatch_liquids" is not licensed/);
   });
 

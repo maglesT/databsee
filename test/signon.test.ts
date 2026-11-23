@@ -2,6 +2,7 @@
 import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../apps/core/server/app.js';
+import { stepOf, totp } from '../apps/core/server/mfa.js';
 import { coreApp, grant, helloCatalogue, makeEmployee, PASSWORD, run, superuser } from './core.js';
 
 const ISSUER = 'http://core.test/oidc';
@@ -188,7 +189,7 @@ describe('PL-04 password rules apply to product sign-on too', () => {
     expect(change.code).toBeUndefined();
     expect(change.page).toContain('Choose a new one');
     const weak = await signIn(b, change.action!, { login: `tempsso${run}`, password: PASSWORD, next: 'short', repeat: 'short' });
-    expect(weak.page).toContain('at least 10 characters');
+    expect(weak.page).toContain('at least 12 characters');
     const done = await signIn(b, weak.action!, { login: `tempsso${run}`, password: PASSWORD, next: 'my new long secret', repeat: 'my new long secret' });
     expect((await exchange(done.code!, verifier)).status).toBe(200);
   });
@@ -329,5 +330,60 @@ describe('PL-01 one person per browser: core sign-in and the products\' single s
     b.jar.delete('sid');
     b.jar.set('_session.sig', 'forged');
     expect((await b.api('GET', '/api/me')).statusCode).toBe(401);
+  });
+});
+
+describe('sign-in rate limit on the product sign-in page (also used by the e-signature password check)', () => {
+  it('too many failed passwords from one address get a plain 429 page', async () => {
+    await makeEmployee(`ssorate${run}`);
+    const limited = buildApp({ ...t.deps, loginFailuresPerMinute: 2, oidc: { issuer: ISSUER, clients: [CLIENT], jwks: { keys: [{ ...key, use: 'sig', kid: 'test' }] }, cookieKeys: ['test-cookie-key'] } });
+    const b = browser(limited);
+    const { step } = await startAuth({ ...b, follow: b.follow });
+    for (let i = 0; i < 2; i++) expect((await signIn(b, step.action!, { login: `ssorate${run}`, password: 'wrong' })).page).toContain('Wrong login or password');
+    const res = await b.request('POST', step.action!, { login: `ssorate${run}`, password: PASSWORD });
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toContain('Too many failed attempts');
+  });
+});
+
+describe('two-step sign-in at the product sign-in page; e-signature re-entry stays password only', () => {
+  async function enrolled(name: string) {
+    const id = await makeEmployee(name, ['hello.note.read']);
+    const su = superuser();
+    const secret = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
+    await su`insert into mfa_factor (employee_id, secret, confirmed_at) values (${id}, ${secret}, now())`;
+    await su.end();
+    return { id, secret };
+  }
+
+  it('the page asks for the code; with a right code the product gets its code, and re-authentication needs no code', async () => {
+    const { secret } = await enrolled(`ssomfa${run}`);
+    const b = browser();
+    const { step, verifier } = await startAuth(b);
+    expect(step.page).toContain('name="code"');
+    const noCode = await signIn(b, step.action!, { login: `ssomfa${run}`, password: PASSWORD });
+    expect(noCode.code).toBeUndefined();
+    expect(noCode.page).toContain('Enter the 6-digit code');
+    const wrong = await signIn(b, noCode.action!, { login: `ssomfa${run}`, password: PASSWORD, code: '000000' });
+    expect(wrong.page).toContain('Wrong login or password');
+    const ok = await signIn(b, wrong.action!, { login: `ssomfa${run}`, password: PASSWORD, code: totp(secret, stepOf()) });
+    expect(ok.code).toBeTruthy();
+    await exchange(ok.code!, verifier);
+    // the e-signature: prompt=login asks the password again, no code
+    const reauth = await startAuth(b, { prompt: 'login', max_age: '0' });
+    expect(reauth.step.page).toContain('Enter your password again');
+    expect(reauth.step.page).not.toContain('name="code"');
+    const signed = await signIn(b, reauth.step.action!, { login: `ssomfa${run}`, password: PASSWORD });
+    expect(signed.code).toBeTruthy();
+  });
+
+  it('a site that requires it refuses a person who has not set it up, with a plain message', async () => {
+    await makeEmployee(`ssoreq${run}`, ['hello.note.read']);
+    const required = buildApp({ ...t.deps, mfaRequired: ['all'], oidc: { issuer: ISSUER, clients: [CLIENT], jwks: { keys: [{ ...key, use: 'sig', kid: 'test' }] }, cookieKeys: ['test-cookie-key'] } });
+    const b = browser(required);
+    const { step } = await startAuth({ ...b, follow: b.follow });
+    const res = await signIn(b, step.action!, { login: `ssoreq${run}`, password: PASSWORD });
+    expect(res.code).toBeUndefined();
+    expect(res.page).toContain('requires two-step sign-in');
   });
 });
