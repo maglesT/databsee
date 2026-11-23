@@ -30,6 +30,9 @@ const configSchema = z.object({
   }),
   proxy: z.enum(['caddy', 'external']).default('caddy'), // external: the host's own proxy owns 80/443 (compose.external.yml)
   db_port: z.number().int().min(1024).max(65535).default(5432), // host port of the database server, 127.0.0.1 only (D-18)
+  // Two-step sign-in (authenticator app) is optional for everyone; these must use it: "all" or permission codes
+  // (core.people.manage, truebatch.master.approve, ...). Empty = optional for all. Each change is a config change (PL-10).
+  mfa_required: z.array(z.union([z.literal('all'), z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/)])).default([]),
   licences: z.array(name).default([]),
   links: reads.default({}),                             // product (or core, D-75) -> provider database -> views
   outside_logins: reads.default({}),                    // outside system -> provider database -> views

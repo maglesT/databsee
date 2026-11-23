@@ -255,6 +255,7 @@ export const docker: Runtime = {
       // Core's own links (D-75): e.g. RECRUITMENT_DATABASE_URL for "From Recruitment" and training beside permissions.
       ...Object.fromEntries(Object.keys(config.links.core ?? {}).map((db) => [`${db.toUpperCase()}_DATABASE_URL`, url('core_app', db)])),
       SECURITY_CONTACT_EMAIL: config.security_contact,
+      MFA_REQUIRED: config.mfa_required.join(','),
       ...(secrets.smtp_url ? { SMTP_URL: secrets.smtp_url } : {}),
       OIDC_ISSUER: `https://${config.domain}/oidc`,
       OIDC_CLIENTS: JSON.stringify(config.licences.map((p) => {

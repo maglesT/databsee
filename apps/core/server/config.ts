@@ -5,6 +5,8 @@ export const POLICY = {
   maxFailedAttempts: Number(process.env.MAX_FAILED_ATTEMPTS ?? 5),
   loginFailuresPerMinute: Number(process.env.LOGIN_FAILURES_PER_MINUTE ?? 10),   // per address; then 429
   lockoutMinutes: Number(process.env.LOCKOUT_MINUTES ?? 15),         // a lock opens by itself after this long
+  // Two-step sign-in is optional for everyone; these people must use it: 'all' or permission codes (customer config mfa_required).
+  mfaRequired: (process.env.MFA_REQUIRED ?? '').split(',').map((x) => x.trim()).filter(Boolean),
   passwordMaxAgeDays: Number(process.env.PASSWORD_MAX_AGE_DAYS ?? 90),
 };
 

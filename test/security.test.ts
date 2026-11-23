@@ -2,7 +2,9 @@
 import { randomBytes, scryptSync } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../apps/core/server/app.js';
+import { base32, stepOf, totp } from '../apps/core/server/mfa.js';
 import { FailureLimiter } from '../apps/core/server/ratelimit.js';
+import { checkConfig } from '../deploy/config.js';
 import { coreApp, makeEmployee, PASSWORD, run, signIn, superuser } from './core.js';
 
 let t: Awaited<ReturnType<typeof coreApp>>;
@@ -159,5 +161,126 @@ describe('password rules', () => {
     expect((await signIn(t.app, `rehash${run}`)).res.statusCode).toBe(200);   // the new hash works
     expect((await signIn(t.app, `rehash${run}`, 'wrong password')).res.statusCode).toBe(401);
     await su.end();
+  });
+});
+
+describe('two-step sign-in (authenticator app)', () => {
+  const login = (l: string, code?: string, password = PASSWORD, app = t.app) => app.inject({ method: 'POST', url: '/api/login', payload: { login: l, password, ...(code === undefined ? {} : { code }) } });
+  const fresh = async (id: string) => { const su = superuser(); await su`update mfa_factor set last_step = 0 where employee_id = ${id}`; await su.end(); };
+
+  async function enrol(name: string) {
+    const id = await makeEmployee(name, ['core.masterdata.view']);
+    const s = await signIn(t.app, name);
+    expect((await s.call('POST', '/api/me/mfa/start', { password: 'wrong password' })).statusCode).toBe(401);
+    const start = (await s.call('POST', '/api/me/mfa/start', { password: PASSWORD })).json();
+    expect(start.uri).toContain(`secret=${start.secret}`);
+    expect(start.qr).toContain('<svg');
+    expect((await s.call('POST', '/api/me/mfa/confirm', { code: '000000' })).statusCode).toBe(400);
+    const done = await s.call('POST', '/api/me/mfa/confirm', { code: totp(start.secret, stepOf()) });
+    expect(done.statusCode).toBe(200);
+    return { id, secret: start.secret as string, recovery: done.json().recoveryCodes as string[], session: s };
+  }
+
+  it('the RFC 6238 test vector matches', () => {
+    // RFC 6238 appendix B, SHA-1, secret "12345678901234567890", T=59 s: 94287082 (8 digits) -> 6 digits 287082
+    expect(totp(base32(Buffer.from('12345678901234567890')), 1)).toBe('287082');
+  });
+
+  it('enrolling shows 8 recovery codes once; then sign-in needs the code', async () => {
+    const e = await enrol(`mfa${run}`);
+    expect(e.recovery).toHaveLength(8);
+    expect((await e.session.call('GET', '/api/me')).json().mfa).toBe(true);
+    await fresh(e.id);
+    const noCode = await login(`mfa${run}`);
+    expect(noCode.statusCode).toBe(401);
+    expect(noCode.json().mfa).toBe(true);
+    expect(noCode.cookies.find((c) => c.name === 'sid')).toBeUndefined();   // no session without the code
+    expect((await login(`mfa${run}`, '123456')).json().mfa).toBeUndefined();   // a wrong code is a plain failure
+    expect((await login(`mfa${run}`, '123456')).statusCode).toBe(401);
+    expect((await login(`mfa${run}`, totp(e.secret, stepOf()))).statusCode).toBe(200);
+  });
+
+  it('a code works once', async () => {
+    const e = await enrol(`replay${run}`);
+    await fresh(e.id);
+    const code = totp(e.secret, stepOf());
+    expect((await login(`replay${run}`, code)).statusCode).toBe(200);
+    expect((await login(`replay${run}`, code)).statusCode).toBe(401);
+  });
+
+  it('wrong codes count towards the lockout like wrong passwords', async () => {
+    const e = await enrol(`mfalock${run}`);
+    await fresh(e.id);
+    for (let i = 0; i < 5; i++) await login(`mfalock${run}`, '111111');
+    expect((await login(`mfalock${run}`, totp(e.secret, stepOf()))).statusCode).toBe(401);
+    const su = superuser();
+    const [c] = await su`select locked_at from credential where employee_id = ${e.id}`;
+    await su.end();
+    expect(c!.locked_at).not.toBeNull();
+  });
+
+  it('a recovery code signs in once and is audited', async () => {
+    const e = await enrol(`rec${run}`);
+    expect((await login(`rec${run}`, e.recovery[0])).statusCode).toBe(200);
+    expect((await login(`rec${run}`, e.recovery[0])).statusCode).toBe(401);
+    expect((await login(`rec${run}`, e.recovery[1]!.toUpperCase())).statusCode).toBe(200);
+    const su = superuser();
+    const rows = await su`select reason from credential_event where employee_id = ${e.id} and kind = 'signon_ok' and reason is not null`;
+    await su.end();
+    expect(rows).toHaveLength(2);
+  });
+
+  it('turning it off needs the password and a code; a person without it signs in as before', async () => {
+    const e = await enrol(`off${run}`);
+    await fresh(e.id);
+    const s = await signIn(t.app, `off${run}`, PASSWORD);   // 401 without code; so use the enrol session
+    expect(s.res.statusCode).toBe(401);
+    expect((await e.session.call('POST', '/api/me/mfa/disable', { password: PASSWORD, code: '000000' })).statusCode).toBe(401);
+    expect((await e.session.call('POST', '/api/me/mfa/disable', { password: PASSWORD, code: totp(e.secret, stepOf()) })).statusCode).toBe(200);
+    expect((await login(`off${run}`)).statusCode).toBe(200);
+  });
+
+  it('an administrator resets it with a reason (audited); not for oneself', async () => {
+    const e = await enrol(`lost${run}`);
+    const admin = await signIn(t.app, adminLogin);
+    expect((await admin.call('POST', `/api/employees/${e.id}/mfa-reset`, {})).statusCode).toBe(400);
+    expect((await admin.call('POST', `/api/employees/${e.id}/mfa-reset`, { reason: 'phone lost, identity checked' })).statusCode).toBe(200);
+    expect((await login(`lost${run}`)).statusCode).toBe(200);
+    const h = (await admin.call('GET', `/api/employees/${e.id}/history`)).json();
+    expect(h.credentialEvents.map((c: { kind: string }) => c.kind)).toEqual(expect.arrayContaining(['mfa_enrolled', 'mfa_reset']));
+    expect(h.credentialEvents.find((c: { kind: string }) => c.kind === 'mfa_reset').reason).toBe('phone lost, identity checked');
+    const mine = (await admin.call('GET', '/api/me')).json();
+    expect((await admin.call('POST', `/api/employees/${mine.id}/mfa-reset`, { reason: 'x' })).statusCode).toBe(400);
+  });
+
+  it('a site can require it: people in the chosen permissions can only set it up until they have, and cannot turn it off', async () => {
+    const app = buildApp({ ...t.deps, mfaRequired: ['core.people.manage'] });
+    const id = await makeEmployee(`req${run}`, ['core.people.manage']);
+    await makeEmployee(`notreq${run}`, ['core.masterdata.view']);
+    const r = await login(`req${run}`, undefined, PASSWORD, app);
+    expect(r.statusCode).toBe(200);   // may sign in to set it up
+    expect(r.json()).toMatchObject({ mfa: false, mfaRequired: true });
+    const sid = r.cookies.find((c) => c.name === 'sid')!.value;
+    const call = (method: 'GET' | 'POST', url: string, payload?: object) => app.inject({ method, url, payload, cookies: { sid } });
+    expect((await call('GET', '/api/employees')).statusCode).toBe(403);
+    expect((await call('GET', '/api/session')).statusCode).toBe(200);
+    const start = (await call('POST', '/api/me/mfa/start', { password: PASSWORD })).json();
+    expect((await call('POST', '/api/me/mfa/confirm', { code: totp(start.secret, stepOf()) })).statusCode).toBe(200);
+    expect((await call('GET', '/api/employees')).statusCode).toBe(200);
+    expect((await call('POST', '/api/me/mfa/disable', { password: PASSWORD, code: '1' })).statusCode).toBe(403);
+    expect(((await login(`notreq${run}`, undefined, PASSWORD, app)).json() as { mfaRequired: boolean }).mfaRequired).toBe(false);
+    const all = buildApp({ ...t.deps, mfaRequired: ['all'] });
+    expect(((await login(`notreq${run}`, undefined, PASSWORD, all)).json() as { mfaRequired: boolean }).mfaRequired).toBe(true);
+    expect(id).toBeTruthy();
+  });
+});
+
+describe('customer config: mfa_required', () => {
+  const raw = { customer: 'ci', version: '0.6.0', domain: 'ci.example', offline: true, security_contact: 'security@ci.example', backup: { path: 'b/ci' }, change_ref: 'CC-1', reason: 'r' };
+  it('takes "all" or permission codes, default none, and refuses anything else', () => {
+    expect(checkConfig(raw).config.mfa_required).toEqual([]);
+    expect(checkConfig({ ...raw, mfa_required: ['all'] }).config.mfa_required).toEqual(['all']);
+    expect(checkConfig({ ...raw, mfa_required: ['core.people.manage', 'truebatch.master.approve'] }).config.mfa_required).toHaveLength(2);
+    expect(() => checkConfig({ ...raw, mfa_required: ['admins'] })).toThrow();
   });
 });

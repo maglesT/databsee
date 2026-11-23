@@ -15,6 +15,8 @@ import { registerMasterData } from './master-data.js';
 import { productInfo } from '../products.js';
 import { loginFromName } from '../names.js';
 import { plantTime } from '../time.js';
+import { hashRecoveryCode, looksLikeRecoveryCode, matchTotp, newRecoveryCodes, newSecret, otpauthUri } from './mfa.js';
+import QRCode from 'qrcode';
 import { FailureLimiter, TOO_MANY } from './ratelimit.js';
 import { linkReport, readLink } from './links.js';
 
@@ -26,11 +28,12 @@ export interface Deps {
   webRoot?: string;             // built screens (vite build); omitted in API-only tests
   oidc?: OidcSettings;          // single sign-on for the products (slice A3)
   md?: Sql;                     // master_data database as core_app (slice A4)
+  mfaRequired?: string[];          // who must use two-step sign-in: 'all' or permission codes; default POLICY.mfaRequired
   loginFailuresPerMinute?: number; // per address; default POLICY.loginFailuresPerMinute
   links?: Record<string, Sql>;  // core's own links (customer config links.core): provider database -> pool as core_app (D-75)
 }
 
-interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean }
+interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean; mfa: boolean; mfaRequired: boolean }
 declare module 'fastify' { interface FastifyRequest { me?: Me } }
 
 const SESSION_COOKIE = 'sid';
@@ -68,15 +71,17 @@ async function setPermissions(tx: TransactionSql, me: Me, employeeId: string, pr
 export class HttpError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 
 /** PL-01: the employee's core permissions, only if active, unlocked and holding a password. */
-async function loadMe(sql: Sql | TransactionSql, employeeId: string): Promise<Me | null> {
-  const [row] = await sql<{ id: string; login: string; full_name: string; permissions: string[]; must_change: boolean }[]>`
+async function loadMe(sql: Sql | TransactionSql, employeeId: string, required: string[]): Promise<Me | null> {
+  const [row] = await sql<{ id: string; login: string; full_name: string; permissions: string[]; must_change: boolean; mfa: boolean; mfa_required: boolean }[]>`
     select e.id, e.login, e.full_name,
       coalesce((select array_agg(g.code order by g.code) from current_permission_grant g where g.employee_id = e.id and g.product = 'core'), '{}') as permissions,
-      (c.must_change or c.changed_at < now() - make_interval(days => ${POLICY.passwordMaxAgeDays})) as must_change
+      (c.must_change or c.changed_at < now() - make_interval(days => ${POLICY.passwordMaxAgeDays})) as must_change,
+      exists (select from mfa_factor f where f.employee_id = e.id and f.confirmed_at is not null) as mfa,
+      (${required.includes('all')} or exists (select from current_permission_grant g where g.employee_id = e.id and g.code = any(${required}::text[]))) as mfa_required
     from employee_current e join credential c on c.employee_id = e.id
     where e.id = ${employeeId} and e.active
       and (c.locked_at is null or c.locked_at <= now() - make_interval(mins => ${POLICY.lockoutMinutes}))`;
-  return row ? { id: row.id, login: row.login, fullName: row.full_name, permissions: row.permissions, mustChange: row.must_change } : null;
+  return row ? { id: row.id, login: row.login, fullName: row.full_name, permissions: row.permissions, mustChange: row.must_change, mfa: row.mfa, mfaRequired: row.mfa_required } : null;
 }
 
 /**
@@ -85,10 +90,22 @@ async function loadMe(sql: Sql | TransactionSql, employeeId: string): Promise<Me
  * contact at once (D-03). Returns the employee id on success.
  */
 export async function checkPassword(deps: Deps, login: string, password: string, product = 'core'): Promise<string | null> {
+  const r = await signOnCheck(deps, login, password, product);
+  return r && 'id' in r ? r.id : null;
+}
+
+/** The result of a sign-on check: the person, "the code is needed" (password right, two-step sign-in set up), or refused. */
+export type SignOn = { id: string } | { mfaNeeded: true } | null;
+
+/**
+ * checkPassword plus the second step: with `second` given and an authenticator app set up, the 6-digit code (or a
+ * recovery code) must follow the password. A wrong code counts like a wrong password. Without `second` (password
+ * changes, e-signature re-entry) only the password is checked.
+ */
+export async function signOnCheck(deps: Deps, login: string, password: string, product = 'core', second?: { code: string }): Promise<SignOn> {
   const { sql } = deps;
-  let rehash: string | null = null;
   let lockedNow: { id: string; login: string; message: string; alertId: string } | null = null;
-  const result = await sql.begin(async (tx) => {
+  const result = await sql.begin(async (tx): Promise<SignOn> => {
     const [row] = await tx<{ id: string; hash: string; failed: number; expired: boolean; locked: boolean; active: boolean }[]>`
       select e.id, c.password_hash as hash, c.failed_count as failed,
         (c.must_change and c.temp_expires_at < now()) as expired,
@@ -106,7 +123,7 @@ export async function checkPassword(deps: Deps, login: string, password: string,
       await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${row.id}`;
       row.failed = 0;
     }
-    if (!row.active || row.locked || !(await verifyPassword(password, row.hash))) {
+    const fail = async (): Promise<null> => {
       await tx`insert into credential_event (employee_id, login, kind, product) values (${row.id}, ${login}, 'signon_failed', ${product})`;
       if (row.active && !row.locked) {
         const failed = row.failed + 1;
@@ -122,16 +139,35 @@ export async function checkPassword(deps: Deps, login: string, password: string,
         }
       }
       return null;
-    }
+    };
+    if (!row.active || row.locked || !(await verifyPassword(password, row.hash))) return fail();
     if (row.expired) {   // right password, but a temporary one that ran out: the administrator gives a new one
       await tx`insert into credential_event (employee_id, login, kind, product, reason) values (${row.id}, ${login}, 'signon_failed', ${product}, 'temporary password expired')`;
       return null;
     }
+    let how: string | null = null;
+    if (second) {
+      const [f] = await tx<{ secret: string; last_step: string }[]>`select secret, last_step::text from mfa_factor where employee_id = ${row.id} and confirmed_at is not null`;
+      if (f) {
+        const code = second.code.trim().toLowerCase();
+        if (!code) return { mfaNeeded: true };
+        if (looksLikeRecoveryCode(code)) {
+          const [used] = await tx`update mfa_recovery_code set used_at = now() where id = (select id from mfa_recovery_code
+            where employee_id = ${row.id} and code_hash = ${hashRecoveryCode(code)} and used_at is null limit 1) returning id`;
+          if (!used) return fail();
+          how = 'recovery code used';
+        } else {
+          const step = matchTotp(f.secret, code, Number(f.last_step));
+          if (step === null) return fail();
+          await tx`update mfa_factor set last_step = ${step} where employee_id = ${row.id}`;
+        }
+      }
+    }
     // Old hashes are replaced by one at today's cost (same password, not a change of password).
     if (needsRehash(row.hash)) await tx`update credential set password_hash = ${await hashPassword(password)} where employee_id = ${row.id}`;
     await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${row.id}`;
-    await tx`insert into credential_event (employee_id, login, kind, product) values (${row.id}, ${login}, 'signon_ok', ${product})`;
-    return row.id;
+    await tx`insert into credential_event (employee_id, login, kind, product, reason) values (${row.id}, ${login}, 'signon_ok', ${product}, ${how})`;
+    return { id: row.id };
   });
   if (lockedNow) await emailAlert(deps, lockedNow);
   return result;
@@ -207,6 +243,7 @@ ${o.reauth ? '<p class="m">Enter your password again to confirm it is you.</p>' 
 ${o.change ? '<p class="m">Your password is temporary or has expired. Choose a new one (at least ${MIN_PASSWORD_LENGTH} characters, not a common password).</p>' : ''}
 ${field('Login ID', 'login', 'text', o.login, 'username')}
 ${field(o.change ? 'Current password' : 'Password', 'password', 'password', '', 'current-password')}
+${o.reauth ? '' : '<label>Authenticator code (only if you use two-step sign-in)<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="11"></label>'}
 ${o.change ? field('New password', 'next', 'password', '', 'new-password') + field('New password again', 'repeat', 'password', '', 'new-password') : ''}
 ${o.error ? `<p class="e" role="alert">${esc(o.error)}</p>` : ''}
 <button>${o.change ? 'Change password and sign in' : o.reauth ? 'Confirm' : 'Sign in'}</button></form>
@@ -226,12 +263,13 @@ export function csv(rows: Record<string, unknown>[]): string {
 export function buildApp(deps: Deps) {
   const { sql } = deps;
   const app = Fastify({ logger: false, trustProxy: true });   // behind Caddy: the client address is the forwarded one
+  const required = deps.mfaRequired ?? POLICY.mfaRequired;
   const limiter = new FailureLimiter(deps.loginFailuresPerMinute ?? POLICY.loginFailuresPerMinute);
   const waitFor = (ip: string, reply: FastifyReply) => retryAfter(limiter, ip, reply);
   app.register(cookie);
   if (deps.webRoot) app.register(fastifyStatic, { root: deps.webRoot });
   const provider = deps.oidc ? buildProvider(sql, deps.oidc) : null;
-  if (deps.oidc && provider) mountSignOn(app, deps, deps.oidc, provider, limiter);
+  if (deps.oidc && provider) mountSignOn(app, deps, deps.oidc, provider, limiter, required);
 
   // One person per browser (PL-01): core's sign-in and the products' single sign-on start and end together.
   const signOnOpts = { path: '/', httpOnly: true, sameSite: 'lax' as const, secure: deps.secureCookies };
@@ -269,12 +307,12 @@ export function buildApp(deps: Deps) {
       update session set last_seen_at = now()
       where id = ${sessionKey(sid)} and last_seen_at > now() - make_interval(mins => ${POLICY.sessionIdleMinutes})
       returning employee_id` : [];
-    let me = s && (await loadMe(sql, s.employee_id));
+    let me = s && (await loadMe(sql, s.employee_id, required));
     // Signed in through a product first: the same login opens the core screens (one login for every application).
     // Not when the core session was there and ran out (idle): then the password is asked again (GAP-PC-03).
     if (!me && provider && !sid) {
       const account = await signOnAccount(provider, browserSignOn(req));
-      me = account ? await loadMe(sql, account) : undefined;
+      me = account ? await loadMe(sql, account, required) : undefined;
       if (me) await newSession(reply, me.id);
     }
     // The first screen asks /api/session: signed out is an answer there (200, null), not an error in the browser console.
@@ -284,6 +322,10 @@ export function buildApp(deps: Deps) {
     if (me.mustChange && !['/api/me', '/api/session', '/api/me/password', '/api/logout'].includes(req.url)) {
       throw new HttpError(403, 'Change your password first.');
     }
+    // Two-step sign-in required at this site but not set up yet: only the set-up itself is open.
+    if (me.mfaRequired && !me.mfa && !['/api/me', '/api/session', '/api/me/mfa/start', '/api/me/mfa/confirm', '/api/logout'].includes(req.url)) {
+      throw new HttpError(403, 'Set up two-step sign-in first.');
+    }
   });
 
   const need = (req: FastifyRequest, ...codes: string[]) => {
@@ -292,11 +334,13 @@ export function buildApp(deps: Deps) {
   };
 
   app.post('/api/login', async (req, reply: FastifyReply) => {
-    const b = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(req.body);
+    const b = z.object({ login: z.string().trim().toLowerCase(), password: z.string(), code: z.string().optional() }).parse(req.body);
     if (waitFor(req.ip, reply)) throw new HttpError(429, TOO_MANY);
-    const id = await checkPassword(deps, b.login, b.password);
-    if (!id) limiter.fail(req.ip);
-    if (!id) throw new HttpError(401, 'Wrong login or password, or the account is locked or inactive.');
+    const r = await signOnCheck(deps, b.login, b.password, 'core', { code: b.code ?? '' });
+    if (r && 'mfaNeeded' in r) return reply.code(401).send({ error: 'Enter the 6-digit code from your authenticator app, or a recovery code.', mfa: true });
+    if (!r) limiter.fail(req.ip);
+    if (!r) throw new HttpError(401, 'Wrong login or password, or the account is locked or inactive.');
+    const id = r.id;
     const old = req.cookies[SESSION_COOKIE];
     if (old) await sql`delete from session where id = ${sessionKey(old)}`;
     await newSession(reply, id);
@@ -308,7 +352,7 @@ export function buildApp(deps: Deps) {
         setSignOn(reply, await startSignOn(provider, id));
       }
     }
-    return loadMe(sql, id);
+    return loadMe(sql, id, required);
   });
 
   app.post('/api/logout', async (req, reply) => {
@@ -354,10 +398,60 @@ export function buildApp(deps: Deps) {
     return { ok: true };
   });
 
+  // ---- Two-step sign-in (authenticator app), set up by the person from My account ----
+  // Start: password again, then a new secret and the QR code (not active until the first code is confirmed).
+  app.post('/api/me/mfa/start', async (req, reply) => {
+    const me = req.me!;
+    if (waitFor(req.ip, reply)) throw new HttpError(429, TOO_MANY);
+    const b = z.object({ password: z.string() }).parse(req.body);
+    if (me.mfa) throw new HttpError(409, 'Two-step sign-in is already set up.');
+    if (!(await checkPassword(deps, me.login, b.password))) { limiter.fail(req.ip); throw new HttpError(401, 'Password is wrong.'); }
+    const secret = newSecret();
+    await sql`insert into mfa_factor (employee_id, secret) values (${me.id}, ${secret})
+      on conflict (employee_id) do update set secret = ${secret}, created_at = now()`;
+    const uri = otpauthUri(me.login, secret);
+    return { secret, uri, qr: await QRCode.toString(uri, { type: 'svg', margin: 1 }) };
+  });
+
+  // Confirm: the first code from the app switches it on and shows the recovery codes once.
+  app.post('/api/me/mfa/confirm', async (req, reply) => {
+    const me = req.me!;
+    if (waitFor(req.ip, reply)) throw new HttpError(429, TOO_MANY);
+    const b = z.object({ code: z.string() }).parse(req.body);
+    const codes = newRecoveryCodes();
+    await sql.begin(async (tx) => {
+      const [f] = await tx<{ secret: string }[]>`select secret from mfa_factor where employee_id = ${me.id} and confirmed_at is null for update`;
+      const step = f && matchTotp(f.secret, b.code.trim(), 0);
+      if (!f || step === null) { limiter.fail(req.ip); throw new HttpError(400, f ? 'That code is not right. Check the clock of your phone and try the next code.' : 'Start the set-up first.'); }
+      await tx`update mfa_factor set confirmed_at = now(), last_step = ${step!} where employee_id = ${me.id}`;
+      await tx`delete from mfa_recovery_code where employee_id = ${me.id}`;
+      for (const c of codes) await tx`insert into mfa_recovery_code (employee_id, code_hash) values (${me.id}, ${hashRecoveryCode(c)})`;
+      await tx`insert into credential_event (employee_id, login, kind, by_id, by_name) values (${me.id}, ${me.login}, 'mfa_enrolled', ${me.id}, ${me.fullName})`;
+    });
+    return { recoveryCodes: codes };
+  });
+
+  // Remove it again: password and a code are asked; not allowed where the site requires it.
+  app.post('/api/me/mfa/disable', async (req, reply) => {
+    const me = req.me!;
+    if (waitFor(req.ip, reply)) throw new HttpError(429, TOO_MANY);
+    if (me.mfaRequired) throw new HttpError(403, 'Your site requires two-step sign-in. Ask your administrator.');
+    const b = z.object({ password: z.string(), code: z.string() }).parse(req.body);
+    const r = await signOnCheck(deps, me.login, b.password, 'core', { code: b.code });
+    if (!r || 'mfaNeeded' in r) { limiter.fail(req.ip); throw new HttpError(401, 'Password or code is wrong.'); }
+    await sql.begin(async (tx) => {
+      await tx`delete from mfa_factor where employee_id = ${me.id}`;
+      await tx`delete from mfa_recovery_code where employee_id = ${me.id}`;
+      await tx`insert into credential_event (employee_id, login, kind, by_id, by_name) values (${me.id}, ${me.login}, 'mfa_removed', ${me.id}, ${me.fullName})`;
+    });
+    return { ok: true };
+  });
+
   // ---- Employees (core.people.manage) ----
   app.get('/api/employees', async (req) => {
     need(req, PEOPLE);
-    return sql`select e.id, e.login, e.full_name as "fullName", e.email, e.active, e.version, case when c.locked_at > now() - make_interval(mins => ${POLICY.lockoutMinutes}) then c.locked_at end as "lockedAt"
+    return sql`select e.id, e.login, e.full_name as "fullName", e.email, e.active, e.version, case when c.locked_at > now() - make_interval(mins => ${POLICY.lockoutMinutes}) then c.locked_at end as "lockedAt",
+      exists (select from mfa_factor f where f.employee_id = e.id and f.confirmed_at is not null) as mfa
       from employee_current e left join credential c on c.employee_id = e.id order by e.login`;
   });
 
@@ -473,6 +567,24 @@ export function buildApp(deps: Deps) {
     return { temporaryPassword: temp };
   });
 
+  // The person lost their phone: removes their two-step sign-in (a required site makes them set it up again at the
+  // next sign-in). Never for oneself; the reason is kept in the credential events.
+  app.post('/api/employees/:id/mfa-reset', async (req) => {
+    const me = need(req, PEOPLE);
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const b = z.object({ reason }).parse(req.body);
+    if (id === me.id) throw new HttpError(400, 'Another administrator must reset your two-step sign-in.');
+    await sql.begin(async (tx) => {
+      const [e] = await tx<{ login: string }[]>`select login from employee where id = ${id}`;
+      if (!e) throw new HttpError(404, 'No such employee.');
+      await tx`delete from mfa_factor where employee_id = ${id}`;
+      await tx`delete from mfa_recovery_code where employee_id = ${id}`;
+      await tx`delete from session where employee_id = ${id}`;
+      await tx`insert into credential_event (employee_id, login, kind, by_id, by_name, reason) values (${id}, ${e.login}, 'mfa_reset', ${me.id}, ${me.fullName}, ${b.reason})`;
+    });
+    return { ok: true };
+  });
+
   // Opens a locked account at once (it also opens by itself after POLICY.lockoutMinutes). Does not touch the password.
   // Never for oneself; the unlock is an audited credential event with the reason.
   app.post('/api/employees/:id/unlock', async (req) => {
@@ -499,6 +611,7 @@ export function buildApp(deps: Deps) {
     return {
       employee,
       lockedAt: lock?.at ?? null,
+      mfa: (await sql`select 1 from mfa_factor where employee_id = ${id} and confirmed_at is not null`).length > 0,
       versions: await sql`select * from employee_version where employee_id = ${id} order by version`,
       grants: await sql`select product, code, granted, by_name, at, reason from permission_grant where employee_id = ${id} order by id`,
       credentialEvents: await sql`select kind, product, by_name, reason, at from credential_event where employee_id = ${id} order by id`,
@@ -606,7 +719,7 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding
 }
 
 /** Mounts the OIDC provider at /oidc and its sign-in page at /interaction (slice A3). */
-function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, provider: ReturnType<typeof buildProvider>, limiter: FailureLimiter) {
+function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, provider: ReturnType<typeof buildProvider>, limiter: FailureLimiter, required: string[]) {
   const waitFor = (ip: string, reply: FastifyReply) => retryAfter(limiter, ip, reply);
   const { sql } = deps;
   // "Yes, sign me out" at core's sign-out page (a product's logout) also ends the core screens' session on this browser.
@@ -648,9 +761,18 @@ function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, p
       const show = (o: Parameters<typeof signInPage>[2]) => reply.type('text/html').send(signInPage(product, d.uid, { login, ...o }));
 
       if (waitFor(req.ip, reply)) return reply.code(429).type('text/html').send(signInPage(product, d.uid, { login, error: TOO_MANY }));
-      const id = await checkPassword(deps, login, b.password ?? '', product);
-      if (!id) limiter.fail(req.ip);
-      if (!id) return show({ error: 'Wrong login or password, or the account is locked or inactive.' });
+      // E-signature password re-entry (re-authentication of the person already signed in) stays password only: no code at each signature.
+      const reauthing = Boolean(d.session?.accountId) && d.prompt.name === 'login';
+      const r = await signOnCheck(deps, login, b.password ?? '', product, reauthing ? undefined : { code: b.code ?? '' });
+      if (r && 'mfaNeeded' in r) return show({ error: 'Enter the 6-digit code from your authenticator app, or a recovery code.' });
+      if (!r) limiter.fail(req.ip);
+      if (!r) return show({ error: 'Wrong login or password, or the account is locked or inactive.' });
+      const id = r.id;
+      if (!reauthing && required.length) {
+        const [m] = await sql<{ mfa: boolean; needs: boolean }[]>`select exists (select from mfa_factor where employee_id = ${id} and confirmed_at is not null) as mfa,
+          (${required.includes('all')} or exists (select from current_permission_grant g where g.employee_id = ${id} and g.code = any(${required}::text[]))) as needs`;
+        if (m!.needs && !m!.mfa) return show({ error: 'Your site requires two-step sign-in. Sign in to the Medhanta platform screens first and set it up under My account.' });
+      }
       // PL-05: re-authentication (e.g. for an e-signature) confirms the person already signed in; nobody else may
       // answer it. Switching person needs a sign-out first.
       if (d.session?.accountId && d.prompt.name === 'login' && d.session.accountId !== id) {

@@ -1,14 +1,14 @@
 // Core screens (slice A2b): sign in, change password, people, one person (details, permissions, history), alerts.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { api } from './api.js';
+import { api, ApiError } from './api.js';
 import { form, Link, useAction, when } from './ui.js';
 import { MasterData } from './MasterData.js';
 import { productInfo } from '../products.js';
 import { plantDate } from '../time.js';
 import { loginFromName } from '../names.js';
 
-interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean }
-interface Person { id: string; login: string; fullName: string; email: string | null; active: boolean; lockedAt: string | null }
+interface Me { id: string; login: string; fullName: string; permissions: string[]; mustChange: boolean; mfa: boolean; mfaRequired: boolean }
+interface Person { id: string; login: string; fullName: string; email: string | null; active: boolean; lockedAt: string | null; mfa: boolean }
 interface Permission { product: string; code: string; label: string }
 interface Grant { product: string; code: string; grantedBy: string; grantedAt: string }
 interface MyApp { product: string; url: string }
@@ -28,6 +28,8 @@ export function App() {
 
   if (me === undefined) return null;
   if (me === null) return <SignIn onDone={load} />;
+  // A site that requires two-step sign-in: nothing else opens until it is set up.
+  if (!me.mustChange && me.mfaRequired && !me.mfa) return <Shell me={me} onSignOut={() => setMe(null)} go={setPage} current="account" hasApps={false}><Account me={me} onChange={load} /></Shell>;
   if (me.mustChange) return <Shell me={me} onSignOut={() => setMe(null)} go={setPage} current="password" hasApps={false}><ChangePassword me={me} onDone={load} /></Shell>;
   const people = can(me, 'core.people.manage');
   const md = can(me, 'core.masterdata.view', 'core.masterdata.edit');
@@ -42,13 +44,14 @@ export function App() {
       {page.name === 'person' && people && <PersonPage id={page.id} me={me} back={() => setPage({ name: 'people' })} />}
       {name === 'master-data' && md && <MasterData canEdit={can(me, 'core.masterdata.edit')} />}
       {name === 'links' && people && <Links />}
+      {name === 'account' && <Account me={me} onChange={load} />}
     </Shell>
   );
 }
 
 const can = (me: Me, ...codes: string[]) => codes.some((c) => me.permissions.includes(c));
 
-type Page = { name: 'home' } | { name: 'apps' } | { name: 'people' } | { name: 'person'; id: string } | { name: 'master-data' } | { name: 'links' };
+type Page = { name: 'home' } | { name: 'apps' } | { name: 'people' } | { name: 'person'; id: string } | { name: 'master-data' } | { name: 'links' } | { name: 'account' };
 
 function Shell({ me, children, onSignOut, go, current, hasApps }: { me: Me; children: ReactNode; onSignOut: () => void; go: (p: Page) => void; current: string; hasApps: boolean }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -66,7 +69,7 @@ function Shell({ me, children, onSignOut, go, current, hasApps }: { me: Me; chil
           {!me.mustChange && can(me, 'core.masterdata.view', 'core.masterdata.edit') && <Tab on={current === 'master-data'} onClick={() => go({ name: 'master-data' })}>Master data</Tab>}
           {!me.mustChange && can(me, 'core.people.manage') && <Tab on={current === 'links'} onClick={() => go({ name: 'links' })}>Links</Tab>}
         </nav>
-        <span className="who">{me.fullName}
+        <span className="who">{!me.mustChange && <button className="plain" onClick={() => go({ name: 'account' })}>{me.fullName}</button>}{me.mustChange && me.fullName}
           <button className="plain" onClick={() => api('POST', '/api/logout').finally(onSignOut)}>Sign out</button></span>
       </header>
       {alerts.map((a) => (
@@ -125,18 +128,88 @@ function ProductIcon({ product, initials, logo: hasLogo }: { product: string; in
 
 function SignIn({ onDone }: { onDone: () => void }) {
   const a = useAction();
+  const [needCode, setNeedCode] = useState(false);
   return (
     <main className="signin">
       <img className="logo" src="/brand/logo.svg" alt="Medhanta: Where Expertise Meets Intelligence" />
-      <form className="card" onSubmit={(e) => { e.preventDefault(); const f = form(e); void a.run(async () => { await api('POST', '/api/login', f); onDone(); }); }}>
+      <form className="card" onSubmit={(e) => { e.preventDefault(); const f = form(e); void a.run(async () => {
+        try { await api('POST', '/api/login', f); } catch (err) { if (err instanceof ApiError && err.data.mfa) setNeedCode(true); throw err; }
+        onDone();
+      }); }}>
         <h2>Sign in</h2>
         <label>Login ID<input name="login" autoComplete="username" required /></label>
         <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+        {needCode && <label>Code from your authenticator app (or a recovery code)<input name="code" inputMode="numeric" autoComplete="one-time-code" autoFocus required /></label>}
         <a.Error />
         <button>Sign in</button>
       </form>
       <footer>One login for every Medhanta application.</footer>
     </main>
+  );
+}
+
+/** My account: two-step sign-in with an authenticator app (set up, recovery codes, remove). */
+function Account({ me, onChange }: { me: Me; onChange: () => void }) {
+  const a = useAction();
+  const [setup, setSetup] = useState<{ secret: string; qr: string } | null>(null);
+  const [codes, setCodes] = useState<string[] | null>(null);
+  return (
+    <div className="card">
+      <h2>My account</h2>
+      <p>{me.fullName} <span className="muted">({me.login})</span></p>
+      <h3>Two-step sign-in</h3>
+      {me.mfaRequired && !me.mfa && <p className="note">Your site requires two-step sign-in. Set it up now to continue.</p>}
+      {codes && (
+        <div className="note">
+          <p><b>Save these recovery codes now.</b> Each works once if you lose your phone. They are not shown again.</p>
+          <pre>{codes.join('\n')}</pre>
+          <button onClick={() => { setCodes(null); onChange(); }}>I have saved them</button>
+        </div>
+      )}
+      {!codes && me.mfa && (
+        <form className="row" onSubmit={(e) => {
+          e.preventDefault();
+          const f = form(e);
+          void a.run(async () => { await api('POST', '/api/me/mfa/disable', f); onChange(); });
+        }}>
+          <p className="muted">Two-step sign-in is on: after the password you enter a 6-digit code from your authenticator app.</p>
+          {!me.mfaRequired && (
+            <>
+              <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+              <label>Code<input name="code" inputMode="numeric" autoComplete="one-time-code" required /></label>
+              <button className="plain">Turn off</button>
+            </>
+          )}
+          <a.Error />
+        </form>
+      )}
+      {!codes && !me.mfa && !setup && (
+        <form className="row" onSubmit={(e) => {
+          e.preventDefault();
+          const f = form(e);
+          void a.run(async () => { setSetup(await api<{ secret: string; qr: string }>('POST', '/api/me/mfa/start', f)); });
+        }}>
+          <p className="muted">Add a second step with an authenticator app (any TOTP app). Enter your password to begin.</p>
+          <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
+          <button>Set up</button>
+          <a.Error />
+        </form>
+      )}
+      {!codes && !me.mfa && setup && (
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const f = form(e);
+          void a.run(async () => { setCodes((await api<{ recoveryCodes: string[] }>('POST', '/api/me/mfa/confirm', f)).recoveryCodes); setSetup(null); });
+        }}>
+          <p>Scan this with your authenticator app, then type the 6-digit code it shows.</p>
+          <img alt="QR code for your authenticator app" width={200} height={200} src={`data:image/svg+xml;utf8,${encodeURIComponent(setup.qr)}`} />
+          <p className="muted">Cannot scan? Type this key: <code>{setup.secret}</code></p>
+          <label>Code<input name="code" inputMode="numeric" autoComplete="one-time-code" required autoFocus /></label>
+          <button>Turn on</button>
+          <a.Error />
+        </form>
+      )}
+    </div>
   );
 }
 
@@ -190,7 +263,7 @@ function People({ open }: { open: (id: string) => void }) {
       <div className="card">
         <h2>People</h2>
         <table>
-          <thead><tr><th>Login</th><th>Name</th><th>Email</th><th>Status</th></tr></thead>
+          <thead><tr><th>Login</th><th>Name</th><th>Email</th><th>Status</th><th>Two-step</th></tr></thead>
           <tbody>
             {people.map((p) => (
               <tr key={p.id}>
@@ -198,6 +271,7 @@ function People({ open }: { open: (id: string) => void }) {
                 <td>{p.fullName}</td>
                 <td>{p.email}</td>
                 <td>{!p.active ? <span className="chip chip-off">Inactive</span> : p.lockedAt ? <span className="chip chip-bad">Locked</span> : <span className="chip chip-ok">Active</span>}</td>
+                <td>{p.mfa ? 'On' : ''}</td>
               </tr>
             ))}
           </tbody>
@@ -252,6 +326,7 @@ function People({ open }: { open: (id: string) => void }) {
 
 interface History {
   lockedAt: string | null;
+  mfa: boolean;
   employee: { login: string; full_name: string; email: string | null; active: boolean; identity_verified_by: string; identity_verified_how: string };
   versions: { version: number; full_name: string; email: string | null; active: boolean; changed_by_name: string; changed_at: string; reason: string }[];
   grants: { product: string; code: string; granted: boolean; by_name: string; at: string; reason: string }[];
@@ -300,6 +375,13 @@ function PersonPage({ id, me, back }: { id: string; me: Me; back: () => void }) 
               setTemp(r.temporaryPassword);
               await load();
             })}>Reset password</button>
+          )}
+          {id !== me.id && h.mfa && (
+            <button className="plain" onClick={() => void a.run(async () => {
+              await api('POST', `/api/employees/${id}/mfa-reset`, { reason: ask('the two-step sign-in reset') });
+              if (reasonRef.current) reasonRef.current.value = '';
+              await load();
+            })}>Reset two-step sign-in</button>
           )}
           {id !== me.id && h.lockedAt && (
             <button className="plain" onClick={() => void a.run(async () => {
