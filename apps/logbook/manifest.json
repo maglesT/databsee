@@ -31,5 +31,5 @@
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1", "overdue_v1", "equipment_status_v1", "reliability_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"], "qual": ["qualification_v1", "protocol_v1"], "deviations": ["deviation_v1"], "truebatch": ["batch_fact_v1", "equipment_use_v1"], "truebatch_packing": ["equipment_use_v1", "packing_batch_v1"], "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1", "steriliser_cycle_v1"], "truebatch_injectables_packing": ["equipment_use_v1", "packing_batch_v1"], "recruitment": ["training_v1"], "truebatch_capsules": ["batch_fact_v1", "equipment_use_v1"], "truebatch_capsules_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_liquids": ["batch_fact_v1", "equipment_use_v1"], "truebatch_liquids_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_api": ["batch_fact_v1", "equipment_use_v1"], "lims": ["instrument_use_v1"], "qms": ["document_v1"] },
-  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "8bde7e58391c92a427b416ef328be3ee3f4e5d25" }
+  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "7a253e2e2e5bd821f02d3de86ee98f04b9e93ee2" }
 }
