@@ -18,5 +18,5 @@
   ],
   "publishes": ["qualification_v1", "protocol_v1", "cleaning_validation_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"], "identity": ["employee_v1"], "logbook": ["equipment_status_v1"] },
-  "source": { "repo": "https://github.com/maglesT/prot", "commit": "b06143ede2b0f97c08afb86333166a47ef1568d5" }
+  "source": { "repo": "https://github.com/maglesT/prot", "commit": "16ae2a00ea864f08058f26d1ef0c2b96840f8c22" }
 }
