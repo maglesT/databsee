@@ -59,6 +59,11 @@ Off-server store: any rclone remote, Google Drive by default. The customer secre
 e.g. `type: drive`, `scope: drive.file`, `token: '{"access_token":...}'` from `rclone authorize "drive"`, quoted) and the config its folder
 (`backup.path`). `rclone copy --immutable` only adds files and never deletes or changes a copied one, so backups are
 secure from alteration and inadvertent erasure (211.68(b)); D-14.
+Encrypted off-server copy: add `backup_crypt:` (`password:` and optionally `salt:`, long random strings; keep a copy of them
+offline, without them the backups cannot be read) to the customer secrets. `deploy/backup.sh copy` then sends everything through
+an rclone `crypt` remote on top of the store above: file contents and names are encrypted on the server. Without a key the
+copy is refused unless the config says `backup: { allow_unencrypted: true }` (set it only for a demo). How to set it up, check
+it and restore from it: `docs/backup-encryption.md`.
 Restore to a point in time: `deploy/restore.sh <base backup> "<time>" <empty data folder>` (as root on the server, so
 the folder belongs to the database container's user), then start PostgreSQL on it and take a new base backup at once.
 `test/pl11-restore.sh` does exactly this in CI for all 10 databases. The site restores a real backup periodically
@@ -87,6 +92,13 @@ the folder belongs to the database container's user), then start PostgreSQL on i
 6. First install: check the first bundle by hand (`deploy/verify-bundle.sh` from the repo), unpack it to
    `/opt/medhanta/releases/<name>`, link `/opt/medhanta/current` to it and run `current/deploy/apply.sh <bundle>.tar`.
    Then create the first administrator: `docker compose -f /opt/medhanta/current/deploy/compose.yml exec core npx tsx apps/core/server/index.ts create-first-admin ...`.
+   The temporary password it prints stops working after 72 hours.
+7. Security checklist before the customer's first real sign-in:
+   - Turn off the demo-skip permissions (`truebatch.demo.skip`, `lims.demo.skip`, and any other `*.demo.skip`): nobody at a customer
+     site may hold them (People, permissions of every person; the access review report lists them). They exist for demos only.
+   - Security headers on every site: the generated Caddyfile has them; behind a host proxy put the snippet of `docs/security-headers.md` in it.
+   - Two-step sign-in: decide who must use it (`mfa_required` in the customer config: `all` or permission codes); everyone else may switch it on in My account.
+   - Encrypted off-server backups (`backup_crypt` in the secrets, `docs/backup-encryption.md`), and one trial restore (CP-04).
 
 ## Control panel (slice A8, the owner's server only)
 `apps/control-panel` shows each customer's system as a diagram (PL-09) and switches licences, links and outside
