@@ -263,12 +263,23 @@ ${o.error ? `<p class="e" role="alert">${esc(o.error)}</p>` : ''}
 <footer>One Medhanta login for every application.</footer></main></body></html>`;
 }
 
+/** True when the request path is an API path, judged on the decoded path (so %61pi, /API and backslash tricks cannot skip the gate). */
+export function isApiUrl(url: string): boolean {
+  let p = url.split('?')[0]!;
+  try { p = decodeURIComponent(p); } catch { return true; }
+  return /^[\\/]+api([\\/]|$)/i.test(p);
+}
+/** A path with a percent-encoded unreserved character (letter, digit, - . _ ~) is never sent by our screens: refuse it. */
+export const hasEncodedUnreserved = (url: string) => /%(?:3\d|4[1-9A-F]|5[0-9AF]|6[1-9A-F]|7[0-9AE]|2[DE])/i.test(url.split('?')[0]!);
+
 export function csv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return '';
   const cols = Object.keys(rows[0]!);
   const cell = (v: unknown) => {
     const s = v instanceof Date ? v.toISOString() : v === null || v === undefined ? '' : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    // CSV injection (OWASP): a cell a spreadsheet would read as a formula gets a leading apostrophe.
+    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
   };
   return [cols.join(','), ...rows.map((r) => cols.map((c) => cell(r[c])).join(','))].join('\n') + '\n';
 }
@@ -314,9 +325,16 @@ export function buildApp(deps: Deps) {
 
   // Session check for every /api route except sign-on. Idle sessions end (PL-01) and no session lasts longer than POLICY.sessionMaxHours; a temporary or expired password
   // allows only the password change (PL-04).
+  app.addHook('onRequest', async (req, reply) => {
+    if (hasEncodedUnreserved(req.url)) return reply.code(400).send({ error: 'Bad path.' });
+  });
   app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+    // Gate on the MATCHED route as well as the decoded path: no encoding trick can skip the sign-in check.
+    const routed = req.routeOptions?.url ?? '';
+    const path = req.url.split('?')[0]!;
+    if (!(routed.startsWith('/api/') || isApiUrl(req.url))) return;
     // Sign-out works with or without a live session: it must always end the single sign-on too.
-    if (!req.url.startsWith('/api/') || req.url === '/api/login' || req.url === '/api/logout') return;
+    if (path === '/api/login' || path === '/api/logout') return;
     const sid = req.cookies[SESSION_COOKIE];
     const [s] = sid ? await sql<{ employee_id: string }[]>`
       update session set last_seen_at = now()
@@ -332,16 +350,16 @@ export function buildApp(deps: Deps) {
       if (me) await newSession(reply, me.id);
     }
     // Health (container check, monitors): open to everyone; the version only to a signed-in administrator.
-    if (req.url === '/api/health') { req.me = me && !me.mustChange ? me : undefined; return; }
+    if (path === '/api/health') { req.me = me && !me.mustChange ? me : undefined; return; }
     // The first screen asks /api/session: signed out is an answer there (200, null), not an error in the browser console.
-    if (!me && req.url === '/api/session') return;
+    if (!me && path === '/api/session') return;
     if (!me) throw new HttpError(401, 'Please sign in.');
     req.me = me;
-    if (me.mustChange && !['/api/me', '/api/session', '/api/me/password', '/api/logout'].includes(req.url)) {
+    if (me.mustChange && !['/api/me', '/api/session', '/api/me/password', '/api/logout'].includes(path)) {
       throw new HttpError(403, 'Change your password first.');
     }
     // Two-step sign-in required at this site but not set up yet: only the set-up itself is open.
-    if (me.mfaRequired && !me.mfa && !['/api/me', '/api/session', '/api/me/mfa/start', '/api/me/mfa/confirm', '/api/logout'].includes(req.url)) {
+    if (me.mfaRequired && !me.mfa && !['/api/me', '/api/session', '/api/me/mfa/start', '/api/me/mfa/confirm', '/api/logout'].includes(path)) {
       throw new HttpError(403, 'Set up two-step sign-in first.');
     }
   });
