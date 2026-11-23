@@ -27,6 +27,7 @@ const configSchema = z.object({
   reason: z.string().trim().min(1),
   backup: z.object({                                    // off-server copy of the backups (PL-11)
     path: z.string().regex(/^[A-Za-z0-9_./-]+$/),       // folder on the rclone remote, e.g. medhanta-backups/acme
+    allow_unencrypted: z.boolean().default(false),      // demo only: copy off the server without backup_crypt (docs/backup-encryption.md)
   }),
   proxy: z.enum(['caddy', 'external']).default('caddy'), // external: the host's own proxy owns 80/443 (compose.external.yml)
   db_port: z.number().int().min(1024).max(65535).default(5432), // host port of the database server, 127.0.0.1 only (D-18)
@@ -48,6 +49,8 @@ const secretsSchema = z.object({
   }),
   smtp_url: z.string().optional(),
   env: z.record(name, z.record(z.string().regex(/^[A-Z][A-Z0-9_]*$/), z.string())).default({}), // product -> its own extra settings (API keys)
+  // Key of the encrypted off-server copy (rclone crypt): the customer keeps their own offline copy. docs/backup-encryption.md
+  backup_crypt: z.object({ password: z.string().min(20), salt: z.string().min(20).optional() }).strict().optional(),
   backup: z.record(z.string().regex(/^[a-z_]+$/), z.string())   // rclone remote settings, e.g. type: drive, scope, token
     .refine((b) => !!b.type, 'backup needs the rclone remote type (e.g. drive)'),
 }).strict();

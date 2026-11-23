@@ -286,6 +286,13 @@ describe('customer config: mfa_required', () => {
     expect(checkConfig({ ...raw, mfa_required: ['core.people.manage', 'truebatch.master.approve'] }).config.mfa_required).toHaveLength(2);
     expect(() => checkConfig({ ...raw, mfa_required: ['admins'] })).toThrow();
   });
+  it('backup: allow_unencrypted defaults to false; secrets take an optional backup_crypt of long strings', () => {
+    expect(checkConfig(raw).config.backup.allow_unencrypted).toBe(false);
+    expect(checkConfig({ ...raw, backup: { path: 'b/ci', allow_unencrypted: true } }).config.backup.allow_unencrypted).toBe(true);
+    const secrets = { logins: { postgres: 'p'.repeat(16), core_app: 'c'.repeat(16) }, oidc: { jwks: { keys: [{ kty: 'x' }] }, cookie_keys: ['k'.repeat(16)], clients: {} }, backup: { type: 'drive' } };
+    expect(checkConfig(raw, { ...secrets, backup_crypt: { password: 'x'.repeat(24) } }).secrets!.backup_crypt!.password).toHaveLength(24);
+    expect(() => checkConfig(raw, { ...secrets, backup_crypt: { password: 'short' } })).toThrow();
+  });
 });
 
 describe('absolute session lifetime', () => {

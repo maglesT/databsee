@@ -294,6 +294,8 @@ export const docker: Runtime = {
     write('backup.env', env({ // read by deploy/backup.sh: the rclone remote "offsite" from the secrets
       ...Object.fromEntries(Object.entries(secrets.backup).map(([k, v]) => [`RCLONE_CONFIG_OFFSITE_${k.toUpperCase()}`, v])),
       BACKUP_REMOTE: `offsite:${config.backup.path}`,
+      ...(secrets.backup_crypt ? { BACKUP_CRYPT_PASSWORD: secrets.backup_crypt.password, ...(secrets.backup_crypt.salt ? { BACKUP_CRYPT_SALT: secrets.backup_crypt.salt } : {}) } : {}),
+      ...(config.backup.allow_unencrypted ? { BACKUP_ALLOW_UNENCRYPTED: 'yes' } : {}),
     }));
     const external = config.proxy === 'external';
     write(external ? 'Caddyfile.host' : 'Caddyfile', caddyfile(config));
