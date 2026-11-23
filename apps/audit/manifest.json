@@ -10,5 +10,5 @@
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": [],
   "reads": { "identity": ["employee_v1"], "master_data": ["room_v1", "equipment_v1", "product_v1"] },
-  "source": { "repo": "https://github.com/maglesT/audit-insp-syste", "commit": "cc341eef493909391d211b98b19cebc1390969db" }
+  "source": { "repo": "https://github.com/maglesT/audit-insp-syste", "commit": "003d8673766d559dec1da44ffff27854bc598ad9" }
 }

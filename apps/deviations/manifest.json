@@ -17,5 +17,5 @@
   ],
   "publishes": ["capa_v1", "deviation_v1"],
   "reads": { "identity": ["employee_v1"], "logbook": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1", "overdue_v1"], "truebatch": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_injectables_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_capsules": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_capsules_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_liquids": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_liquids_packing": ["packing_batch_v1", "equipment_use_v1", "deviation_note_v1"], "truebatch_api": ["batch_fact_v1", "equipment_use_v1", "deviation_note_v1"], "lims": ["oos_v1"], "qms": ["capa_v1"], "ops": ["cpv_signal_v1"] },
-  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "6d9c9b6446666a4ef6b3a9c29ba22300604bbe34" }
+  "source": { "repo": "https://github.com/maglesT/dev-mang-modu", "commit": "11612889ee3ffada1a3d8d16eae889b63628e650" }
 }

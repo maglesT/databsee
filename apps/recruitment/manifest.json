@@ -19,5 +19,5 @@
   ],
   "publishes": ["training_v1", "hire_v1"],
   "reads": { "identity": ["employee_v1"], "qms": ["document_v1"] },
-  "source": { "repo": "https://github.com/maglesT/recruitemensyst", "commit": "5d532a1a6d772e628c8d98c8225758e523ff0b0c" }
+  "source": { "repo": "https://github.com/maglesT/recruitemensyst", "commit": "8343538d4535a4dc11c62dfe6dc9db2628be3a62" }
 }

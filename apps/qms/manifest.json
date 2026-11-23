@@ -9,5 +9,5 @@
   ],
   "publishes": ["change_v1", "document_v1", "risk_v1", "supplier_approval_v1", "capa_v1"],
   "reads": { "master_data": ["product_v1", "supplier_v1", "material_v1"], "deviations": ["capa_v1", "deviation_v1"], "truebatch": ["batch_fact_v1", "material_use_v1"], "truebatch_packing": ["packing_batch_v1", "material_use_v1"], "truebatch_injectables": ["batch_fact_v1", "material_use_v1"], "truebatch_injectables_packing": ["packing_batch_v1", "material_use_v1"], "truebatch_api": ["batch_fact_v1", "material_use_v1"], "qual": ["qualification_v1"], "truebatch_capsules": ["batch_fact_v1", "material_use_v1"], "truebatch_liquids": ["batch_fact_v1", "material_use_v1"], "truebatch_capsules_packing": ["packing_batch_v1", "material_use_v1"], "truebatch_liquids_packing": ["packing_batch_v1", "material_use_v1"], "lims": ["oos_v1", "stability_v1", "trend_v1"], "mms": ["lot_v1"], "ops": ["cpv_summary_v1"] },
-  "source": { "repo": "https://github.com/maglesT/qmssyst", "commit": "c517f549a9917dce70f9981263cdd6ceb9c8c6db" }
+  "source": { "repo": "https://github.com/maglesT/qmssyst", "commit": "60a915d9abcb49746716f7f9f34295d54a0a1a17" }
 }
