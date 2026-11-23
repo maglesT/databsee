@@ -188,7 +188,7 @@ describe('PL-04 password rules apply to product sign-on too', () => {
     expect(change.code).toBeUndefined();
     expect(change.page).toContain('Choose a new one');
     const weak = await signIn(b, change.action!, { login: `tempsso${run}`, password: PASSWORD, next: 'short', repeat: 'short' });
-    expect(weak.page).toContain('at least 10 characters');
+    expect(weak.page).toContain('at least 12 characters');
     const done = await signIn(b, weak.action!, { login: `tempsso${run}`, password: PASSWORD, next: 'my new long secret', repeat: 'my new long secret' });
     expect((await exchange(done.code!, verifier)).status).toBe(200);
   });

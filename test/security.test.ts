@@ -1,4 +1,5 @@
 // Security round 1.26.32: timed lockout and admin unlock, sign-in rate limit, password rules, MFA, session lifetime, headers.
+import { randomBytes, scryptSync } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../apps/core/server/app.js';
 import { FailureLimiter } from '../apps/core/server/ratelimit.js';
@@ -103,5 +104,60 @@ describe('sign-in rate limit per address', () => {
     await time(`known${run}`);
     const known = await time(`known${run}`), unknown = await time(`nobody${run}`);
     expect(unknown).toBeGreaterThan(known * 0.4);
+  });
+});
+
+describe('password rules', () => {
+  const change = async (login: string, current: string, next: string) => (await signIn(t.app, login, current)).call('POST', '/api/me/password', { current, next });
+
+  it('needs 12 characters and refuses common passwords (also with digits or symbols added)', async () => {
+    await makeEmployee(`rules${run}`);
+    const r = (next: string) => change(`rules${run}`, PASSWORD, next);
+    expect((await r('Short1!aB')).statusCode).toBe(400);
+    for (const word of ['password123456', 'Password1234!!', 'qwertyuiop12', 'Football-2020!!'.slice(0, 8) + '99'])
+      expect((await r(word)).statusCode, word).toBe(400);
+    expect((await r('password123456')).json().error).toContain('too common');
+    expect((await r('Tr1cky-but-fine-9')).statusCode).toBe(200);
+  });
+
+  it('the last 5 passwords cannot be used again', async () => {
+    await makeEmployee(`hist${run}`);
+    const pws = ['alpha-bravo-001x', 'alpha-bravo-002x', 'alpha-bravo-003x', 'alpha-bravo-004x'];
+    let cur = PASSWORD;
+    for (const p of pws) { expect((await change(`hist${run}`, cur, p)).statusCode).toBe(200); cur = p; }
+    const again = await change(`hist${run}`, cur, pws[1]!);
+    expect(again.statusCode).toBe(400);
+    expect(again.json().error).toContain('last 5');
+    expect((await change(`hist${run}`, cur, 'alpha-bravo-new1')).statusCode).toBe(200);
+  });
+
+  it('a temporary password expires after 72 hours; a reset gives a fresh one', async () => {
+    const admin = await signIn(t.app, adminLogin);
+    const created = (await admin.call('POST', '/api/employees', { login: `temp${run}`, fullName: 'T Emp', identityVerifiedHow: 'card', reason: 'joiner' })).json();
+    const su = superuser();
+    const [c] = await su`select extract(epoch from temp_expires_at - now()) / 3600 as hours from credential where employee_id = ${created.id}`;
+    expect(Number(c!.hours)).toBeGreaterThan(71.9);
+    expect(Number(c!.hours)).toBeLessThanOrEqual(72);
+    expect((await signIn(t.app, `temp${run}`, created.temporaryPassword)).res.statusCode).toBe(200);
+    await su`update credential set temp_expires_at = now() - interval '1 minute' where employee_id = ${created.id}`;
+    expect((await signIn(t.app, `temp${run}`, created.temporaryPassword)).res.statusCode).toBe(401);
+    const fresh = (await admin.call('POST', `/api/employees/${created.id}/reset-password`, { reason: 'expired' })).json().temporaryPassword;
+    expect((await signIn(t.app, `temp${run}`, fresh)).res.statusCode).toBe(200);
+    await su.end();
+  });
+
+  it('old hashes still work and are replaced by one at the current cost at the next good sign-in', async () => {
+    const id = await makeEmployee(`rehash${run}`);
+    const salt = randomBytes(16);
+    const old = scryptSync(PASSWORD, salt, 64, { N: 16384, r: 8, p: 1 });
+    const su = superuser();
+    await su`update credential set password_hash = ${`scrypt$16384$8$1$${salt.toString('base64')}$${old.toString('base64')}`} where employee_id = ${id}`;
+    expect((await signIn(t.app, `rehash${run}`)).res.statusCode).toBe(200);
+    const [c] = await su`select password_hash, must_change from credential where employee_id = ${id}`;
+    expect(c!.password_hash.split('$')[1]).toBe('131072');
+    expect(c!.must_change).toBe(false);
+    expect((await signIn(t.app, `rehash${run}`)).res.statusCode).toBe(200);   // the new hash works
+    expect((await signIn(t.app, `rehash${run}`, 'wrong password')).res.statusCode).toBe(401);
+    await su.end();
   });
 });

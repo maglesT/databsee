@@ -9,7 +9,7 @@ import type { Sql, TransactionSql } from 'postgres';
 import { z } from 'zod';
 import { POLICY } from './config.js';
 import type { SendMail } from './mail.js';
-import { hashPassword, passwordProblem, temporaryPassword, verifyPassword } from './passwords.js';
+import { hashPassword, MIN_PASSWORD_LENGTH, needsRehash, PASSWORD_HISTORY, passwordProblem, TEMP_PASSWORD_HOURS, temporaryPassword, verifyPassword } from './passwords.js';
 import { buildProvider, endSignOn, SIGN_ON_COOKIE, SIGN_ON_TTL_S, signOnAccount, signOnCookie, startSignOn, cookieSignature, type OidcSettings } from './oidc.js';
 import { registerMasterData } from './master-data.js';
 import { productInfo } from '../products.js';
@@ -86,10 +86,12 @@ async function loadMe(sql: Sql | TransactionSql, employeeId: string): Promise<Me
  */
 export async function checkPassword(deps: Deps, login: string, password: string, product = 'core'): Promise<string | null> {
   const { sql } = deps;
+  let rehash: string | null = null;
   let lockedNow: { id: string; login: string; message: string; alertId: string } | null = null;
   const result = await sql.begin(async (tx) => {
-    const [row] = await tx<{ id: string; hash: string; failed: number; locked: boolean; active: boolean }[]>`
+    const [row] = await tx<{ id: string; hash: string; failed: number; expired: boolean; locked: boolean; active: boolean }[]>`
       select e.id, c.password_hash as hash, c.failed_count as failed,
+        (c.must_change and c.temp_expires_at < now()) as expired,
         (c.locked_at is not null and c.locked_at > now() - make_interval(mins => ${POLICY.lockoutMinutes})) as locked, e.active
       from employee_current e join credential c on c.employee_id = e.id where e.login = ${login} for update of c`;
     if (!row) {
@@ -121,6 +123,12 @@ export async function checkPassword(deps: Deps, login: string, password: string,
       }
       return null;
     }
+    if (row.expired) {   // right password, but a temporary one that ran out: the administrator gives a new one
+      await tx`insert into credential_event (employee_id, login, kind, product, reason) values (${row.id}, ${login}, 'signon_failed', ${product}, 'temporary password expired')`;
+      return null;
+    }
+    // Old hashes are replaced by one at today's cost (same password, not a change of password).
+    if (needsRehash(row.hash)) await tx`update credential set password_hash = ${await hashPassword(password)} where employee_id = ${row.id}`;
     await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${row.id}`;
     await tx`insert into credential_event (employee_id, login, kind, product) values (${row.id}, ${login}, 'signon_ok', ${product})`;
     return row.id;
@@ -153,10 +161,20 @@ async function emailAlert(deps: Deps, a: { message: string; alertId: string }) {
   }
 }
 
+/** A message when the person used this password lately (current one or one of the last PASSWORD_HISTORY), else null. */
+export async function passwordReuseProblem(sql: Sql, employeeId: string, next: string): Promise<string | null> {
+  const rows = await sql<{ h: string }[]>`
+    select password_hash as h from credential where employee_id = ${employeeId}
+    union select h from (select password_hash as h from password_history where employee_id = ${employeeId} order by id desc limit ${PASSWORD_HISTORY}) x`;
+  for (const r of rows) if (await verifyPassword(next, r.h)) return `Choose a password you have not used in your last ${PASSWORD_HISTORY}.`;
+  return null;
+}
+
 async function setOwnPassword(sql: Sql, me: { id: string; login: string; fullName: string }, next: string) {
   const hash = await hashPassword(next);
   await sql.begin(async (tx) => {
-    await tx`update credential set password_hash = ${hash}, must_change = false, changed_at = now() where employee_id = ${me.id}`;
+    await tx`update credential set password_hash = ${hash}, must_change = false, temp_expires_at = null, changed_at = now() where employee_id = ${me.id}`;
+    await tx`insert into password_history (employee_id, password_hash) values (${me.id}, ${hash})`;
     await tx`insert into credential_event (employee_id, login, kind, by_id, by_name) values (${me.id}, ${me.login}, 'changed', ${me.id}, ${me.fullName})`;
   });
 }
@@ -186,7 +204,7 @@ button{width:100%;margin-top:10px;padding:11px 16px;border-radius:8px;border:0;b
 <p class="for">${esc(p.name)}</p>
 <h1>${esc(title)}</h1>
 ${o.reauth ? '<p class="m">Enter your password again to confirm it is you.</p>' : ''}
-${o.change ? '<p class="m">Your password is temporary or has expired. Choose a new one (at least 10 characters).</p>' : ''}
+${o.change ? '<p class="m">Your password is temporary or has expired. Choose a new one (at least ${MIN_PASSWORD_LENGTH} characters, not a common password).</p>' : ''}
 ${field('Login ID', 'login', 'text', o.login, 'username')}
 ${field(o.change ? 'Current password' : 'Password', 'password', 'password', '', 'current-password')}
 ${o.change ? field('New password', 'next', 'password', '', 'new-password') + field('New password again', 'repeat', 'password', '', 'new-password') : ''}
@@ -330,6 +348,8 @@ export function buildApp(deps: Deps) {
     if (problem) throw new HttpError(400, problem);
     if (b.current === b.next) throw new HttpError(400, 'The new password must differ from the current one.');
     if (!(await checkPassword(deps, me.login, b.current))) { limiter.fail(req.ip); throw new HttpError(401, 'Current password is wrong.'); }
+    const reused = await passwordReuseProblem(sql, me.id, b.next);
+    if (reused) throw new HttpError(400, reused);
     await setOwnPassword(sql, me, b.next);
     return { ok: true };
   });
@@ -363,7 +383,7 @@ export function buildApp(deps: Deps) {
         values (${b.login}, ${me.fullName}, ${b.identityVerifiedHow}, ${b.hireRef ?? null}) returning id`;
       await tx`insert into employee_version (employee_id, version, full_name, email, active, changed_by, changed_by_name, reason)
         values (${e!.id}, 1, ${b.fullName}, ${b.email ?? null}, true, ${me.id}, ${me.fullName}, ${b.reason})`;
-      await tx`insert into credential (employee_id, password_hash, must_change) values (${e!.id}, ${hash}, true)`;
+      await tx`insert into credential (employee_id, password_hash, must_change, temp_expires_at) values (${e!.id}, ${hash}, true, now() + make_interval(hours => ${TEMP_PASSWORD_HOURS}))`;
       await tx`insert into credential_event (employee_id, login, kind, by_id, by_name, reason) values (${e!.id}, ${b.login}, 'reset', ${me.id}, ${me.fullName}, 'new employee')`;
       return e!.id;
     });
@@ -446,7 +466,7 @@ export function buildApp(deps: Deps) {
     await sql.begin(async (tx) => {
       const [e] = await tx<{ login: string }[]>`select login from employee where id = ${id}`;
       if (!e) throw new HttpError(404, 'No such employee.');
-      await tx`update credential set password_hash = ${hash}, must_change = true, changed_at = now(), failed_count = 0, locked_at = null where employee_id = ${id}`;
+      await tx`update credential set password_hash = ${hash}, must_change = true, temp_expires_at = now() + make_interval(hours => ${TEMP_PASSWORD_HOURS}), changed_at = now(), failed_count = 0, locked_at = null where employee_id = ${id}`;
       await tx`delete from session where employee_id = ${id}`;
       await tx`insert into credential_event (employee_id, login, kind, by_id, by_name, reason) values (${id}, ${e.login}, 'reset', ${me.id}, ${me.fullName}, ${b.reason})`;
     });
@@ -643,7 +663,8 @@ function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, p
         from employee_current e join credential c on c.employee_id = e.id where e.id = ${id}`;
       if (c!.must_change) {
         if (!b.next) return show({ change: true });
-        const problem = b.next !== b.repeat ? 'The two new passwords differ.' : b.next === b.password ? 'The new password must differ.' : passwordProblem(b.next, login);
+        const problem = b.next !== b.repeat ? 'The two new passwords differ.' : b.next === b.password ? 'The new password must differ.'
+          : passwordProblem(b.next, login) ?? await passwordReuseProblem(sql, id, b.next);
         if (problem) return show({ change: true, error: problem });
         await setOwnPassword(sql, { id, login, fullName: c!.full_name }, b.next);
       }
@@ -672,7 +693,7 @@ export async function createFirstAdmin(sql: Sql, login: string, fullName: string
       values (${login}, 'installer', ${verifiedHow}) returning id`;
     await tx`insert into employee_version (employee_id, version, full_name, active, changed_by_name, reason)
       values (${e!.id}, 1, ${fullName}, true, 'installer', 'first administrator at installation')`;
-    await tx`insert into credential (employee_id, password_hash) values (${e!.id}, ${hash})`;
+    await tx`insert into credential (employee_id, password_hash, temp_expires_at) values (${e!.id}, ${hash}, now() + make_interval(hours => ${TEMP_PASSWORD_HOURS}))`;
     await tx`insert into permission_grant (employee_id, product, code, granted, by_name, reason)
       values (${e!.id}, 'core', ${PEOPLE}, true, 'installer', 'first administrator at installation')`;
   });

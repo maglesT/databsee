@@ -153,7 +153,7 @@ function ChangePassword({ me, onDone }: { me: Me; onDone: () => void }) {
       });
     }}>
       <h2>Change your password</h2>
-      <p className="muted">Your password is temporary or has expired. At least 10 characters, not containing "{me.login}".</p>
+      <p className="muted">Your password is temporary or has expired. At least 12 characters, not a common password, not one of your last 5, not containing "{me.login}".</p>
       <label>Current password<input name="current" type="password" required /></label>
       <label>New password<input name="next" type="password" autoComplete="new-password" required /></label>
       <label>New password again<input name="repeat" type="password" autoComplete="new-password" required /></label>
