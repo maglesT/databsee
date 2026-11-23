@@ -331,3 +331,16 @@ describe('PL-01 one person per browser: core sign-in and the products\' single s
     expect((await b.api('GET', '/api/me')).statusCode).toBe(401);
   });
 });
+
+describe('sign-in rate limit on the product sign-in page (also used by the e-signature password check)', () => {
+  it('too many failed passwords from one address get a plain 429 page', async () => {
+    await makeEmployee(`ssorate${run}`);
+    const limited = buildApp({ ...t.deps, loginFailuresPerMinute: 2, oidc: { issuer: ISSUER, clients: [CLIENT], jwks: { keys: [{ ...key, use: 'sig', kid: 'test' }] }, cookieKeys: ['test-cookie-key'] } });
+    const b = browser(limited);
+    const { step } = await startAuth({ ...b, follow: b.follow });
+    for (let i = 0; i < 2; i++) expect((await signIn(b, step.action!, { login: `ssorate${run}`, password: 'wrong' })).page).toContain('Wrong login or password');
+    const res = await b.request('POST', step.action!, { login: `ssorate${run}`, password: PASSWORD });
+    expect(res.statusCode).toBe(429);
+    expect(res.body).toContain('Too many failed attempts');
+  });
+});

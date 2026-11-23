@@ -15,6 +15,7 @@ import { registerMasterData } from './master-data.js';
 import { productInfo } from '../products.js';
 import { loginFromName } from '../names.js';
 import { plantTime } from '../time.js';
+import { FailureLimiter, TOO_MANY } from './ratelimit.js';
 import { linkReport, readLink } from './links.js';
 
 export interface Deps {
@@ -25,6 +26,7 @@ export interface Deps {
   webRoot?: string;             // built screens (vite build); omitted in API-only tests
   oidc?: OidcSettings;          // single sign-on for the products (slice A3)
   md?: Sql;                     // master_data database as core_app (slice A4)
+  loginFailuresPerMinute?: number; // per address; default POLICY.loginFailuresPerMinute
   links?: Record<string, Sql>;  // core's own links (customer config links.core): provider database -> pool as core_app (D-75)
 }
 
@@ -91,7 +93,11 @@ export async function checkPassword(deps: Deps, login: string, password: string,
         (c.locked_at is not null and c.locked_at > now() - make_interval(mins => ${POLICY.lockoutMinutes})) as locked, e.active
       from employee_current e join credential c on c.employee_id = e.id where e.login = ${login} for update of c`;
     if (!row) {
-      await tx`insert into credential_event (login, kind, product) values (${login}, 'signon_failed', ${product})`;
+      // Same work as a known login (no timing tell), and bounded rows: one per login per 10 minutes, 1000 an hour.
+      await verifyPassword(password, await dummyHash());
+      const [n] = await tx<{ same: number; all: number }[]>`select count(*) filter (where login = ${login} and at > now() - interval '10 minutes')::int as same, count(*)::int as all
+        from credential_event where employee_id is null and at > now() - interval '1 hour'`;
+      if (n!.same === 0 && n!.all < 1000) await tx`insert into credential_event (login, kind, product) values (${login.slice(0, 80)}, 'signon_failed', ${product})`;
       return null;
     }
     if (!row.locked && row.failed >= POLICY.maxFailedAttempts) {   // the lock ran out: start counting again
@@ -122,6 +128,17 @@ export async function checkPassword(deps: Deps, login: string, password: string,
   if (lockedNow) await emailAlert(deps, lockedNow);
   return result;
 }
+
+/** Seconds the address must wait (and the Retry-After header set), or 0. */
+function retryAfter(limiter: FailureLimiter, ip: string, reply: FastifyReply): number {
+  const s = limiter.blockedFor(ip);
+  if (s) reply.header('retry-after', String(s));
+  return s;
+}
+
+let dummy: Promise<string> | undefined;
+/** A hash at the current cost for logins that do not exist, so their check takes as long as a real one. */
+const dummyHash = () => (dummy ??= hashPassword(randomBytes(12).toString('base64url')));
 
 async function emailAlert(deps: Deps, a: { message: string; alertId: string }) {
   if (!deps.sendMail || !deps.securityContact) {
@@ -190,11 +207,13 @@ export function csv(rows: Record<string, unknown>[]): string {
 
 export function buildApp(deps: Deps) {
   const { sql } = deps;
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: false, trustProxy: true });   // behind Caddy: the client address is the forwarded one
+  const limiter = new FailureLimiter(deps.loginFailuresPerMinute ?? POLICY.loginFailuresPerMinute);
+  const waitFor = (ip: string, reply: FastifyReply) => retryAfter(limiter, ip, reply);
   app.register(cookie);
   if (deps.webRoot) app.register(fastifyStatic, { root: deps.webRoot });
   const provider = deps.oidc ? buildProvider(sql, deps.oidc) : null;
-  if (deps.oidc && provider) mountSignOn(app, deps, deps.oidc, provider);
+  if (deps.oidc && provider) mountSignOn(app, deps, deps.oidc, provider, limiter);
 
   // One person per browser (PL-01): core's sign-in and the products' single sign-on start and end together.
   const signOnOpts = { path: '/', httpOnly: true, sameSite: 'lax' as const, secure: deps.secureCookies };
@@ -256,7 +275,9 @@ export function buildApp(deps: Deps) {
 
   app.post('/api/login', async (req, reply: FastifyReply) => {
     const b = z.object({ login: z.string().trim().toLowerCase(), password: z.string() }).parse(req.body);
+    if (waitFor(req.ip, reply)) throw new HttpError(429, TOO_MANY);
     const id = await checkPassword(deps, b.login, b.password);
+    if (!id) limiter.fail(req.ip);
     if (!id) throw new HttpError(401, 'Wrong login or password, or the account is locked or inactive.');
     const old = req.cookies[SESSION_COOKIE];
     if (old) await sql`delete from session where id = ${sessionKey(old)}`;
@@ -301,13 +322,14 @@ export function buildApp(deps: Deps) {
       .sort((a, b) => a.product.localeCompare(b.product));
   });
 
-  app.post('/api/me/password', async (req) => {
+  app.post('/api/me/password', async (req, reply) => {
     const me = req.me!;
+    if (waitFor(req.ip, reply)) throw new HttpError(429, TOO_MANY);
     const b = z.object({ current: z.string(), next: z.string() }).parse(req.body);
     const problem = passwordProblem(b.next, me.login);
     if (problem) throw new HttpError(400, problem);
     if (b.current === b.next) throw new HttpError(400, 'The new password must differ from the current one.');
-    if (!(await checkPassword(deps, me.login, b.current))) throw new HttpError(401, 'Current password is wrong.');
+    if (!(await checkPassword(deps, me.login, b.current))) { limiter.fail(req.ip); throw new HttpError(401, 'Current password is wrong.'); }
     await setOwnPassword(sql, me, b.next);
     return { ok: true };
   });
@@ -564,7 +586,8 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #d0d5dd;padding
 }
 
 /** Mounts the OIDC provider at /oidc and its sign-in page at /interaction (slice A3). */
-function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, provider: ReturnType<typeof buildProvider>) {
+function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, provider: ReturnType<typeof buildProvider>, limiter: FailureLimiter) {
+  const waitFor = (ip: string, reply: FastifyReply) => retryAfter(limiter, ip, reply);
   const { sql } = deps;
   // "Yes, sign me out" at core's sign-out page (a product's logout) also ends the core screens' session on this browser.
   provider.on('end_session.success', (ctx: { oidc?: { params?: { logout?: unknown } }; cookies: { get(n: string, o: { signed: boolean }): string | undefined } }) => {
@@ -604,7 +627,9 @@ function mountSignOn(app: FastifyInstance, deps: Deps, settings: OidcSettings, p
       const login = (b.login ?? '').trim().toLowerCase();
       const show = (o: Parameters<typeof signInPage>[2]) => reply.type('text/html').send(signInPage(product, d.uid, { login, ...o }));
 
+      if (waitFor(req.ip, reply)) return reply.code(429).type('text/html').send(signInPage(product, d.uid, { login, error: TOO_MANY }));
       const id = await checkPassword(deps, login, b.password ?? '', product);
+      if (!id) limiter.fail(req.ip);
       if (!id) return show({ error: 'Wrong login or password, or the account is locked or inactive.' });
       // PL-05: re-authentication (e.g. for an e-signature) confirms the person already signed in; nobody else may
       // answer it. Switching person needs a sign-out first.
