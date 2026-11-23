@@ -54,6 +54,34 @@ export async function findAccount(sql: Sql, sub: string, product: string | undef
   return { accountId: sub, claims: async () => ({ sub, name: row.full_name, preferred_username: row.login, permissions }) };
 }
 
+/** Escapes text for an HTML page. */
+const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/**
+ * The provider's own pages (sign-out question, signed out, error), plain and on the site alone: the library's
+ * defaults load a Google font, which the sites' Content-Security-Policy blocks and which would tell Google who signs out.
+ */
+function page(title: string, body: string) {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title><style>body{font-family:system-ui,sans-serif;margin:40px 16px;color:#1f2933}.box{max-width:360px;margin:0 auto;padding:24px;border:1px solid #d9dee3;border-radius:8px}
+h1{font-size:1.25em;margin:0 0 16px}button{display:block;width:100%;height:38px;margin:8px 0 0;font:inherit;font-weight:600;border-radius:6px;cursor:pointer}
+.yes{background:#1d4ed8;color:#fff;border:0}.no{background:#fff;color:#1f2933;border:1px solid #c5ccd3}</style></head><body><div class="box">${body}</div></body></html>`;
+}
+export const providerViews = {
+  logoutSource: async (ctx: KoaContextWithOIDC, form: string) => {
+    ctx.body = page('Sign out', `<h1>Sign out of Medhanta?</h1>${form}
+<button class="yes" autofocus type="submit" form="op.logoutForm" value="yes" name="logout">Yes, sign me out</button>
+<button class="no" type="submit" form="op.logoutForm">No, stay signed in</button>`);
+  },
+  postLogoutSuccessSource: async (ctx: KoaContextWithOIDC) => {
+    ctx.body = page('Signed out', '<h1>You are signed out.</h1><p>You can close this window.</p>');
+  },
+  renderError: async (ctx: KoaContextWithOIDC, out: { error?: string; error_description?: string }) => {
+    ctx.type = 'html';
+    ctx.body = page('Sign-in error', `<h1>Something went wrong with the sign-in.</h1><p>${esc(out.error_description || out.error)}</p><p>Go back and try again.</p>`);
+  },
+};
+
 export function buildProvider(sql: Sql, s: OidcSettings) {
   const config: Configuration = {
     adapter: pgAdapter(sql),
@@ -63,7 +91,7 @@ export function buildProvider(sql: Sql, s: OidcSettings) {
     scopes: ['openid', 'profile', 'permissions'],
     claims: { openid: ['sub'], profile: ['name', 'preferred_username'], permissions: ['permissions'] },
     pkce: { required: () => true },
-    features: { devInteractions: { enabled: false }, revocation: { enabled: true }, rpInitiatedLogout: { enabled: true }, backchannelLogout: { enabled: true } },
+    features: { devInteractions: { enabled: false }, revocation: { enabled: true }, rpInitiatedLogout: { enabled: true, logoutSource: providerViews.logoutSource, postLogoutSuccessSource: providerViews.postLogoutSuccessSource }, backchannelLogout: { enabled: true } },
     ttl: { AccessToken: 300, IdToken: 300, AuthorizationCode: 60, Interaction: 600, Session: SIGN_ON_TTL_S, Grant: 8 * 3600, RefreshToken: 8 * 3600 },
     rotateRefreshToken: true,
     issueRefreshToken: async (_ctx, client) => client.grantTypeAllowed('refresh_token'),
@@ -79,6 +107,7 @@ export function buildProvider(sql: Sql, s: OidcSettings) {
       await grant.save();
       return grant;
     },
+    renderError: providerViews.renderError,
     findAccount: (ctx, sub) => findAccount(sql, sub, ctx.oidc.client?.clientId),
     ...(s.fetch ? { fetch: s.fetch } : {}),
   };

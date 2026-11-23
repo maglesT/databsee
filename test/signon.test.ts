@@ -317,6 +317,8 @@ describe('PL-01 one person per browser: core sign-in and the products\' single s
     const form = (await b.request('GET', '/oidc/session/end')).body;
     const xsrf = /name="xsrf" value="([^"]+)"/.exec(form)?.[1];
     expect(xsrf).toBeTruthy();
+    expect(form).toContain('Yes, sign me out');
+    expect(form).not.toMatch(/googleapis|@import/);                         // own page: no outside font or style (the CSP blocks them)
     await b.request('POST', '/oidc/session/end/confirm', { xsrf: xsrf!, logout: 'yes' });
     await new Promise((r) => setTimeout(r, 200));                             // the provider's event runs after its answer
     expect((await b.api('GET', '/api/me')).statusCode).toBe(401);

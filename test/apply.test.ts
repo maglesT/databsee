@@ -83,6 +83,8 @@ describe('PL-10 changes only through the config file, with change reference, tes
       'Referrer-Policy "strict-origin-when-cross-origin"', 'Permissions-Policy "camera=(), microphone=(), geolocation=()"', "frame-ancestors 'none'", "default-src 'self'"]) expect(text).toContain(h);
     expect(text.match(/import security_headers/g)).toHaveLength(2);   // core and hello
     expect(text).not.toMatch(/script-src[^"]*unsafe-eval/);
+    // core's sign-in form is answered by a redirect to the product's /cb: form-action must name core and the products
+    expect(text).toContain(`form-action 'self' https://${A.domain} https://*.${A.domain};`);
     expect(readFileSync(path.join(ROOT, 'docs/security-headers.md'), 'utf8')).toContain(SECURITY_HEADERS);
   });
 

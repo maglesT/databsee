@@ -1,6 +1,7 @@
 # Security headers for the proxy
 
-Every site (core and each product) sends the same headers. The platform's own Caddy gets them from the Caddyfile
+Every site (core and each product) sends the same headers. Put the customer's domain where the snippet says `<domain>`
+(core's own host, e.g. `core.example.com` gives `https://core.example.com https://*.core.example.com`). The platform's own Caddy gets them from the Caddyfile
 that `deploy/apply.ts` writes (the snippet below is imported by each site block). Where a **host proxy** serves the
 sites (`proxy: external`, the demo host), the host Caddyfile is kept by hand: put the snippet in it once and add
 `import security_headers` as the first line inside every site block, then `caddy validate` and `caddy reload`
@@ -16,9 +17,9 @@ sites (`proxy: external`, the demo host), the host Caddyfile is kept by hand: pu
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 	}
 	@page_policy not path /cb
-	header @page_policy Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+	header @page_policy Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://<domain> https://*.<domain>; frame-ancestors 'none'"
 	@esign_window path /cb
-	header @esign_window Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+	header @esign_window Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://<domain> https://*.<domain>; frame-ancestors 'none'"
 }
 ```
 
@@ -35,7 +36,9 @@ What each line is for
 - X-Content-Type-Options nosniff and X-Frame-Options DENY: no content sniffing, no clickjacking (CSP frame-ancestors says the same).
 - Referrer-Policy: other sites only see our origin. Permissions-Policy: camera, microphone and location are off.
 - Content-Security-Policy: scripts only from the site itself (the product pages are single-page apps with one script
-  file), styles may be inline, images may be data: and blob:, no frames, no plugins, no other sites.
+  file), styles may be inline, images may be data: and blob:, no frames, no plugins, no other sites. Forms may post
+  only to core and the products (`form-action`): core's sign-in answers with a redirect to the product's `/cb`, and the
+  browser checks `form-action` on every step of that redirect, so the core and product hosts must both be listed.
 
 Known exception: `/cb` (the e-signature window, which hands the signing proof to the dialog that opened it with one
 small inline script) may run inline scripts. The products that do this (TrueBatch, Logbook, Deviations, Qualification
