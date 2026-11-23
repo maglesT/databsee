@@ -1,5 +1,8 @@
 // Security round 1.26.32: timed lockout and admin unlock, sign-in rate limit, password rules, MFA, session lifetime, headers.
 import { randomBytes, scryptSync } from 'node:crypto';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../apps/core/server/app.js';
 import { base32, stepOf, totp } from '../apps/core/server/mfa.js';
@@ -295,5 +298,35 @@ describe('absolute session lifetime', () => {
     await su`update session set created_at = now() - interval '12 hours 1 minute' where employee_id = ${id}`;
     expect((await s.call('GET', '/api/me')).statusCode).toBe(401);
     await su.end();
+  });
+});
+
+describe('health and unknown paths', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'webroot-'));
+  mkdirSync(path.join(root, '.git'));
+  writeFileSync(path.join(root, 'index.html'), '<!doctype html><title>screens</title>');
+  writeFileSync(path.join(root, '.env'), 'SECRET=1');
+  writeFileSync(path.join(root, '.git', 'config'), '[core]');
+  writeFileSync(path.join(root, 'app.js'), 'console.log(1)');
+  writeFileSync(path.join(root, 'app.js.map'), '{}');
+
+  it('/api/health says only {ok:true} to the public and to ordinary people; the version only to an administrator', async () => {
+    process.env.MEDHANTA_VERSION = '9.9.9';
+    const open = await t.app.inject({ method: 'GET', url: '/api/health' });
+    expect([open.statusCode, open.json()]).toEqual([200, { ok: true }]);
+    await makeEmployee(`hlth${run}`);
+    expect((await (await signIn(t.app, `hlth${run}`)).call('GET', '/api/health')).json()).toEqual({ ok: true });
+    expect((await (await signIn(t.app, adminLogin)).call('GET', '/api/health')).json()).toEqual({ ok: true, version: '9.9.9' });
+  });
+
+  it('dotfiles, source maps and unknown paths are a plain 404, not the screens', async () => {
+    const app = buildApp({ ...t.deps, webRoot: root });
+    const get = async (url: string) => app.inject({ method: 'GET', url });
+    expect((await get('/')).statusCode).toBe(200);
+    expect((await get('/app.js')).statusCode).toBe(200);
+    for (const url of ['/.env', '/.git/config', '/app.js.map', '/nothing-here', '/metrics', '/wp-admin/']) {
+      const res = await get(url);
+      expect([url, res.statusCode, res.body.includes('screens')]).toEqual([url, 404, false]);
+    }
   });
 });

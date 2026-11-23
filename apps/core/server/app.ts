@@ -267,7 +267,9 @@ export function buildApp(deps: Deps) {
   const limiter = new FailureLimiter(deps.loginFailuresPerMinute ?? POLICY.loginFailuresPerMinute);
   const waitFor = (ip: string, reply: FastifyReply) => retryAfter(limiter, ip, reply);
   app.register(cookie);
-  if (deps.webRoot) app.register(fastifyStatic, { root: deps.webRoot });
+  // Only the built screens are served: no dotfiles (.env, .git/...) and no source maps; anything else unknown is a plain 404.
+  if (deps.webRoot) app.register(fastifyStatic, { root: deps.webRoot, dotfiles: 'ignore', allowedPath: (p) => !p.endsWith('.map') && !p.split('/').some((x) => x.startsWith('.')) });
+  app.setNotFoundHandler((_req, reply) => reply.code(404).type('text/plain; charset=utf-8').send('Not found'));
   const provider = deps.oidc ? buildProvider(sql, deps.oidc) : null;
   if (deps.oidc && provider) mountSignOn(app, deps, deps.oidc, provider, limiter, required);
 
@@ -316,6 +318,8 @@ export function buildApp(deps: Deps) {
       me = account ? await loadMe(sql, account, required) : undefined;
       if (me) await newSession(reply, me.id);
     }
+    // Health (container check, monitors): open to everyone; the version only to a signed-in administrator.
+    if (req.url === '/api/health') { req.me = me && !me.mustChange ? me : undefined; return; }
     // The first screen asks /api/session: signed out is an answer there (200, null), not an error in the browser console.
     if (!me && req.url === '/api/session') return;
     if (!me) throw new HttpError(401, 'Please sign in.');
@@ -367,6 +371,8 @@ export function buildApp(deps: Deps) {
     }
     return { ok: true };
   });
+
+  app.get('/api/health', async (req) => (req.me?.permissions.includes(PEOPLE) ? { ok: true, version: process.env.MEDHANTA_VERSION ?? 'unknown' } : { ok: true }));
 
   app.get('/api/me', async (req) => req.me);
   // The same person, or null when signed out (no 401 on the first load before sign-in).
