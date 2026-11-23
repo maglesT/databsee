@@ -2,8 +2,7 @@
 # go-live. All people, companies, makes and serial numbers are invented. Loaded by deploy/seed-demo.ts, which refuses
 # any customer but "demo". Described for the product sessions in docs/demo-company.md; codes here are stable.
 company: Demo Pharma Pvt Ltd, Unit 1 (fictional)
-# The one sign-on password of every demo person (stored only as a scrypt hash). Never used for a real customer.
-password: Demo-Tablets-2026
+# No password here (MED-03): the seed gives each new person a random password and prints it once to the operator.
 
 # login: name, department, email, permission codes (current codes from apps/*/manifest.json and core.*).
 # temporary: true = must change the password at first sign-on. deactivate: <reason> = a second version, inactive.

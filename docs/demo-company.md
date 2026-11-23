@@ -36,8 +36,10 @@ after the seed file gains a person, code or item adds just that.
   before the seed).
 - A permission code that is not in the catalogue (apply was not run, or a manifest changed).
 
-**Demo password** (every person): `Demo-Tablets-2026`. It is stored only as a scrypt hash, like any password. It is
-DEMO-ONLY and is never used for a real customer.
+**Demo passwords** (MED-03): none is kept in the repo. The seed gives each person it adds a random password and prints
+the list once to the operator, who hands them to the testers privately. Passwords are stored only as scrypt hashes.
+To give every demo person a new password (rotation, or a lost list), run the seed with `--new-passwords`:
+`tsx deploy/seed-demo.ts customers/demo.yaml --new-passwords`. It also unlocks them and logs a reset for each.
 
 ## Edge cases to test
 
