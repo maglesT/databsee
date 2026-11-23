@@ -12,9 +12,9 @@ const text = z.string().trim().max(200).optional();
 // Qualification): hold times in hours, frequencies in days (calibration, preventive maintenance) or hours (cleaning of a
 // frequency-based room), months (requalification). Whole numbers; empty means "not applicable". Due dates are never stored: products work them
 // out from the last time the activity was done and these values.
-const hours = z.number({ invalid_type_error: 'Hours must be a whole number.' }).int('Hours must be a whole number.').min(1).max(24 * 365).optional();
-const days = z.number({ invalid_type_error: 'Days must be a whole number.' }).int('Days must be a whole number.').min(1).max(3650).optional();
-const months = z.number({ invalid_type_error: 'Months must be a whole number.' }).int('Months must be a whole number.').min(1).max(240).optional();
+const hours = z.number({ error: 'Hours must be a whole number.' }).int('Hours must be a whole number.').min(1).max(24 * 365).optional();
+const days = z.number({ error: 'Days must be a whole number.' }).int('Days must be a whole number.').min(1).max(3650).optional();
+const months = z.number({ error: 'Months must be a whole number.' }).int('Months must be a whole number.').min(1).max(240).optional();
 // Owner 2026-11-16 (D-36): a room's grade is a pick list (EU GMP Annex 1 grades A to D, CNC = controlled not
 // classified); no grade means none. Products compare grades, so a typo ("b ") must not get in.
 export const GRADES = ['A', 'B', 'C', 'D', 'CNC'] as const;
@@ -31,7 +31,7 @@ export const FIELDS = {
     decontaminationValidDays: days, gloveTestEveryDays: days, sipValidDays: days }).strict(),
   instrument: z.object({ type: text, make: text, model: text, serial: text, needsCalibration: z.boolean().optional(), ...care }).strict(),
   // A room is operation-based (cleaned after use: dirty hold, clean hold) or frequency-based (cleaned every N hours).
-  room: z.object({ area: text, grade: z.enum(GRADES, { errorMap: () => ({ message: 'Grade must be A, B, C, D, CNC or empty.' }) }).optional(), cleaningBasis: z.enum(['operation', 'frequency']).optional(), cleaningFrequencyHours: hours,
+  room: z.object({ area: text, grade: z.enum(GRADES, { error: 'Grade must be A, B, C, D, CNC or empty.' }).optional(), cleaningBasis: z.enum(['operation', 'frequency']).optional(), cleaningFrequencyHours: hours,
     cleanHoldHours: hours, dirtyHoldHours: hours, pmFrequencyDays: days, requalificationFrequencyMonths: months }).strict()
     .refine((f) => f.cleaningBasis !== 'frequency' || f.cleaningFrequencyHours !== undefined, { message: 'A frequency-based room needs its cleaning frequency (hours).' })
     .refine((f) => f.cleaningFrequencyHours === undefined || f.cleaningBasis === 'frequency', { message: 'Only a frequency-based room has a cleaning frequency.' }),
@@ -43,11 +43,11 @@ export const FIELDS = {
   // D-125 (owner, 2026-11-20): master data owns the approved shelf life (whole months) and the expiry rule of the row it
   // is entered on (bulk or pack); TrueBatch packing reads them. Empty means not set.
   product: z.object({ strength: text, dosageForm: text,
-    antibiotic: z.boolean({ invalid_type_error: 'Antibiotic must be yes or no.' }).optional(),
-    shelfLifeMonths: z.number({ invalid_type_error: 'Shelf life must be a whole number of months.' }).int('Shelf life must be a whole number of months.')
+    antibiotic: z.boolean({ error: 'Antibiotic must be yes or no.' }).optional(),
+    shelfLifeMonths: z.number({ error: 'Shelf life must be a whole number of months.' }).int('Shelf life must be a whole number of months.')
       .min(1, 'Shelf life must be 1 to 120 months.').max(120, 'Shelf life must be 1 to 120 months.').optional(),
-    expiryRule: z.enum(EXPIRY_RULES, { errorMap: () => ({ message: 'Expiry rule must be month before, same month or empty.' }) }).optional(),
-    kind: z.enum(['bulk', 'pack'], { errorMap: () => ({ message: 'Product type must be bulk, pack or empty.' }) }).optional() }).strict(),
+    expiryRule: z.enum(EXPIRY_RULES, { error: 'Expiry rule must be month before, same month or empty.' }).optional(),
+    kind: z.enum(['bulk', 'pack'], { error: 'Product type must be bulk, pack or empty.' }).optional() }).strict(),
 };
 export type Kind = keyof typeof FIELDS;
 const kind = z.enum(Object.keys(FIELDS) as [Kind, ...Kind[]]);
@@ -73,7 +73,7 @@ export function registerMasterData(app: FastifyInstance, md: Sql, need: Need) {
 
   app.post('/api/items', async (req) => {
     const me = need(req, WRITE);
-    const b = z.object({ kind, code: z.string().trim(), name: z.string().trim().min(1, 'Name is required.'), fields: z.record(z.unknown()).default({}), reason }).parse(req.body);
+    const b = z.object({ kind, code: z.string().trim(), name: z.string().trim().min(1, 'Name is required.'), fields: z.record(z.string(), z.unknown()).default({}), reason }).parse(req.body);
     const fields = FIELDS[b.kind].parse(b.fields);
     return md.begin(async (tx) => {
       const [i] = await tx<{ id: string }[]>`insert into item (kind, code) values (${b.kind}, ${b.code}) returning id`;
@@ -86,7 +86,7 @@ export function registerMasterData(app: FastifyInstance, md: Sql, need: Need) {
   app.patch('/api/items/:id', async (req) => {
     const me = need(req, WRITE);
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
-    const b = z.object({ name: z.string().trim().min(1).optional(), fields: z.record(z.unknown()).optional(), active: z.boolean().optional(), reason }).parse(req.body);
+    const b = z.object({ name: z.string().trim().min(1).optional(), fields: z.record(z.string(), z.unknown()).optional(), active: z.boolean().optional(), reason }).parse(req.body);
     await md.begin(async (tx) => {
       const [cur] = await tx<{ kind: Kind; name: string; fields: object; active: boolean; version: number }[]>`
         select kind, name, fields, active, version from item_current where id = ${id}`;
