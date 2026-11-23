@@ -123,6 +123,16 @@ export async function signOnCheck(deps: Deps, login: string, password: string, p
       await tx`update credential set failed_count = 0, locked_at = null where employee_id = ${row.id}`;
       row.failed = 0;
     }
+    // MED-05: only failures within the last POLICY.lockoutMinutes count (after the last good sign-in, reset or unlock),
+    // so wrong passwords spread over days never add up to a lock.
+    if (!row.locked && row.failed > 0) {
+      const [w] = await tx<{ n: number }[]>`select count(*)::int as n from credential_event
+        where employee_id = ${row.id} and kind = 'signon_failed' and reason is null
+          and at > now() - make_interval(mins => ${POLICY.lockoutMinutes})
+          and at > coalesce((select max(at) from credential_event where employee_id = ${row.id}
+            and kind in ('signon_ok', 'reset', 'changed', 'unlocked')), '-infinity')`;
+      row.failed = Math.min(row.failed, w!.n);
+    }
     const fail = async (): Promise<null> => {
       await tx`insert into credential_event (employee_id, login, kind, product) values (${row.id}, ${login}, 'signon_failed', ${product})`;
       if (row.active && !row.locked) {
@@ -177,6 +187,9 @@ export async function signOnCheck(deps: Deps, login: string, password: string, p
 function retryAfter(limiter: FailureLimiter, ip: string, reply: FastifyReply): number {
   const s = limiter.blockedFor(ip);
   if (s) reply.header('retry-after', String(s));
+  // MED-05: the attempt counts as in flight until its answer is sent, so parallel requests cannot pass the limit
+  // while their password hashes are still running.
+  else reply.raw.once('close', limiter.begin(ip));
   return s;
 }
 

@@ -17,5 +17,5 @@
   ],
   "publishes": ["cpv_signal_v1", "cpv_summary_v1", "running_batch_v1"],
   "reads": { "master_data": ["equipment_v1", "product_v1", "material_v1"], "logbook": ["equipment_v1", "entry_v1", "reliability_v1"], "truebatch": ["batch_fact_v1", "equipment_use_v1", "reading_v1"], "truebatch_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1", "reading_v1"], "truebatch_injectables_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_capsules": ["batch_fact_v1", "equipment_use_v1", "reading_v1"], "truebatch_capsules_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_liquids": ["batch_fact_v1", "equipment_use_v1", "reading_v1"], "truebatch_liquids_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_api": ["batch_fact_v1", "equipment_use_v1", "reading_v1"], "lims": ["trend_v1"] },
-  "source": { "repo": "https://github.com/maglesT/operations", "commit": "4c223fd3f1556531e75555db18e0c94f871dcf50" }
+  "source": { "repo": "https://github.com/maglesT/operations", "commit": "e9fbe87e22ffe880942b029770eb021013d64aa5" }
 }
