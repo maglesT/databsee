@@ -1,0 +1,65 @@
+# Files to attach to Claude Design (in this order)
+
+1. `claude-design-prompt.md`
+2. `demo-script.md`
+3. Brand (`brand/`): **`medhanta-rise-logo.png` (THE product logo for Medhanta RISE)**, `medhanta-rise-mark.svg`, `medhanta-rise-180.png`, then `medhanta-logo.png` (only for the small "by Medhanta" line), `medhanta-mark.png`, `favicon.png`, `brand.md`
+4. Screens, in order (58 files, folder `screens/`):
+   1. `screens/01-signin.png`
+   2. `screens/02-site-after.png`
+   3. `screens/03-links-before.png`
+   4. `screens/04-links-after.png`
+   5. `screens/05-links-runs.png`
+   6. `screens/06-equipment-list.png`
+   7. `screens/07-settings-rates.png`
+   8. `screens/08-hours-before.png`
+   9. `screens/09-hours-after.png`
+   10. `screens/10-range-before.png`
+   11. `screens/11-range-after.png`
+   12. `screens/12-stop-breakdown-before.png`
+   13. `screens/13-run-before.png`
+   14. `screens/14-run-after.png`
+   15. `screens/15-values-before.png`
+   16. `screens/16-values-after.png`
+   17. `screens/17-csv-check.png`
+   18. `screens/18-csv-imported.png`
+   19. `screens/19-correct-before.png`
+   20. `screens/20-correct-after.png`
+   21. `screens/21-overview-today.png`
+   22. `screens/22-overview-today-machines.png`
+   23. `screens/23-overview-30.png`
+   24. `screens/24-overview-90-week.png`
+   25. `screens/25-losses-30.png`
+   26. `screens/26-losses-drill.png`
+   27. `screens/27-params-table.png`
+   28. `screens/28-params-chart.png`
+   29. `screens/29-params-flags.png`
+   30. `screens/30-best-batches.png`
+   31. `screens/31-ss-train-before.png`
+   32. `screens/32-ss-train-after.png`
+   33. `screens/33-golden-after.png`
+   34. `screens/34-golden-flagged.png`
+   35. `screens/35-golden-exclude-before.png`
+   36. `screens/36-golden-exclude-after.png`
+   37. `screens/37-pls-whatif.png`
+   38. `screens/38-pls-outside.png`
+   39. `screens/39-forecast-after.png`
+   40. `screens/40-risk-after.png`
+   41. `screens/41-cpv-plan-before.png`
+   42. `screens/42-cpv-add-after.png`
+   43. `screens/43-cpv-add-reading.png`
+   44. `screens/44-cpv-items.png`
+   45. `screens/45-cpv-chart.png`
+   46. `screens/46-cpv-summary.png`
+   47. `screens/47-cpv-overview.png`
+   48. `screens/48-cpv-overview-pdf.png`
+   49. `screens/49-cpv-dive-before.png`
+   50. `screens/50-cpv-dive-after.png`
+   51. `screens/51-cpv-sign-before.png`
+   52. `screens/52-cpv-sign-after.png`
+   53. `screens/53-cpv-report-pdf.png`
+   54. `screens/54-cpv-running-cfx.png`
+   55. `screens/55-model-register.png`
+   56. `screens/56-audit-cpv.png`
+   57. `screens/57-manager-enter-readonly.png`
+   58. `screens/58-export-pdf.png`
+5. `feature-list.md`

@@ -1,0 +1,58 @@
+# Files to attach to Claude Design (in this order)
+
+1. `claude-design-prompt.md`
+2. `demo-script.md`
+3. Brand (folder `brand/`): `brand/medhanta-assure-logo.png` (THE product logo: intro, chapter title cards, end card), `brand/medhanta-assure-apple-touch-icon.png` (shield emblem only: corner watermark and caption tag), `brand/medhanta-logo.png` (maker's logo: only the small "by Medhanta" line), `brand/medhanta-mark.png`, `brand/favicon.png`, `brand/brand.md`. Also in the folder, not needed for upload: `medhanta-assure-logo.svg`, `medhanta-assure-logo-white.svg`, `medhanta-assure-mark.svg`, `medhanta-assure-favicon.svg`, `medhanta-assure-favicon-32.png`.
+4. Screens, in order (51 files, folder `screens/`):
+   1. `screens/01-sign-in.png`
+   2. `screens/02-home-qa.png`
+   3. `screens/03-doc-draft.png`
+   4. `screens/04-doc-sign-prepared.png`
+   5. `screens/05-doc-review.png`
+   6. `screens/06-doc-approve-before.png`
+   7. `screens/07-doc-approve-after.png`
+   8. `screens/08-doc-copy-before.png`
+   9. `screens/09-doc-copy-after.png`
+   10. `screens/10-documents-current.png`
+   11. `screens/11-doc-superseded.png`
+   12. `screens/12-complaint-new.png`
+   13. `screens/13-complaint-sent.png`
+   14. `screens/14-complaint-assess-before.png`
+   15. `screens/15-complaint-assess-after.png`
+   16. `screens/16-complaint-dive-link.png`
+   17. `screens/17-capa-plan.png`
+   18. `screens/18-capa-root-cause.png`
+   19. `screens/19-capa-approve-before.png`
+   20. `screens/20-capa-approve-after.png`
+   21. `screens/21-capas-dive.png`
+   22. `screens/22-capa-from-dive.png`
+   23. `screens/23-risk-fmea.png`
+   24. `screens/24-risk-residual.png`
+   25. `screens/25-risk-register.png`
+   26. `screens/26-change-new.png`
+   27. `screens/27-change-impact.png`
+   28. `screens/28-change-qa-before.png`
+   29. `screens/29-change-qa-after.png`
+   30. `screens/30-change-correct.png`
+   31. `screens/31-change-correction-waiting.png`
+   32. `screens/32-change-correction-approved.png`
+   33. `screens/33-changes-list.png`
+   34. `screens/34-recall-initiate.png`
+   35. `screens/35-recall-progress.png`
+   36. `screens/36-recall-closed.png`
+   37. `screens/37-recalls-list.png`
+   38. `screens/38-audit-report.png`
+   39. `screens/39-audit-correction.png`
+   40. `screens/40-supplier-approve-before.png`
+   41. `screens/41-suppliers-approved-list.png`
+   42. `screens/42-pqr-fill-before.png`
+   43. `screens/43-pqr-fill-after.png`
+   44. `screens/44-pqr-fill-ipc.png`
+   45. `screens/45-pqr-ap-reviewed.png`
+   46. `screens/46-pqr-list.png`
+   47. `screens/47-mgmt-review.png`
+   48. `screens/48-record-pdf.png`
+   49. `screens/49-controlled-copy-pdf.png`
+   50. `screens/50-audit-trail.png`
+   51. `screens/51-audit-trail-correction.png`
+5. `feature-list.md`

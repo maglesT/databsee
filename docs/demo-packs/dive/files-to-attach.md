@@ -1,0 +1,60 @@
+# Files to attach to Claude Design (in this order)
+
+1. `claude-design-prompt.md`
+2. `demo-script.md`
+3. Brand (folder `brand/`): `brand/medhanta-dive-logo.png` (THE product logo: intro, title cards, end card), `brand/medhanta-dive-180.png` (emblem only: corner watermark), `brand/medhanta-logo.png` (maker's logo: small "by Medhanta" line), `brand/medhanta-mark.png`, `brand/favicon.png`, `brand/brand.md`. Also in the folder, not needed for upload: `medhanta-dive-logo.svg`, `medhanta-dive-mark.svg`, `medhanta-dive-favicon.svg`, `medhanta-dive-32.png`.
+4. Screens, in order (53 files, folder `screens/`):
+   1. `screens/01-sign-in.png`
+   2. `screens/02-admin-settings.png`
+   3. `screens/03-home-operator.png`
+   4. `screens/04-batch-pick-before.png`
+   5. `screens/05-batch-picked.png`
+   6. `screens/06-report-form-impact.png`
+   7. `screens/07-report-saved.png`
+   8. `screens/08-qa-home-waiting.png`
+   9. `screens/09-classify-form.png`
+   10. `screens/10-classified.png`
+   11. `screens/11-not-a-deviation-sign.png`
+   12. `screens/12-not-a-deviation-done.png`
+   13. `screens/13-planned-approve-sign.png`
+   14. `screens/14-planned-approved.png`
+   15. `screens/15-qlims-oos-picked.png`
+   16. `screens/16-investigator-home.png`
+   17. `screens/17-things-to-look-at.png`
+   18. `screens/18-data-fetch-before.png`
+   19. `screens/19-data-fetch-after.png`
+   20. `screens/20-lead-findings.png`
+   21. `screens/21-attachment.png`
+   22. `screens/22-is-is-not.png`
+   23. `screens/23-six-m.png`
+   24. `screens/24-five-whys.png`
+   25. `screens/25-barriers-fmea.png`
+   26. `screens/26-root-cause-batches.png`
+   27. `screens/27-investigation-sign.png`
+   28. `screens/28-fishbone-signed.png`
+   29. `screens/29-dmaic-progress.png`
+   30. `screens/30-capa-raise-form.png`
+   31. `screens/31-capas-raised.png`
+   32. `screens/32-capa-done-before.png`
+   33. `screens/33-capa-done-after.png`
+   34. `screens/34-capa-verify.png`
+   35. `screens/35-capa-check-due.png`
+   36. `screens/36-effectiveness-before.png`
+   37. `screens/37-capa-closed.png`
+   38. `screens/38-closure-form.png`
+   39. `screens/39-closure-sign.png`
+   40. `screens/40-closed.png`
+   41. `screens/41-closed-control.png`
+   42. `screens/42-home-overdue.png`
+   43. `screens/43-capa-register.png`
+   44. `screens/44-batch-check.png`
+   45. `screens/45-trends-chart.png`
+   46. `screens/46-trends-pareto.png`
+   47. `screens/47-rise-cpv-filed.png`
+   48. `screens/48-correction-before.png`
+   49. `screens/49-correction-after.png`
+   50. `screens/50-deviation-history.png`
+   51. `screens/51-audit-trail.png`
+   52. `screens/52-pdf-copies.png`
+   53. `screens/53-pdf-signatures-history.png`
+5. `feature-list.md`

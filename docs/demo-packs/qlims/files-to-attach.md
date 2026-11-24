@@ -1,0 +1,59 @@
+# Files to attach to Claude Design (in this order)
+
+1. `claude-design-prompt.md`
+2. `demo-script.md`
+3. Brand (folder `brand/`): `brand/medhanta-qlims-logo.png` (THE product logo: intro, title cards, end card), `brand/medhanta-qlims-apple-touch-icon.png` (emblem only: corner watermark), `brand/medhanta-logo.png` (maker's logo: small "by Medhanta" line), `brand/medhanta-mark.png`, `brand/favicon.png`, `brand/brand.md`. Also in the folder, not needed for upload: `medhanta-qlims-logo.svg`, `medhanta-qlims-logo-white.svg` (for dark backgrounds), `medhanta-qlims-mark.svg`, `medhanta-qlims-favicon.svg`, `medhanta-qlims-favicon-32.png`.
+4. Screens, in order (52 files, folder `screens/`):
+   1. `screens/01-sign-in.png`
+   2. `screens/02-methods.png`
+   3. `screens/03-spec-review.png`
+   4. `screens/04-spec-approve-sign.png`
+   5. `screens/05-spec-effective.png`
+   6. `screens/06-samples-waiting.png`
+   7. `screens/07-register-api-lot.png`
+   8. `screens/08-sample-registered.png`
+   9. `screens/09-chain-of-custody.png`
+   10. `screens/10-sample-tb260010.png`
+   11. `screens/11-start-analysis.png`
+   12. `screens/12-analysis-screen.png`
+   13. `screens/13-balance-picker.png`
+   14. `screens/14-balance-weighed.png`
+   15. `screens/15-checker-my-work.png`
+   16. `screens/16-step-checked.png`
+   17. `screens/17-hplc-refused.png`
+   18. `screens/18-assay-result.png`
+   19. `screens/19-sign-training.png`
+   20. `screens/20-same-test-blocked.png`
+   21. `screens/21-to-review.png`
+   22. `screens/22-review-audit-trail.png`
+   23. `screens/23-sign-reviewed.png`
+   24. `screens/24-qc-decision-before.png`
+   25. `screens/25-qc-approved.png`
+   26. `screens/26-coa-pdf.png`
+   27. `screens/27-oos-result.png`
+   28. `screens/28-oos-list.png`
+   29. `screens/29-oos-phase1a.png`
+   30. `screens/30-oos-phase2-dive.png`
+   31. `screens/31-oos-confirm-sign.png`
+   32. `screens/32-oos-confirmed.png`
+   33. `screens/33-sample-rejected.png`
+   34. `screens/34-inventory.png`
+   35. `screens/35-column-usage.png`
+   36. `screens/36-em-plan.png`
+   37. `screens/37-em-due-today.png`
+   38. `screens/38-em-taken.png`
+   39. `screens/39-em-resample-reason.png`
+   40. `screens/40-em-excursion-dive.png`
+   41. `screens/41-em-excursion.png`
+   42. `screens/42-em-map.png`
+   43. `screens/43-stability-protocol.png`
+   44. `screens/44-stability-new-study.png`
+   45. `screens/45-stability-study.png`
+   46. `screens/46-trends-chart.png`
+   47. `screens/47-apqr-summary.png`
+   48. `screens/48-workload.png`
+   49. `screens/49-correction-before.png`
+   50. `screens/50-correction-after.png`
+   51. `screens/51-analysis-record-pdf.png`
+   52. `screens/52-analysis-record-signatures.png`
+5. `feature-list.md`

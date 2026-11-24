@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="32" height="32" role="img" aria-label="TrueBatch Tablets"><defs>
+<linearGradient id="rtablets" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d4140c"/><stop offset="1" stop-color="#f4511e"/></linearGradient>
+<linearGradient id="otablets" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#f4511e"/><stop offset="1" stop-color="#f9a12a"/></linearGradient>
+<linearGradient id="gtablets" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dd1a10"/><stop offset=".55" stop-color="#f4511e"/><stop offset="1" stop-color="#f7941d"/></linearGradient>
+<linearGradient id="wtablets" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+    <circle cx="80" cy="36" r="24" fill="url(#otablets)" opacity=".9"/><line x1="64" y1="52" x2="96" y2="20" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".85"/>
+    <circle cx="50" cy="70" r="40" fill="url(#rtablets)"/>
+    <path d="M50 30 a40 40 0 0 1 0 80z" fill="url(#otablets)"/>
+    <path d="M22 50 a34 34 0 0 1 56 -8" stroke="url(#wtablets)" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <rect x="47" y="34" width="6" height="72" rx="3" fill="#fff"/>
+    </svg>

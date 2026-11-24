@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="32" height="32" role="img" aria-label="Medhanta DIVE"><defs>
+<linearGradient id="rdive" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d4140c"/><stop offset="1" stop-color="#f4511e"/></linearGradient>
+<linearGradient id="odive" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#f4511e"/><stop offset="1" stop-color="#f9a12a"/></linearGradient>
+<linearGradient id="gdive" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dd1a10"/><stop offset=".55" stop-color="#f4511e"/><stop offset="1" stop-color="#f7941d"/></linearGradient>
+<linearGradient id="wdive" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>
+    <line x1="80" y1="82" x2="108" y2="110" stroke="url(#rdive)" stroke-width="15" stroke-linecap="round"/><circle cx="52" cy="54" r="40" fill="url(#odive)" opacity=".18"/>
+    <circle cx="52" cy="54" r="38" fill="none" stroke="url(#gdive)" stroke-width="11"/>
+    <g stroke="#d4140c" stroke-width="3.5" stroke-linecap="round" fill="none"><path d="M52 34 v16 M52 50 l-14 14 M52 50 l14 14 M52 50 v18"/></g>
+    <g fill="#d4140c"><circle cx="52" cy="34" r="5"/><circle cx="38" cy="66" r="4.4" fill="#f4511e"/><circle cx="52" cy="70" r="4.4" fill="#f7941d"/><circle cx="66" cy="66" r="4.4" fill="#f4511e"/></g></svg>
