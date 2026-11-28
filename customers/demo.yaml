@@ -9,7 +9,7 @@ backup:
   path: medhanta-backups/demo-rehearsal # separate Drive folder, deleted with the demo
   allow_unencrypted: true # demo only, until the rclone crypt remote is set (D-145)
 change_ref: MED-GOLIVE-001
-reason: "Demo on v1.26.34: fix round 1128 (LEAD own-draft approval check, TrueBatch targets and names, DIVE/ASSURE/QLIMS/RISE display fixes)"
+reason: "Demo on v1.26.34: fix round 1128 (LEAD own-draft approval check, TrueBatch targets and names, DIVE/ASSURE/QLIMS/RISE display fixes; re-run after the GitHub billing stop)"
 proxy: external # the host's Caddy owns 80/443 (README "Behind the host's proxy")
 db_port: 5440 # 127.0.0.1:5432 was taken by another PostgreSQL on this server when it was set up (D-18)
 licences:
