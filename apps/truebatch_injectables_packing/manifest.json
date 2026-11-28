@@ -13,11 +13,11 @@
     {"code": "truebatch_injectables_packing.qa.release", "label": "QA review and release of packed batches"},
     {"code": "truebatch_injectables_packing.view", "label": "View packing records and packing master versions"},
     {"code": "truebatch_injectables_packing.demo.skip", "label": "Skip a running wait (demo installations only)"},
-    {"code": "truebatch_injectables_packing.exception.decide", "label": "Decide a deviation note without a number: close it here (reason and e-signature) or send it to Deviations"}
+    {"code": "truebatch_injectables_packing.exception.decide", "label": "Decide a deviation note without a number: close it here (reason and e-signature) or send it to DIVE"}
   ],
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["packing_batch_v1", "equipment_use_v1", "material_use_v1", "deviation_note_v1", "lab_request_v1"],
   "reads": { "recruitment": ["training_v1"], "master_data": ["equipment_v1", "instrument_v1", "room_v1", "material_v1", "product_v1"], "truebatch_injectables": ["batch_fact_v1"], "mms": ["lot_v1", "lot_test_v1"], "logbook": ["equipment_status_v1"], "deviations": ["deviation_v1"], "qms": ["change_v1"], "lims": ["coa_v1", "result_v1"] },
-  "source": { "repo": "https://github.com/maglesT/truebatch-injectabless", "commit": "8a4fc06d0f7d7d57cc0ee0c34d64060fef6c64b0", "dockerfile": "ops/packing.Dockerfile" },
+  "source": { "repo": "https://github.com/maglesT/truebatch-injectabless", "commit": "4b8117ac5117c608a1a555abb58c437c4e422204", "dockerfile": "ops/packing.Dockerfile" },
   "migrate": { "command": ["node", "dist/packing/migrate.js"] }
 }

@@ -21,7 +21,7 @@
     {"code": "logbook.site.manage", "label": "Edit the site record, item settings and equipment details"},
     {"code": "logbook.voice_note.record", "label": "Record voice notes"},
     {"code": "logbook.advice.ask", "label": "Ask for breakdown suggestions"},
-    {"code": "logbook.exception.decide", "label": "Decide a missed limit: close it in the Logbook (reason and e-signature) or send it to Deviations"},
+    {"code": "logbook.exception.decide", "label": "Decide a missed limit: close it in LEAD (reason and e-signature) or send it to DIVE"},
     {"code": "logbook.equipment.move", "label": "Move equipment or an instrument to another room (reason and e-signature)"},
     {"code": "logbook.equipment.reserve", "label": "Reserve equipment for a batch or dates, and cancel a reservation"},
     {"code": "logbook.workorder.raise", "label": "Raise and assign engineering work orders"},
@@ -31,5 +31,5 @@
   "signon": { "backchannel_logout": "/backchannel-logout" },
   "publishes": ["equipment_v1", "entry_v1", "calibration_v1", "logbook_sop_v1", "overdue_v1", "equipment_status_v1", "reliability_v1"],
   "reads": { "master_data": ["equipment_v1", "instrument_v1", "room_v1", "product_v1"], "qual": ["qualification_v1", "protocol_v1"], "deviations": ["deviation_v1"], "truebatch": ["batch_fact_v1", "equipment_use_v1"], "truebatch_packing": ["equipment_use_v1", "packing_batch_v1"], "truebatch_injectables": ["batch_fact_v1", "equipment_use_v1", "steriliser_cycle_v1"], "truebatch_injectables_packing": ["equipment_use_v1", "packing_batch_v1"], "recruitment": ["training_v1"], "truebatch_capsules": ["batch_fact_v1", "equipment_use_v1"], "truebatch_capsules_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_liquids": ["batch_fact_v1", "equipment_use_v1"], "truebatch_liquids_packing": ["packing_batch_v1", "equipment_use_v1"], "truebatch_api": ["batch_fact_v1", "equipment_use_v1"], "lims": ["instrument_use_v1"], "qms": ["document_v1"] },
-  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "ec838e11266b7c4eee8faf249c6401d59c91084c" }
+  "source": { "repo": "https://github.com/maglesT/maglesT-pharma-logbook", "commit": "ce4aad7836f74c19f1b8d5558128aea3c18cde4e" }
 }
